@@ -7,8 +7,12 @@
 //                                 place and how many names the table has.
 //   GET  /scores?mission=6.3      {mission, goal: [{name, ms}], bonus: [...]}, the best 10 of
 //                                 each (&limit=, up to 50)
-//   GET  /scores/overall          [{name, goals, bonuses, ms}]: missions with the goal reached,
-//                                 with the bonus, and the best goal times added up; the best 50
+//   GET  /scores/overall          [{name, goals, bonuses, ms}]: campaign missions with the goal
+//                                 reached, with the bonus, and the best goal times added up; the
+//                                 best 50
+//
+// A generated mission (src/online/random.js) is "R-" and its code, such as R-6DK2Q9: it has
+// tables of its own, and is not counted in the overall table.
 //
 // and the tables' owner, with the ADMIN_KEY secret (Authorization: Bearer ...):
 //
@@ -19,7 +23,8 @@ import { json, sha256Hex, clientIp, cleanName, decentName } from './http.js';
 import { censor } from '../../src/online/profanity.js';
 import { discord, plain, clock } from './discord.js';
 
-const MISSION = /^[1-7]\.([1-9]|1[0-2])$/;
+// a campaign mission, "<world>.<mission>", or a generated one, "R-" and its code (src/online/random.js)
+const MISSION = /^([1-7]\.([1-9]|1[0-2])|R-[1-7][A-L][0-9A-HJKMNP-TV-Z]{4})$/;
 const KINDS = new Set(['goal', 'bonus']);
 // No mission is won in under three seconds: the first unit has to move.  (Each mission's own
 // least, from the shortest route there, is for later.)
@@ -42,7 +47,8 @@ async function table(env, mission, kind, limit) {
 async function overall(env, limit) {
   const { results } = await env.DB.prepare(
     `WITH best AS (
-       SELECT lower(name) AS who, mission, kind, MIN(ms) AS ms FROM results GROUP BY lower(name), mission, kind),
+       SELECT lower(name) AS who, mission, kind, MIN(ms) AS ms FROM results WHERE mission NOT LIKE 'R-%'
+       GROUP BY lower(name), mission, kind),
      names AS (
        SELECT lower(name) AS who, name, ROW_NUMBER() OVER (PARTITION BY lower(name) ORDER BY created DESC) AS r FROM results)
      SELECT n.name AS name,

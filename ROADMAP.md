@@ -175,24 +175,38 @@ opens once the goal is reached.
 
 ## 5. A level randomizer
 
-Generated missions in the game's own map format, loaded as a text member like any
-other, so the engine needs no change to play them.
+*Done, as remixes; a solver that plays them is to do.* Generated missions are in the game's
+own map format and are played in their template's place (the text member
+`map<world>.<mission>` and the mission's name are swapped while one is played and put back
+when it is left), so the engine needs no change to play them (`src/online/random.js`,
+`src/online/missions.js`).
 
-- **Terrain**: islands of `.` and `_` from noise, with `w`/`x`/`r` water around them, `M`
-  mountains, `T` (and World Builder 2's `!'?`) trees, `#` swamp and `@` holes, `^`
-  volcanoes in the prehistoric style, streets in World Builder 2's; a theme sets the
-  mix and the sky.
-- **A goal that can be reached**: the generator picks the unit or building the goal
-  wants, then works backwards with `config`: the recipe's bricks as piles (or as
-  trees and boulders for a factory), the plan for it on the map or in the inventory,
-  wheels and energy, and a start unit that can reach them over the terrain (the
-  pathfinder's own terrain lists decide). A bonus goal asks for one more step.
-- **Monsters** from the theme's list, placed away from the start, with defenders or a
-  guard tower made possible when there are.
-- **Checked by playing**: a solver drives the generated mission in the test-mode runtime
-  (pick up, build, drive to the goal) and the map is kept only if it wins.
-- **Seeds**: a mission is its seed and its settings, in the URL (`?random=W7K2-Q9`), so a
-  generated mission can be shared, and scored like the others.
+- **What is made**: one of the game's missions remixed. Its items (units, piles, plans,
+  goals, monsters) and the plans it starts with stay the designers', and so does the ground
+  touching each cluster of items, where a mission's puzzle usually is: a pile on an
+  island, a goal in water to fill, a boulder to push. The ground between the clusters is
+  new, in the template's proportions of land, water and holes (holes towards the edges,
+  land and water by smoothed noise), and a dense template gets a slightly larger map.
+  The clusters with the player's units go down first, the monsters' far from them.
+- **Reachable**: every cluster is joined to the others, by land for what stands on land and
+  by water for what floats, digging the cheapest way through what is between (never
+  through an item). "Land" is the ground every unit the player starts with can cross:
+  normal ground, and rocky ground when they all can (or when the template is built on it).
+  Then the template's trees, mountains, rocks and swamps are scattered where they cut
+  nothing off. World Three's second mission, whose plan is walled in by floating bricks to
+  tow away, is not used as a template; nor is the tutorial.
+- **Checked**: `tools/verify/random.mjs` generates 40 codes from each template and checks
+  each map keeps its template's items, has a goal and has its clusters joined: about 97% of
+  codes make a mission (four dense templates fail more often; a code that makes nothing is
+  refused, and the "New code" button only offers codes that work).
+  `tools/verify/soak.py merged --random N` plays generated missions with random input.
+  Nothing yet checks that a mission is winnable by playing it; that is the solver's job,
+  still to do (pick up, build, drive to the goal in the test-mode runtime).
+- **Codes**: a mission is its code, its world and mission (the template) and a seed, like
+  `6D-K2Q9`. The settings make, type, play and copy a link to one; `?random=6D-K2Q9` plays
+  it from the first world map reached.
+- **Scores**: a generated mission is timed like the others, under `R-` and its code, on a
+  table of its own; it does not count on the overall table, nor as the template played.
 
 ## 6. Multiplayer
 
@@ -226,7 +240,7 @@ Each step builds on the ones before it.
 2. **The window and the interface** (2), with the settings page (7). *Done.*
 3. **Touch** (3), which needs the anchored interface of step 2. *Mostly done.*
 4. **Scores** (4), with the server. *Done, not deployed.*
-5. **The randomizer** (5), which scores can rank once it is in.
+5. **The randomizer** (5), which scores can rank once it is in. *Done, as remixes.*
 6. **Races** (6.1), on the scores server's rooms; then **co-op** (6.2).
 7. **The offline client and smooth drawing** (7).
 

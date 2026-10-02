@@ -5,6 +5,7 @@
 import { UI_SCALES, loadSettings, saveSettings } from './settings.js';
 import { isClean } from './profanity.js';
 import { WORLD_NAMES, clock } from './scores.js';
+import { parseCode, showCode } from './random.js';
 
 const SIZES = [
   ['small', 'Small'],
@@ -62,6 +63,7 @@ export class OnlineUI {
     this.canvas = canvas;
     this.settings = loadSettings();
     this.scores = null;     // set by main.js (src/online/scores.js)
+    this.random = null;     // and the generated missions (src/online/missions.js)
     this.asked = 0;         // the tables last asked for (an older answer is dropped)
     // ?ui=1.5 (any factor) overrides the setting for the visit, for testing sizes
     const forced = parseFloat(new URLSearchParams(location.search).get('ui'));
@@ -96,6 +98,11 @@ export class OnlineUI {
       this.settings.name = n;
       this.save();
     });
+    this.randomWorld = el('select', { 'aria-label': 'Made from the missions of' },
+      el('option', { value: '', text: 'Any world' }),
+      ...WORLD_NAMES.map((n, i) => el('option', { value: String(i + 1), text: n })));
+    this.codeInput = el('input', { type: 'text', maxlength: '8', spellcheck: 'false', autocapitalize: 'characters', 'aria-label': 'Mission code', placeholder: 'Code' });
+    this.randomNote = el('p', { class: 'note', 'aria-live': 'polite' });
     const fullRow = document.fullscreenEnabled
       ? el('section', null, el('h3', { text: 'Screen' }), el('div', { class: 'choices' }, this.fullButton))
       : null;
@@ -110,9 +117,26 @@ export class OnlineUI {
         el('p', { text: 'Each mission is timed to its goal and to its bonus goal. Your best times are kept in this browser; these say whether they go on the tables everyone sees.' }),
         el('div', { class: 'choices' }, ...this.sendButtons),
         el('div', { class: 'choices name' }, this.nameInput,
-          el('button', { type: 'button', class: 'choice', text: 'See the tables', onclick: () => this.openTables() }))));
+          el('button', { type: 'button', class: 'choice', text: 'See the tables', onclick: () => this.openTables() }))),
+      el('section', null,
+        el('h3', { text: 'Random missions' }),
+        el('p', { text: "A mission made from one of the game's own: its units, bricks, plans and goals are the designers', the ground between them is new. The same code makes the same mission, so a code can be shared." }),
+        el('div', { class: 'choices pick' }, this.randomWorld, this.codeInput),
+        el('div', { class: 'choices' },
+          el('button', { type: 'button', class: 'choice', text: 'New code', onclick: () => this.newCode() }),
+          el('button', { type: 'button', class: 'choice', text: 'Play', onclick: () => this.playCode() }),
+          el('button', { type: 'button', class: 'choice', text: 'Copy link', onclick: () => this.copyLink() })),
+        this.randomNote));
     this.buildTables();
     document.addEventListener('fullscreenchange', () => this.render());
+    // Escape closes an open panel wherever the focus is (ahead of the game's own keys)
+    window.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || (this.panel.hidden && this.tables.hidden)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (!this.tables.hidden) this.closeTables();
+      else this.close();
+    }, true);
     document.body.append(this.gear, this.panel, this.tables);
     this.render();
   }
@@ -120,6 +144,8 @@ export class OnlineUI {
     this.worldSelect = el('select', { 'aria-label': 'World' },
       ...WORLD_NAMES.map((n, i) => el('option', { value: String(i + 1), text: n })),
       el('option', { value: 'all', text: 'All missions' }));
+    this.randomOption = el('option', { value: '', text: '', hidden: '' });
+    this.worldSelect.append(this.randomOption);
     this.missionSelect = el('select', { 'aria-label': 'Mission' });
     this.worldSelect.addEventListener('change', () => { this.fillMissions(); this.showTable(); });
     this.missionSelect.addEventListener('change', () => this.showTable());
@@ -130,8 +156,8 @@ export class OnlineUI {
   }
   fillMissions(selected) {
     const w = this.worldSelect.value;
-    this.missionSelect.hidden = w === 'all';
-    if (w === 'all') return;
+    this.missionSelect.hidden = w === 'all' || w.startsWith('R-');
+    if (this.missionSelect.hidden) return;
     this.missionSelect.replaceChildren(...Array.from({ length: 12 }, (_, i) => {
       const mission = w + '.' + (i + 1);
       const name = this.scores ? this.scores.missionName(mission) : 'Mission ' + (i + 1);
@@ -159,7 +185,7 @@ export class OnlineUI {
           : el('p', { text: 'No one is on the tables yet.' }));
         return;
       }
-      const mission = this.missionSelect.value;
+      const mission = w.startsWith('R-') ? w : this.missionSelect.value;
       const t = await scores.table(mission);
       if (ask !== this.asked) return;
       const mine = scores.bests[mission] || {};
@@ -176,7 +202,15 @@ export class OnlineUI {
     this.panel.hidden = true;
     const m = mission || (this.scores && this.scores.attempt && this.scores.attempt.mission) || '1.1';
     const w = m.split('.')[0];
-    this.worldSelect.value = WORLD_NAMES[w - 1] ? w : '1';
+    if (m.startsWith('R-')) {
+      // a generated mission's tables: an entry of its own in the list
+      this.randomOption.value = m;
+      this.randomOption.textContent = 'Random ' + showCode(m.slice(2));
+      this.randomOption.hidden = false;
+      this.worldSelect.value = m;
+    } else {
+      this.worldSelect.value = WORLD_NAMES[w - 1] ? w : '1';
+    }
     this.fillMissions(m);
     this.tables.hidden = false;
     this.missionSelect.focus();
@@ -192,10 +226,51 @@ export class OnlineUI {
     for (const b of this.sendButtons) b.setAttribute('aria-pressed', String(b.dataset.key === this.settings.scores));
     this.fullButton.setAttribute('aria-pressed', String(!!document.fullscreenElement));
     if (document.activeElement !== this.nameInput) this.nameInput.value = this.settings.name;
+    if (this.random) {
+      const a = this.random.active;
+      if (a) {
+        this.codeInput.value = showCode(a.code);
+        this.randomNote.textContent = 'Playing ' + showCode(a.code) + '.';
+      } else if (!this.random.canPlay()) {
+        this.randomNote.textContent = 'A random mission starts from a world map.';
+      } else {
+        this.randomNote.textContent = '';
+      }
+    }
   }
   save() {
     saveSettings(this.settings);
     this.render();
+  }
+  newCode() {
+    if (!this.random) return;
+    const code = this.random.newCode(Number(this.randomWorld.value) || 0);
+    this.codeInput.value = code ? showCode(code) : '';
+    this.randomNote.textContent = '';
+  }
+  playCode() {
+    if (!this.random) return;
+    if (!this.codeInput.value.trim()) this.newCode();
+    const c = parseCode(this.codeInput.value);
+    const problem = c ? this.random.play(c.code) : 'A code is two characters and four more, like 6D-K2Q9.';
+    if (problem) {
+      this.randomNote.textContent = problem;
+      return;
+    }
+    this.close();
+  }
+  copyLink() {
+    const c = parseCode(this.codeInput.value) || (this.random && this.random.active && parseCode(this.random.active.code));
+    if (!c) {
+      this.randomNote.textContent = 'Make or type a code first.';
+      return;
+    }
+    const url = new URL(location.href);
+    url.search = '?random=' + showCode(c.code);
+    url.hash = '';
+    const done = () => { this.randomNote.textContent = 'Copied: ' + url.href; };
+    if (navigator.clipboard) navigator.clipboard.writeText(url.href).then(done, () => { this.randomNote.textContent = url.href; });
+    else this.randomNote.textContent = url.href;
   }
   apply() {
     this.save();

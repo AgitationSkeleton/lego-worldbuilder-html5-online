@@ -6,6 +6,7 @@ import { makeLayout } from './online/layout.js';
 import { OnlineUI } from './online/ui.js';
 import { installTouch } from './online/touch.js';
 import { Scores } from './online/scores.js';
+import { RandomMissions } from './online/missions.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -57,9 +58,16 @@ async function main() {
     rt.layout = makeLayout(rt, { maxScale: () => ui.maxScale() });
     // and a finger does what the mouse did (src/online/touch.js)
     installTouch(rt, canvas);
-    // missions are timed, for the score tables (src/online/scores.js)
+    // generated missions (src/online/missions.js), and missions timed for the score tables
+    // (src/online/scores.js), whose hooks go on after the generated missions' own
+    window.__online = ui;
+    ui.random = new RandomMissions(rt);
+    ui.random.install(scripts.scripts);
     ui.scores = new Scores(rt, ui, params);
+    ui.scores.random = ui.random;
     ui.scores.install(scripts.scripts);
+    // ?random=CODE plays that generated mission, from the first world map reached
+    if (params.get('random')) playWhenReady(rt, ui, params.get('random'));
   }
   window.__rt = rt;
   window.__step = (n) => rt.step(n);
@@ -73,6 +81,15 @@ async function main() {
   rt.run();
   if (options.test) rt.step(0);
   canvas.focus();
+}
+
+function playWhenReady(rt, ui, code) {
+  const timer = setInterval(() => {
+    if (!rt.started || !ui.random.canPlay()) return;
+    clearInterval(timer);
+    const problem = ui.random.play(code);
+    if (problem) console.warn(problem);
+  }, 250);
 }
 
 function waitForClick(rt) {

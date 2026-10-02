@@ -9,6 +9,7 @@
 
 import * as L from '../director/lingo.js';
 import { isClean } from './profanity.js';
+import { showCode } from './random.js';
 
 const BESTS = 'lego-wb-online:bests';
 
@@ -67,6 +68,7 @@ export class Scores {
     this.sending = !params.has('test') || params.has('server');
     this.bests = loadBests();
     this.attempt = null;
+    this.random = null;     // the generated missions (src/online/missions.js), set by main.js
     this.toast = el('div', { id: 'scores-toast', role: 'status', hidden: '' });
     document.body.append(this.toast);
   }
@@ -110,10 +112,14 @@ export class Scores {
     const level = this.glob('currentlevel');
     if (!level) return;
     const w = L.gp(level, 'worldnum'), l = L.gp(level, 'levelnum');
-    this.attempt = { mission: w + '.' + l, start: this.rt.millis(), tutorial: this.tutorial() || w > 7 };
+    // a generated mission has a table of its own, by its code
+    const random = this.random && this.random.active;
+    const mission = random ? 'R-' + random.code : w + '.' + l;
+    this.attempt = { mission, start: this.rt.millis(), tutorial: !random && (this.tutorial() || w > 7) };
   }
 
   missionName(mission) {
+    if (mission.startsWith('R-')) return 'Random ' + showCode(mission.slice(2));
     const [w, l] = mission.split('.').map(Number);
     try {
       const names = this.glob('mission_names');

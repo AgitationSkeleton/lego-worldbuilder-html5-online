@@ -52,11 +52,21 @@ def main():
     ap.add_argument('--base', default='http://127.0.0.1:8765/')
     ap.add_argument('--verbose', action='store_true')
     ap.add_argument('--size', default='610x440', help='window size, WxH')
+    ap.add_argument('--random', type=int, default=0, help='the online game: play this many generated missions instead')
     a = ap.parse_args()
     missions = MISSIONS[a.game]
     if a.missions:
         missions = [tuple(int(x) for x in m.split('.')) for m in a.missions.split(',')]
     rnd = random.Random(a.seed)
+    if a.random:
+        # codes as src/online/random.js reads them: world, mission letter, four of Crockford's base 32
+        chars = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
+        missions = []
+        while len(missions) < a.random:
+            w, l = rnd.randint(1, 7), rnd.randint(1, 12)
+            if (w, l) in ((1, 1), (3, 2)):
+                continue
+            missions.append(('R', '%d%s%s' % (w, 'ABCDEFGHIJKL'[l - 1], ''.join(rnd.choice(chars) for _ in range(4)))))
     total = 0
     seen = {}
     with sync_playwright() as p:
@@ -68,7 +78,13 @@ def main():
         page.wait_for_function('window.__rt && window.__rt.started', timeout=60000)
         page.evaluate('window.__step(10)')
         for (w, l) in missions:
-            frame = page.evaluate(START, [w, l])
+            if w == 'R':
+                frame = page.evaluate(START_RANDOM, l)
+                if not isinstance(frame, int):
+                    print('mission %s: %s' % (l, frame), flush=True)
+                    continue
+            else:
+                frame = page.evaluate(START, [w, l])
             page.evaluate('window.__step(5)')
             batch = []
             for i in range(a.frames):
@@ -93,14 +109,22 @@ def main():
             total += len(errs)
             for e in errs:
                 key = e.split('\n')[0] + ' | ' + (e.split('\n')[2].strip() if len(e.split('\n')) > 2 else '')
-                seen.setdefault(key, []).append('%d.%d' % (w, l))
-            print('mission %d.%d: frame %s, %d errors' % (w, l, frame, len(errs)), flush=True)
+                seen.setdefault(key, []).append('%s.%s' % (w, l))
+            print('mission %s.%s: frame %s, %d errors' % (w, l, frame, len(errs)), flush=True)
             page.evaluate(QUIT)
         b.close()
     for k, v in sorted(seen.items(), key=lambda kv: -len(kv[1])):
         print('%4d  %s  (%s)' % (len(v), k, ' '.join(sorted(set(v))[:8])))
     return 1 if total else 0
 
+
+# A generated mission (src/online/missions.js), from a world map as the game's own start.
+START_RANDOM = '''(code) => {
+  const rt = window.__rt, ui = window.__online;
+  rt.errors.length = 0;
+  if (!ui.random.canPlay()) { rt.go('world 1'); rt.step(2); }
+  return ui.random.play(code) || rt.frame;
+}'''
 
 RUN = '''(batch) => {
   const rt = window.__rt;

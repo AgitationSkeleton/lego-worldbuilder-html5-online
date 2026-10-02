@@ -34,6 +34,9 @@ then open <http://localhost:8000/>.
 - **Scores**: each mission is timed to its goal and its bonus goal. Best times are kept in
   the browser and, if the player chooses, sent to score tables on a small server
   ([server/](server/), not deployed yet).
+- **Random missions**: one of the game's missions remixed, its items and puzzles kept and
+  the ground between them laid out anew, named by a code (like `6D-K2Q9`) that can be
+  shared, from the settings or `?random=6D-K2Q9`.
 
 ## Checking it
 
@@ -43,12 +46,15 @@ With the repository served at <http://127.0.0.1:8766/>:
 python tools/verify/soak.py merged --base http://127.0.0.1:8766/ --size 1280x720
 python tools/verify/touch.py --size 844x390
 python tools/verify/scores.py --server http://127.0.0.1:8787
+python tools/verify/soak.py merged --base http://127.0.0.1:8766/ --random 20
+node tools/verify/random.mjs
 ```
 
 The first plays every mission with random clicks and reports script errors; the second
 plays one with a finger on an emulated phone and checks that taps, drags and the scroll
 arrows do what they should; the third times a mission and sends its results to a local
-score server (`server/`: `npm run dev`).
+score server (`server/`: `npm run dev`); the fourth plays generated missions with random
+input; the last generates missions from every template and checks each map.
 
 ## How the port works
 

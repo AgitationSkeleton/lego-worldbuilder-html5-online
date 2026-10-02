@@ -48,6 +48,17 @@ const o = await (await fetch(`${SERVER}/scores/overall`)).json();
 const annAll = o.overall.find((x) => x.name.toLowerCase() === ann.toLowerCase());
 ok(annAll && annAll.goals === 1 && annAll.bonuses === 1 && annAll.ms === 70000, 'the overall table: ' + JSON.stringify(annAll));
 
+// a generated mission: its own table, and not in the overall one
+r = await post({ mission: 'R-6DK2Q9', kind: 'goal', ms: 40000, name: bob });
+ok(r.status === 200 && r.body.ok, 'a generated mission\'s time is saved');
+const rt = await (await fetch(`${SERVER}/scores?mission=R-6DK2Q9&limit=50`)).json();
+ok(rt.goal.some((x) => x.name.toLowerCase() === bob.toLowerCase() && x.ms === 40000), 'and has its own table');
+const o2 = await (await fetch(`${SERVER}/scores/overall`)).json();
+const bobAll = o2.overall.find((x) => x.name.toLowerCase() === bob.toLowerCase());
+ok(bobAll && bobAll.goals === 1 && bobAll.ms === 80000, 'which the overall table leaves out: ' + JSON.stringify(bobAll));
+ok((await post({ mission: 'R-6DK2QU', kind: 'goal', ms: 50000, name: ann })).status === 400, 'a code is Crockford\'s base 32 (no U)');
+ok((await post({ mission: 'R-8AK2Q9', kind: 'goal', ms: 50000, name: ann })).status === 400, 'and from worlds 1 to 7');
+
 // what is turned away
 ok((await post({ mission: '8.1', kind: 'goal', ms: 50000, name: ann })).status === 400, 'no world 8');
 ok((await post({ mission: '1.13', kind: 'goal', ms: 50000, name: ann })).status === 400, 'no mission 13');
