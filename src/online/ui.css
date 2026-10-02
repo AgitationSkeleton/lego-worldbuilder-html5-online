@@ -128,3 +128,45 @@
 #scores-toast .row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
 #scores-toast .row input { flex: 1 1 140px; min-width: 0; }
 #scores-toast .always { font-size: 13px; color: #333; }
+
+/* Races: the race panel's players, the race in the corner, the countdown. */
+#race .players { margin: 4px 0 8px; padding: 0 0 0 1.6em; }
+#race .players li { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; border-bottom: 1px solid #ddd; }
+#race .players li.me { font-weight: bold; }
+#race .players .status { color: #555; font-variant-numeric: tabular-nums; }
+#race [hidden] { display: none; }
+.panel button.choice:disabled { opacity: 0.5; cursor: default; }
+
+#race-hud {
+  position: fixed;
+  left: max(8px, env(safe-area-inset-left));
+  top: max(8px, env(safe-area-inset-top));
+  z-index: 6;
+  max-width: min(260px, calc(100vw - 32px));
+  padding: 6px 10px;
+  border: 3px solid #000;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #000;
+  font: 13px/1.35 Arial, sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+#race-hud[hidden] { display: none; }
+#race-hud b { display: block; font: 400 11px 'WB 04b_08', monospace; text-transform: uppercase; }
+#race-hud .me { font-weight: bold; }
+
+#race-count {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  color: #fff;
+  font: 900 min(28vw, 220px) 'Arial Black', Arial, sans-serif;
+  -webkit-text-stroke: 6px #000;
+  paint-order: stroke fill;
+  text-shadow: 0 6px 0 #000;
+}
+#race-count[hidden] { display: none; }

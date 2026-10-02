@@ -10,6 +10,7 @@
 import * as L from '../director/lingo.js';
 import { isClean } from './profanity.js';
 import { showCode } from './random.js';
+import { el } from './dom.js';
 
 const BESTS = 'lego-wb-online:bests';
 
@@ -47,17 +48,6 @@ function saveBests(b) {
   }
 }
 
-function el(tag, attrs, ...kids) {
-  const e = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs || {})) {
-    if (k === 'text') e.textContent = v;
-    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
-    else e.setAttribute(k, v);
-  }
-  for (const k of kids) if (k != null) e.append(k);
-  return e;
-}
-
 export class Scores {
   // ui: the settings (src/online/ui.js), whose `settings` hold the name and the choice
   constructor(rt, ui, params) {
@@ -69,6 +59,7 @@ export class Scores {
     this.bests = loadBests();
     this.attempt = null;
     this.random = null;     // the generated missions (src/online/missions.js), set by main.js
+    this.listeners = [];    // told of each goal and bonus reached: f(kind, ms, mission)
     this.toast = el('div', { id: 'scores-toast', role: 'status', hidden: '' });
     document.body.append(this.toast);
   }
@@ -136,6 +127,7 @@ export class Scores {
     if (a[kind]) return;
     const ms = Math.round(this.rt.millis() - a.start);
     a[kind] = ms;
+    for (const f of this.listeners) f(kind, ms, a.mission);
     const mine = this.bests[a.mission] || (this.bests[a.mission] = {});
     const prev = mine[kind];
     if (prev === undefined || ms < prev) mine[kind] = ms;

@@ -213,11 +213,16 @@ when it is left), so the engine needs no change to play them (`src/online/random
 World Builder is a single-player puzzle about building, so the multiplayer that fits
 it is, in order of effort:
 
-1. **Races**: the same mission (a campaign one or a seed) for two to six players, each
-   in their own game. Everyone's progress shows on the others' minimaps and in a
-   sidebar (plans found, units built, goal reached), and the first to the goal wins.
-   Only progress messages travel, through a room on the server, so there is nothing to
-   keep in step.
+1. **Races**, *done, not deployed*: the same mission (a campaign one or a generated one)
+   for two to six players, each in their own game (`src/online/race.js`,
+   `server/src/race.js`). One player makes a race and shares its code or a link
+   (`?race=CODE`); the host picks the mission and starts it; every game counts down and
+   starts the mission at once. Each game tells the race when its player starts, reaches
+   the goal and the bonus (with the game's clock's time) or leaves the mission, which is
+   giving up; a box in the corner shows everyone's progress, and the fastest to the goal
+   wins. Only those messages travel, so there is nothing to keep in step. A player who
+   loses their connection has 30 seconds to come back as themselves. *To do*: more
+   progress in the corner (plans found, units built) and the others on the minimap.
 2. **Co-op**: two players in one world, each with their own units, sharing the bricks,
    the plans and the inventory. The game's state lives in the map display manager and
    the units; to share it, both browsers run the same game in deterministic lockstep, as
@@ -229,8 +234,8 @@ it is, in order of effort:
 3. **Versus**: monsters controlled by the other player, against a builder. Only if 1 and
    2 show there is an appetite for it.
 
-The server is the scores server's Worker, with a Durable Object per room, as for
-CrystAlien Conflict Online.
+The server is the scores server's Worker, with a Durable Object per race (and later per
+co-op room), as for CrystAlien Conflict Online.
 
 ## Order
 
@@ -241,7 +246,7 @@ Each step builds on the ones before it.
 3. **Touch** (3), which needs the anchored interface of step 2. *Mostly done.*
 4. **Scores** (4), with the server. *Done, not deployed.*
 5. **The randomizer** (5), which scores can rank once it is in. *Done, as remixes.*
-6. **Races** (6.1), on the scores server's rooms; then **co-op** (6.2).
+6. **Races** (6.1), on the scores server's rooms *(done, not deployed)*; then **co-op** (6.2).
 7. **The offline client and smooth drawing** (7).
 
 ## How

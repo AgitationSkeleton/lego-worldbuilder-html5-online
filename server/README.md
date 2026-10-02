@@ -3,7 +3,8 @@
 A Cloudflare Worker with a D1 (SQLite) database, holding the score tables: for each of the
 84 missions, the fastest to its goal and to its bonus goal, and an overall table. The game
 (`src/online/scores.js`) times each mission by its own clock and, if the player chooses,
-sends the time here.
+sends the time here. It also keeps races (`src/race.js`): a Durable Object for each, which
+the players' games connect to by WebSocket.
 
 Its address is **https://wbserver.viosarcade.xyz** (`?server=URL` on the game's page points
 it at another). **It is not deployed yet.** Until it is, the game keeps the player's best
@@ -31,15 +32,20 @@ npx wrangler secret put DISCORD_WEBHOOK  # optional: a Discord channel's webhook
 npm run deploy
 ```
 
-`deploy` makes the Worker and the address `wbserver.viosarcade.xyz` with its certificate (it
-can take a few minutes the first time). Check it at https://wbserver.viosarcade.xyz/health,
+`deploy` makes the Worker, its Durable Object for races, and the address
+`wbserver.viosarcade.xyz` with its certificate (it can take a few minutes the first time). Check it at https://wbserver.viosarcade.xyz/health,
 which answers `{"ok":true,...}`. Later changes are `npm run deploy` again.
 
 With `DISCORD_WEBHOOK` set, the server posts each new best time to that channel
 (`src/discord.js`). The webhook is a secret, never in this repository. Without it nothing is
 sent.
 
-It fits Cloudflare's free plan: a result is one small row.
+It fits Cloudflare's free plan: a result is one small row, and SQLite-backed Durable
+Objects are included; a race sends a handful of messages per player per mission.
+
+A Cloudflare account that has never had a Worker has no `workers.dev` subdomain, and the
+first deploy fails asking for one (code 10063): open Workers & Pages in the dashboard once,
+and deploy again.
 
 ## The tables
 
@@ -63,18 +69,31 @@ curl -H "Authorization: Bearer YOUR_ADMIN_KEY" "https://wbserver.viosarcade.xyz/
 curl -X DELETE -H "Authorization: Bearer YOUR_ADMIN_KEY" https://wbserver.viosarcade.xyz/results/ID
 ```
 
+## Races
+
+- `POST /races`: makes a race; answers `{code}` (five letters and numbers).
+- `GET /races/CODE`: whether it exists, its phase and how many play.
+- `GET /races/CODE/ws`: the race itself, a WebSocket. The messages are listed at the top
+  of `src/race.js`: a player says hello (with a name and a token, so that one who loses
+  their connection comes back as themselves), the host picks the mission and starts the
+  race, and each game reports when its player starts, reaches the goal or the bonus (with
+  the time), or gives up. Everyone gets the race as it stands after each change.
+
+A race holds two to six players; no one joins one under way. A race with nobody connected
+is gone after a minute.
+
 ## Running it locally
 
 ```
 npm install
 npm run db:init:local
 npm run dev                              # http://127.0.0.1:8787
-npm test                                 # the tables, against it
+npm test                                 # the tables and races, against it
 ```
 
 Open the game with `?server=http://127.0.0.1:8787` to use it; `tools/verify/scores.py` in
 this repository plays the game's side through it (a mission timed, its goal and bonus sent,
-the tables read back).
+the tables read back), and `tools/verify/race.py` races two browsers through it.
 
 ## Changing the address
 

@@ -7,6 +7,7 @@ import { OnlineUI } from './online/ui.js';
 import { installTouch } from './online/touch.js';
 import { Scores } from './online/scores.js';
 import { RandomMissions } from './online/missions.js';
+import { Races } from './online/race.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -66,8 +67,17 @@ async function main() {
     ui.scores = new Scores(rt, ui, params);
     ui.scores.random = ui.random;
     ui.scores.install(scripts.scripts);
-    // ?random=CODE plays that generated mission, from the first world map reached
+    // races (src/online/race.js): told of each goal reached; leaving a mission is giving up
+    ui.races = new Races(rt, ui, params);
+    ui.races.install(scripts.scripts);
+    ui.scores.listeners.push((kind, ms, mission) => ui.races.reached(kind, ms, mission));
+    // ?random=CODE plays that generated mission, from the first world map reached;
+    // ?race=CODE joins that race once the game is going
     if (params.get('random')) playWhenReady(rt, ui, params.get('random'));
+    if (params.get('race')) {
+      const code = params.get('race');
+      const timer = setInterval(() => { if (rt.started) { clearInterval(timer); ui.races.join(code); } }, 250);
+    }
   }
   window.__rt = rt;
   window.__step = (n) => rt.step(n);

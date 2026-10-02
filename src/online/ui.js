@@ -6,6 +6,7 @@ import { UI_SCALES, loadSettings, saveSettings } from './settings.js';
 import { isClean } from './profanity.js';
 import { WORLD_NAMES, clock } from './scores.js';
 import { parseCode, showCode } from './random.js';
+import { el, dialog } from './dom.js';
 
 const SIZES = [
   ['small', 'Small'],
@@ -29,34 +30,6 @@ function place(list, i) {
   return i + 1;
 }
 
-function el(tag, attrs, ...kids) {
-  const e = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs || {})) {
-    if (k === 'text') e.textContent = v;
-    else if (k === 'html') e.innerHTML = v;
-    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
-    else e.setAttribute(k, v);
-  }
-  for (const k of kids) if (k != null) e.append(k);
-  return e;
-}
-
-// A panel over the game: closed by Escape, by a click beside it, or by its Done button.
-function dialog(id, title, onClose, ...body) {
-  const panel = el('div', { id, class: 'panel', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': id + '-title', hidden: '' },
-    el('div', { class: 'bubble' },
-      el('h2', { id: id + '-title', text: title }),
-      ...body,
-      el('div', { class: 'actions' }, el('button', { type: 'button', class: 'done', text: 'Done', onclick: onClose }))));
-  panel.addEventListener('click', (e) => { if (e.target === panel) onClose(); });
-  panel.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { e.preventDefault(); onClose(); }
-    // (keys typed in a panel are not the game's)
-    e.stopPropagation();
-  });
-  return panel;
-}
-
 export class OnlineUI {
   constructor(rt, canvas) {
     this.rt = rt;
@@ -64,6 +37,7 @@ export class OnlineUI {
     this.settings = loadSettings();
     this.scores = null;     // set by main.js (src/online/scores.js)
     this.random = null;     // and the generated missions (src/online/missions.js)
+    this.races = null;      // and races (src/online/race.js)
     this.asked = 0;         // the tables last asked for (an older answer is dropped)
     // ?ui=1.5 (any factor) overrides the setting for the visit, for testing sizes
     const forced = parseFloat(new URLSearchParams(location.search).get('ui'));
@@ -126,17 +100,14 @@ export class OnlineUI {
           el('button', { type: 'button', class: 'choice', text: 'New code', onclick: () => this.newCode() }),
           el('button', { type: 'button', class: 'choice', text: 'Play', onclick: () => this.playCode() }),
           el('button', { type: 'button', class: 'choice', text: 'Copy link', onclick: () => this.copyLink() })),
-        this.randomNote));
+        this.randomNote),
+      el('section', null,
+        el('h3', { text: 'Races' }),
+        el('p', { text: 'Two to six players, the same mission, each in their own game: the fastest to the goal wins.' }),
+        el('div', { class: 'choices' },
+          el('button', { type: 'button', class: 'choice', text: 'Race with others', onclick: () => this.races && this.races.open() }))));
     this.buildTables();
     document.addEventListener('fullscreenchange', () => this.render());
-    // Escape closes an open panel wherever the focus is (ahead of the game's own keys)
-    window.addEventListener('keydown', (e) => {
-      if (e.key !== 'Escape' || (this.panel.hidden && this.tables.hidden)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      if (!this.tables.hidden) this.closeTables();
-      else this.close();
-    }, true);
     document.body.append(this.gear, this.panel, this.tables);
     this.render();
   }

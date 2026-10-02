@@ -37,6 +37,8 @@ then open <http://localhost:8000/>.
 - **Random missions**: one of the game's missions remixed, its items and puzzles kept and
   the ground between them laid out anew, named by a code (like `6D-K2Q9`) that can be
   shared, from the settings or `?random=6D-K2Q9`.
+- **Races**: two to six players play the same mission, each in their own game, and the
+  fastest to the goal wins; a race is joined by its code or a link (`?race=CODE`).
 
 ## Checking it
 
@@ -46,6 +48,7 @@ With the repository served at <http://127.0.0.1:8766/>:
 python tools/verify/soak.py merged --base http://127.0.0.1:8766/ --size 1280x720
 python tools/verify/touch.py --size 844x390
 python tools/verify/scores.py --server http://127.0.0.1:8787
+python tools/verify/race.py --server http://127.0.0.1:8787
 python tools/verify/soak.py merged --base http://127.0.0.1:8766/ --random 20
 node tools/verify/random.mjs
 ```
@@ -53,8 +56,9 @@ node tools/verify/random.mjs
 The first plays every mission with random clicks and reports script errors; the second
 plays one with a finger on an emulated phone and checks that taps, drags and the scroll
 arrows do what they should; the third times a mission and sends its results to a local
-score server (`server/`: `npm run dev`); the fourth plays generated missions with random
-input; the last generates missions from every template and checks each map.
+score server (`server/`: `npm run dev`); the fourth races two browsers through it; the
+fifth plays generated missions with random input; the last generates missions from every
+template and checks each map.
 
 ## How the port works
 
