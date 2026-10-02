@@ -19,6 +19,32 @@ python -m http.server 8000
 
 then open <http://localhost:8000/>.
 
+## What is in so far
+
+- **One game**: World Builder's five worlds, then World Builder 2's two as worlds six and
+  seven. World One, Ocean, Prehistoric and World Six are open from the start. Each world
+  map has buttons to the others.
+- **The window's size**: the game fills the window; a bigger window shows more of the
+  map, with the interface along its edges. The settings (the button in the bottom right
+  corner) choose how large the interface is drawn, and full screen. The title, world maps
+  and licences keep their original size in the middle of the window. The tutorial keeps
+  the original layout, since its arrows point at it.
+- **Touch**: a tap is a click, a drag moves the map, a long press on the map shows what
+  hovering would.
+
+## Checking it
+
+With the repository served at <http://127.0.0.1:8766/>:
+
+```
+python tools/verify/soak.py merged --base http://127.0.0.1:8766/ --size 1280x720
+python tools/verify/touch.py --size 844x390
+```
+
+The first plays every mission with random clicks and reports script errors; the second
+plays one with a finger on an emulated phone and checks that taps, drags and the scroll
+arrows do what they should.
+
 ## How the port works
 
 The pipeline and the player are the 1:1 port's; its README describes them.

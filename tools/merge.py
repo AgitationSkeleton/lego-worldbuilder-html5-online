@@ -36,6 +36,22 @@ WB1_LIB_OFFSET = 6          # World Builder's cast libraries come after World Bu
 ONLINE_LIB = 13             # scripts written for the merged game (src/lingo/)
 WB2_WORLD_OFFSET = 5        # World Builder 2's worlds 1 and 2 are the merged game's 6 and 7
 
+RELAYOUT = """
+on relayout me
+  repeat with row in pMapSprites
+    repeat with s in row
+      me.returnASprite(s)
+    end repeat
+  end repeat
+  pDisplayTileSize = viewTileSize()
+  pDisplayPixelTopLeft = point(22, 19) - point(80 + (25 * (pDisplayTileSize[2] - 9)), 32)
+  me.prepareMapSprites()
+  me.scrollmap([0, 0])
+  me.showmap()
+  sprite(1).loc = viewCenter() - (pDisplayTileTopleft * 4)
+end
+"""
+
 # Script changes, by (game, cast, script name): (old, new) pairs of Lingo text.
 PATCHES = {
     # One progress file, with the first mission of World One, both challenge worlds and
@@ -59,6 +75,25 @@ PATCHES = {
          '    firstworld = 1\n    lastworld = pWorlds.count\n  end if\n'
          '  repeat with wn = firstworld to lastworld\n    w = pWorlds[wn]\n'),
     ],
+    # The map view takes the stage's size (src/online/layout.js): its size in tiles comes
+    # from the stage, the pool of sprites for it is larger, the sky is centred on the stage,
+    # and relayout lays the view out again when the window changes.
+    ('wb2', 'Internal', 'map display manager'): [
+        ('  pDisplayTileSize = [12, 9]\n', '  pDisplayTileSize = viewTileSize()\n'),
+        ('  repeat with i = 200 to 1000\n', '  repeat with i = 200 to 4000\n'),
+        # the skewed grid moves right 25 pixels for every row more than the original nine
+        ('  pDisplayPixelTopLeft = point(22, 19) - point(80, 32)\n',
+         '  pDisplayPixelTopLeft = point(22, 19) - point(80 + (25 * (pDisplayTileSize[2] - 9)), 32)\n'),
+        ('  sprite(1).loc = point(305, 220) - (pDisplayTileTopleft * x)\n',
+         '  sprite(1).loc = viewCenter() - (pDisplayTileTopleft * x)\n'),
+        # A view bigger than the map is held at the map's top left: scrollmap's limit at the
+        # far edge would otherwise put it past the near one, and each scroll flip between them.
+        ('  pDisplayTileTopleft = newTopLeft\n',
+         '  if newTopLeft[1] < -1 then\n    newTopLeft[1] = -1\n  end if\n'
+         '  if newTopLeft[2] < -2 then\n    newTopLeft[2] = -2\n  end if\n'
+         '  pDisplayTileTopleft = newTopLeft\n'),
+        ('', RELAYOUT),
+    ],
     # World Builder 2's world map buttons lead to its worlds as numbered here.
     ('wb2', 'title and levels', 'go to world 2 button behavior'): [
         ('worldCompleteP(1)', 'worldCompleteP(6)'), ('go("world 2")', 'go("world 7")')],
@@ -69,6 +104,15 @@ PATCHES = {
     ('wb2', 'title and levels', 'license switch back label beh'): [('fromworld = "world three"', 'fromworld = "world 7"')],
     ('wb2', 'title and levels', 'license card beh'): [('countBonuses()', 'countBonuses(6, 7)')],
     ('wb1', 'title and levels', 'license card beh'): [('countBonuses()', 'countBonuses(1, 5)')],
+    # The tutorial points at the original layout, so the stage is made the original size
+    # for it (src/online/layout.js); the flag is set before the mission's map is built, so
+    # that the map is built for that size.
+    ('wb1', 'title and levels', 'mission icon behavior 2'): [
+        ('      golevel(world, mission)\n',
+         '      if (world = 1) and (mission = 1) then\n        glob[#tutorialMode] = 1\n      end if\n'
+         '      golevel(world, mission)\n')],
+    ('wb2', 'tutorial', 'tutorial icon behavior'): [
+        ('  golevel(999, 999)\n', '  glob[#tutorialMode] = 1\n  golevel(999, 999)\n')],
 }
 
 # The buttons that join the two games' world maps.
@@ -240,7 +284,7 @@ def merge():
     # after a licence screen the playhead loops there (frameloop); nothing follows it
 
     # The buttons between the two games' world maps
-    jump_script = [ONLINE_LIB, 1]
+    jump_script = [ONLINE_LIB, sorted(os.listdir(os.path.join(ROOT, 'src', 'lingo'))).index('world jump button beh.ls') + 1]
     for w in range(1, 8):
         game = 'wb1' if w <= 5 else 'wb2'
         text, target = JUMP_BUTTONS[game]
@@ -262,8 +306,10 @@ def merge():
 
     out['score'] = frames
     out['labels'] = labels
-    out['casts'].append(dict(name='online', members={'1': dict(type='script', name='world jump button beh',
-                                                               scriptType='score')}))
+    online = {}
+    for i, f in enumerate(sorted(os.listdir(os.path.join(ROOT, 'src', 'lingo'))), 1):
+        online[str(i)] = dict(type='script', name=f[:-3], scriptType='movie' if f.startswith('movie - ') else 'score')
+    out['casts'].append(dict(name='online', members=online))
 
     os.makedirs(os.path.join(ROOT, 'assets', 'merged'), exist_ok=True)
     with open(os.path.join(ROOT, 'data', 'merged.json'), 'w', encoding='utf-8') as fp:
@@ -312,6 +358,9 @@ def scripts(merged):
                 if os.path.exists(lasm):
                     text = T.fix_chunk_var_refs(text, open(lasm, encoding='latin-1').read())
                 for old, new in PATCHES.get((game, cast, name), []):
+                    if old == '':
+                        text = text.rstrip('\n') + '\n' + new
+                        continue
                     if old not in text:
                         raise SystemExit('patch for %s %s does not apply: %r' % (game, name, old))
                     text = text.replace(old, new)
@@ -323,7 +372,8 @@ def scripts(merged):
     add_game('wb1', 'worldbuilder', only_cast='title and levels', lib_offset=WB1_LIB_OFFSET)
     for i, f in enumerate(sorted(os.listdir(os.path.join(ROOT, 'src', 'lingo'))), 1):
         text = open(os.path.join(ROOT, 'src', 'lingo', f), encoding='utf-8').read()
-        entries.append(dict(cast='online', lib=ONLINE_LIB, number=i, name=f[:-3], kind='score', ast=parse(text, f)))
+        kind = 'movie' if f.startswith('movie - ') else 'score'
+        entries.append(dict(cast='online', lib=ONLINE_LIB, number=i, name=f[:-3], kind=kind, ast=parse(text, f)))
 
     movie_handlers = set()
     for s in entries:

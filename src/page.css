@@ -8,4 +8,3 @@ html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
   font: bold 18px Arial, sans-serif; color: #fff; background: #d01012; border: 3px solid #fff; border-radius: 8px;
   cursor: pointer; }
 #gate[hidden] { display: none; }
-  opacity: 0.5; }

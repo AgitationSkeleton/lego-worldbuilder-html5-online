@@ -20,24 +20,35 @@ export class Renderer {
     this.order = [];
   }
   resize() {
-    const st = this.runtime.stage;
+    const rt = this.runtime;
     const dpr = Math.min(3, window.devicePixelRatio || 1);
-    const w = Math.max(1, Math.round(this.canvas.clientWidth * dpr));
-    const h = Math.max(1, Math.round(this.canvas.clientHeight * dpr));
+    const cssW = Math.max(1, this.canvas.clientWidth), cssH = Math.max(1, this.canvas.clientHeight);
+    const w = Math.max(1, Math.round(cssW * dpr));
+    const h = Math.max(1, Math.round(cssH * dpr));
     if (this.canvas.width !== w || this.canvas.height !== h) {
       this.canvas.width = w;
       this.canvas.height = h;
     }
     this.dpr = dpr;
-    this.scale = Math.min(w / st.width, h / st.height);
+    if (rt.layout) {
+      // The layout decides the stage's size for the window, and how large it is drawn.
+      const L = rt.layout.stageFor(cssW, cssH, rt);
+      if (L.width !== rt.stage.width || L.height !== rt.stage.height) rt.setStageSize(L.width, L.height);
+      this.scale = L.scale * dpr;
+    } else {
+      this.scale = Math.min(w / rt.stage.width, h / rt.stage.height);
+    }
+    const st = rt.stage;
     this.ox = Math.round((w - st.width * this.scale) / 2);
     this.oy = Math.round((h - st.height * this.scale) / 2);
   }
-  // Stage coordinates of a point on the page.
+  // Stage coordinates of a point on the page (inside the box, when a frame is drawn in one).
   toStage(clientX, clientY) {
     const r = this.canvas.getBoundingClientRect();
-    const x = ((clientX - r.left) * this.dpr - this.ox) / this.scale;
-    const y = ((clientY - r.top) * this.dpr - this.oy) / this.scale;
+    let x = ((clientX - r.left) * this.dpr - this.ox) / this.scale;
+    let y = ((clientY - r.top) * this.dpr - this.oy) / this.scale;
+    const box = this.runtime.box;
+    if (box) { x -= box.x; y -= box.y; }
     return [Math.floor(x), Math.floor(y)];
   }
   sorted() {
@@ -63,9 +74,32 @@ export class Renderer {
     ctx.fillRect(0, 0, st.width, st.height);
     ctx.imageSmoothingEnabled = this.scale !== Math.round(this.scale);
     ctx.imageSmoothingQuality = 'high';
+    if (rt.layout && rt.layout.beforeDraw) rt.layout.beforeDraw(rt);
     const list = this.sorted();
     this.order = list;
+    const box = rt.box;
+    if (box) {
+      // A frame made for the original stage is drawn at its size in the middle, over its
+      // own backdrop spread out and blurred to fill the rest.
+      this.drawBackdrop(ctx, list[0], st);
+      ctx.translate(box.x, box.y);
+      ctx.beginPath();
+      ctx.rect(0, 0, box.w, box.h);
+      ctx.clip();
+      ctx.fillStyle = 'rgb(' + st.color.join(',') + ')';
+      ctx.fillRect(0, 0, box.w, box.h);
+    }
     for (const s of list) this.drawSprite(ctx, s);
+    ctx.restore();
+  }
+  drawBackdrop(ctx, s, st) {
+    if (!s || !(s.member instanceof BitmapMember)) return;
+    const src = s.member.drawable();
+    const k = Math.max(st.width / src.width, st.height / src.height) * 1.1;
+    const w = src.width * k, h = src.height * k;
+    ctx.save();
+    ctx.filter = 'blur(18px)';
+    ctx.drawImage(src, (st.width - w) / 2, (st.height - h) / 2, w, h);
     ctx.restore();
   }
   drawSprite(ctx, s) {
@@ -79,7 +113,9 @@ export class Renderer {
       const w = s.width, h = s.height;
       if (w <= 0 || h <= 0) return;
       const x = s.left, y = s.top;
-      if (s.flipH || s.flipV) {
+      if (s.nine && (w !== m.width || h !== m.height)) {
+        drawNine(ctx, src, x, y, w, h, s.nine);
+      } else if (s.flipH || s.flipV) {
         ctx.save();
         ctx.translate(x + (s.flipH ? w : 0), y + (s.flipV ? h : 0));
         ctx.scale(s.flipH ? -1 : 1, s.flipV ? -1 : 1);
@@ -195,6 +231,20 @@ export class Renderer {
       return mask[(py * c.width + px) * 4 + 3] > 0;
     }
     return true;
+  }
+}
+
+// A bitmap stretched by its middle: the corners keep their size, the edges stretch along
+// their length, so a frame's line keeps its thickness.
+function drawNine(ctx, src, x, y, w, h, n) {
+  const sw = src.width, sh = src.height;
+  const l = Math.min(n.l, sw), t = Math.min(n.t, sh), r = Math.min(n.r, sw - l), b = Math.min(n.b, sh - t);
+  const cols = [[0, l, x, l], [l, sw - l - r, x + l, w - l - r], [sw - r, r, x + w - r, r]];
+  const rows = [[0, t, y, t], [t, sh - t - b, y + t, h - t - b], [sh - b, b, y + h - b, b]];
+  for (const [sx, sW, dx, dW] of cols) {
+    for (const [sy, sH, dy, dH] of rows) {
+      if (sW > 0 && sH > 0 && dW > 0 && dH > 0) ctx.drawImage(src, sx, sy, sW, sH, dx, dy, dW, dH);
+    }
   }
 }
 

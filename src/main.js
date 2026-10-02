@@ -2,6 +2,9 @@
 // then runs it on the Director runtime in src/director/.
 
 import { Runtime } from './director/movie.js';
+import { makeLayout } from './online/layout.js';
+import { OnlineUI } from './online/ui.js';
+import { installTouch } from './online/touch.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -46,6 +49,14 @@ async function main() {
     verbose: params.has('verbose'),
   };
   const rt = new Runtime({ game, data, scripts, canvas, assetBase: new URL('assets/' + game + '/', root).href, options });
+  if (game === 'merged') {
+    // The online game fills the window (src/online/layout.js), at the interface size its
+    // settings ask for (src/online/ui.js).
+    const ui = new OnlineUI(rt, canvas);
+    rt.layout = makeLayout(rt, { maxScale: () => ui.maxScale() });
+    // and a finger does what the mouse did (src/online/touch.js)
+    installTouch(rt, canvas);
+  }
   window.__rt = rt;
   window.__step = (n) => rt.step(n);
   await rt.load((p) => say('Loading… ' + Math.round(p * 100) + '%'));

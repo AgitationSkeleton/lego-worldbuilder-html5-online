@@ -51,6 +51,7 @@ def main():
     ap.add_argument('--seed', type=int, default=1)
     ap.add_argument('--base', default='http://127.0.0.1:8765/')
     ap.add_argument('--verbose', action='store_true')
+    ap.add_argument('--size', default='610x440', help='window size, WxH')
     a = ap.parse_args()
     missions = MISSIONS[a.game]
     if a.missions:
@@ -59,8 +60,9 @@ def main():
     total = 0
     seen = {}
     with sync_playwright() as p:
-        b = p.chromium.launch()
-        page = b.new_page(viewport={'width': 610, 'height': 440})
+        b = p.chromium.launch(args=['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'])
+        vw, vh = (int(n) for n in a.size.split('x'))
+        page = b.new_page(viewport={'width': vw, 'height': vh})
         path = '' if a.game == 'merged' else a.game + '/'
         page.goto('%s%s?test&seed=%d' % (a.base, path, a.seed))
         page.wait_for_function('window.__rt && window.__rt.started', timeout=60000)

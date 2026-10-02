@@ -2974,14 +2974,14 @@ const S1_129 = {
       this.$.pdefaultterrains = $L.list([$s_normal]);
       this.$.pgoalterraintiles = $L.list([]);
       this.$.ptilesprites = $L.list([]);
-      for (let $t5 = (i = 200, 0); $L.le(i, 1000); i = $L.add(i, 1)) {
+      for (let $t5 = (i = 200, 0); $L.le(i, 4000); i = $L.add(i, 1)) {
         if (++$t5 > 5e6) $L.stuck();
         $L.mc(this.$.ptilesprites, "add", $B.sprite(i));
       }
       this.$.pdisplaytiletopleft = $L.list([1, 1]);
-      this.$.pdisplaytilesize = $L.list([12, 9]);
+      this.$.pdisplaytilesize = $R.call(this, S1_129, "viewtilesize");
       this.$.ptilesize = $L.list([50, 50]);
-      this.$.pdisplaypixeltopleft = $L.sub($B.point(22, 19), $B.point(80, 32));
+      this.$.pdisplaypixeltopleft = $L.sub($B.point(22, 19), $B.point($L.add(80, $L.mul(25, $L.sub($L.gi(this.$.pdisplaytilesize, 2), 9))), 32));
       this.$.pdisplaypixelskew = $B.point(25, 0);
       this.$.pdisplaypixelscroll = $B.point(0, 0);
       this.$.pminimaptilesize = $B.point(3, 3);
@@ -3220,11 +3220,17 @@ const S1_129 = {
       } else {
         reachededge = $L.add(reachededge, 1);
       }
+      if ($L.t($L.lt($L.gi(newtopleft, 1), (-1)))) {
+        $L.si(newtopleft, 1, (-1));
+      }
+      if ($L.t($L.lt($L.gi(newtopleft, 2), (-2)))) {
+        $L.si(newtopleft, 2, (-2));
+      }
       this.$.pdisplaytiletopleft = newtopleft;
       $L.mc(me, "showmap");
       $L.mc(me, "updateminimapcursor");
       x = 4;
-      $L.sp($B.sprite(1), "loc", $L.sub($B.point(305, 220), $L.mul(this.$.pdisplaytiletopleft, x)));
+      $L.sp($B.sprite(1), "loc", $L.sub($R.call(this, S1_129, "viewcenter"), $L.mul(this.$.pdisplaytiletopleft, x)));
       return $L.gt(reachededge, 0);
     },
     preparemapsprites(me) {
@@ -4080,6 +4086,22 @@ const S1_129 = {
         $L.sp(s, "puppet", 0);
         $L.sp(s, "locz", $L.gp(s, "spritenum"));
       }
+    },
+    relayout(me) {
+      let row, s;
+      for (let $t1 = this.$.pmapsprites, $t2 = $L.count($t1), $t3 = 1; $t3 <= $t2; $t3++) {
+        row = $L.gi($t1, $t3);
+        for (let $t4 = row, $t5 = $L.count($t4), $t6 = 1; $t6 <= $t5; $t6++) {
+          s = $L.gi($t4, $t6);
+          $L.mc(me, "returnasprite", s);
+        }
+      }
+      this.$.pdisplaytilesize = $R.call(this, S1_129, "viewtilesize");
+      this.$.pdisplaypixeltopleft = $L.sub($B.point(22, 19), $B.point($L.add(80, $L.mul(25, $L.sub($L.gi(this.$.pdisplaytilesize, 2), 9))), 32));
+      $L.mc(me, "preparemapsprites");
+      $L.mc(me, "scrollmap", $L.list([0, 0]));
+      $L.mc(me, "showmap");
+      $L.sp($B.sprite(1), "loc", $L.sub($R.call(this, S1_129, "viewcenter"), $L.mul(this.$.pdisplaytiletopleft, 4)));
     },
   },
 };
@@ -10031,6 +10053,7 @@ const S6_19 = {
       }
     },
     mousedown(me) {
+      $L.si($G.glob, $s_tutorialmode, 1);
       $R.call(this, S6_19, "golevel", 999, 999);
       $L.mc($L.gp($G.glob, "tutorial_manager"), "settutorialmode", 1);
     },
@@ -11071,6 +11094,9 @@ const S8_19 = {
         $L.mc($L.gp($G.glob, "worlds_manager"), "setfinished", this.$.world, this.$.mission, this.$.state);
       } else if ($L.t($L.ge(this.$.state, 0))) {
         $R.call(this, S8_19, "sndsfx", "sfx_interface_click_button");
+        if ($L.t($L.and($L.eq(this.$.world, 1), $L.eq(this.$.mission, 1)))) {
+          $L.si($G.glob, $s_tutorialmode, 1);
+        }
         $R.call(this, S8_19, "golevel", this.$.world, this.$.mission);
         if ($L.t($L.and($L.eq(this.$.world, 1), $L.eq(this.$.mission, 1)))) {
           $L.mc($L.gp($G.glob, "tutorial_manager"), "settutorialmode", 1);
@@ -11529,9 +11555,26 @@ const S8_8 = {
   },
 };
 
-// online 1: world jump button beh (score)
+// online 1: movie - layout (movie)
 const S13_1 = {
-  castLib: 13, member: 1, name: "world jump button beh", type: "score",
+  castLib: 13, member: 1, name: "movie - layout", type: "movie",
+  props: [],
+  handlers: {
+    viewtilesize() {
+      let h, w;
+      w = $L.sub($R.the("stageright"), $R.the("stageleft"));
+      h = $L.sub($R.the("stagebottom"), $R.the("stagetop"));
+      return $L.list([$L.add(12, $L.div($L.add($L.sub(w, 610), 49), 50)), $L.add(9, $L.div($L.add($L.sub(h, 440), 49), 50))]);
+    },
+    viewcenter() {
+      return $B.point($L.div($L.sub($R.the("stageright"), $R.the("stageleft")), 2), $L.div($L.sub($R.the("stagebottom"), $R.the("stagetop")), 2));
+    },
+  },
+};
+
+// online 2: world jump button beh (score)
+const S13_2 = {
+  castLib: 13, member: 2, name: "world jump button beh", type: "score",
   props: ["ptarget", "psprite", "pmember"],
   handlers: {
     beginsprite(me) {
@@ -11557,13 +11600,13 @@ const S13_1 = {
     },
     mouseup(me) {
       $L.sp(this.$.psprite, "member", this.$.pmember);
-      $R.call(this, S13_1, "sndsfx", "sfx_interface_click_button");
+      $R.call(this, S13_2, "sndsfx", "sfx_interface_click_button");
       $B.go(this.$.ptarget);
     },
   },
 };
 
-export const scripts = [S1_100, S1_101, S1_102, S1_103, S1_104, S1_105, S1_106, S1_107, S1_108, S1_109, S1_110, S1_111, S1_112, S1_113, S1_114, S1_115, S1_116, S1_117, S1_118, S1_119, S1_120, S1_121, S1_122, S1_123, S1_124, S1_125, S1_126, S1_142, S1_92, S1_93, S1_94, S1_95, S1_96, S1_97, S1_98, S1_99, S1_5, S1_89, S1_90, S1_91, S1_129, S1_130, S1_131, S1_137, S1_138, S1_139, S1_140, S1_141, S1_143, S1_145, S1_146, S1_147, S1_148, S1_149, S1_150, S1_151, S1_152, S1_153, S1_154, S1_155, S1_169, S1_170, S1_171, S1_172, S1_173, S1_174, S1_175, S1_177, S1_178, S1_179, S1_180, S1_181, S1_182, S1_183, S1_184, S1_185, S1_186, S1_187, S1_188, S1_189, S1_190, S1_191, S1_193, S1_194, S1_195, S1_196, S1_197, S1_198, S1_199, S1_200, S1_201, S3_45, S3_1, S3_6, S4_269, S4_384, S2_1, S2_10, S2_11, S2_12, S2_14, S2_15, S2_16, S2_17, S2_19, S2_2, S2_21, S2_22, S2_23, S2_24, S2_25, S2_26, S2_27, S2_28, S2_29, S2_33, S2_6, S2_7, S2_9, S2_8, S6_19, S6_20, S6_21, S6_27, S6_9, S6_16, S6_2, S6_8, S8_1, S8_10, S8_11, S8_12, S8_14, S8_15, S8_16, S8_17, S8_19, S8_2, S8_21, S8_22, S8_23, S8_24, S8_25, S8_26, S8_27, S8_28, S8_29, S8_33, S8_6, S8_7, S8_9, S8_8, S13_1];
+export const scripts = [S1_100, S1_101, S1_102, S1_103, S1_104, S1_105, S1_106, S1_107, S1_108, S1_109, S1_110, S1_111, S1_112, S1_113, S1_114, S1_115, S1_116, S1_117, S1_118, S1_119, S1_120, S1_121, S1_122, S1_123, S1_124, S1_125, S1_126, S1_142, S1_92, S1_93, S1_94, S1_95, S1_96, S1_97, S1_98, S1_99, S1_5, S1_89, S1_90, S1_91, S1_129, S1_130, S1_131, S1_137, S1_138, S1_139, S1_140, S1_141, S1_143, S1_145, S1_146, S1_147, S1_148, S1_149, S1_150, S1_151, S1_152, S1_153, S1_154, S1_155, S1_169, S1_170, S1_171, S1_172, S1_173, S1_174, S1_175, S1_177, S1_178, S1_179, S1_180, S1_181, S1_182, S1_183, S1_184, S1_185, S1_186, S1_187, S1_188, S1_189, S1_190, S1_191, S1_193, S1_194, S1_195, S1_196, S1_197, S1_198, S1_199, S1_200, S1_201, S3_45, S3_1, S3_6, S4_269, S4_384, S2_1, S2_10, S2_11, S2_12, S2_14, S2_15, S2_16, S2_17, S2_19, S2_2, S2_21, S2_22, S2_23, S2_24, S2_25, S2_26, S2_27, S2_28, S2_29, S2_33, S2_6, S2_7, S2_9, S2_8, S6_19, S6_20, S6_21, S6_27, S6_9, S6_16, S6_2, S6_8, S8_1, S8_10, S8_11, S8_12, S8_14, S8_15, S8_16, S8_17, S8_19, S8_2, S8_21, S8_22, S8_23, S8_24, S8_25, S8_26, S8_27, S8_28, S8_29, S8_33, S8_6, S8_7, S8_9, S8_8, S13_1, S13_2];
 
 export function bind(runtime) {
   $R = runtime;

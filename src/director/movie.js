@@ -86,7 +86,12 @@ export class Runtime {
     this.canvas = canvas;
     this.assetBase = assetBase;
     this.options = options || {};
-    this.stage = data.stage;
+    this.stage = { ...data.stage };
+    this.baseStage = { width: data.stage.width, height: data.stage.height };
+    // A layout (src/online/layout.js) may size the stage to the window; without one the
+    // stage is the movie's, scaled to fit.
+    this.layout = this.options.layout || null;
+    this.box = null;
     this.globals = Object.create(null);
     this.casts = [];
     this.nameIndex = new Map();
@@ -428,6 +433,33 @@ export class Runtime {
     const l = this.labels.find(x => x.name.toLowerCase() === k);
     return l ? l.frame : 0;
   }
+  // The marker a frame is under: the last one at or before it.
+  labelAt(f) {
+    let name = null;
+    for (const l of this.labels) if (l.frame <= f) name = l.name;
+    return name;
+  }
+  // The window changed the stage's size: sprites anchored to its edges move with them.
+  setStageSize(w, h) {
+    this.stage.width = w;
+    this.stage.height = h;
+    const ex = w - this.baseStage.width, ey = h - this.baseStage.height;
+    for (const s of this.sprites) {
+      const a = s && s.anchor;
+      if (!a) continue;
+      const dx = Math.round(a.ax * ex), dy = Math.round(a.ay * ey);
+      s.locH += dx - a.dx;
+      s.locV += dy - a.dy;
+      a.dx = dx;
+      a.dy = dy;
+      if (a.grow) a.grow(s, ex, ey);
+    }
+    if (this.layout) {
+      this.box = this.layout.boxFor(this.labelAt(this.frame), this);
+      if (this.started) this.layout.resized(this);
+    }
+    this.needsDraw = true;
+  }
   frameLabel(f) {
     let label = null;
     for (const l of this.labels) if (l.frame === f) label = l.name;
@@ -486,6 +518,8 @@ export class Runtime {
   }
   // Move the channels to frame f: sprites whose span ends are told so, and new ones begin.
   enterScoreFrame(f) {
+    // a new marker may want another stage size: settle it before its sprites are placed
+    if (this.layout && this.renderer && this.labelAt(f) !== this.labelAt(this.frame)) this.renderer.resize();
     const fr = this.framesData[f - 1];
     const spans = this.spanIds[f - 1];
     const begins = [];
@@ -502,6 +536,9 @@ export class Runtime {
       const sp = fr.sprites[ch];
       spr.endInstances = spr.scriptInstances;
       spr.loadFromScore(sp);
+      spr.anchor = null;
+      spr.nine = null;
+      if (this.layout && sp) this.layout.anchor(this, this.labelAt(f), ch, spr);
       spr.spanKey = span;
       spr.scriptInstances = sp && sp.behaviors ? this.behaviorInstances(sp.behaviors) : [];
       spr.fromScore = !!(sp && sp.behaviors);
@@ -525,6 +562,7 @@ export class Runtime {
     }
     this.frame = f;
     this.frameScript = newFrameScript;
+    if (this.layout) this.box = this.layout.boxFor(this.labelAt(f), this);
     for (const spr of begins) {
       for (const inst of spr.scriptInstances.slice()) this.sendTo(inst, 'beginsprite', []);
     }
@@ -866,8 +904,8 @@ export class Runtime {
       case 'movie': return this.data.name + '.dcr';
       case 'stageleft': return 0;
       case 'stagetop': return 0;
-      case 'stageright': return this.stage.width;
-      case 'stagebottom': return this.stage.height;
+      case 'stageright': return this.box ? this.box.w : this.stage.width;
+      case 'stagebottom': return this.box ? this.box.h : this.stage.height;
       case 'stagecolor': return 0;
       case 'colordepth': return 32;
       case 'exitlock': return this.exitLock;

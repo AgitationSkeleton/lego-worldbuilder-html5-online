@@ -57,6 +57,10 @@ add to them (the collect goal, more tree and street types).
 
 ## 1. One game
 
+*Done, except importing the originals' progress and a new title.* The two licences are
+two screens for now: World Builder's after World Three, World Builder 2's after World
+Seven.
+
 Built on World Builder 2's movie, with what only World Builder has added to it:
 
 - **Art.** 105 bitmaps exist only in World Builder: the T. rex and the scorpion (all their
@@ -94,44 +98,54 @@ any that do not.
 
 ## 2. The window's shape and size
 
-The 1:1 port scales the 610 × 440 stage to fit the window. Here the stage takes the
-window's size (in stage pixels, after the interface size), and:
+*Done.* The 1:1 port scales the 610 × 440 stage to fit the window. Here the stage takes
+the window's size, in stage pixels after the interface size (`src/online/layout.js`):
 
-- **The map view grows.** `map display manager` fixes the view at `pDisplayTileSize = [12,
-  9]` tiles of 50 × 50 (skewed by 25), drawn from `pDisplayPixelTopLeft`. Those become
-  computed from the stage size; the sprite pool (`pTileSprites`, channels 200–800 in World
-  Builder, 200–1000 in World Builder 2) grows with the number of tiles shown, and the
-  scroll limits in `scrollmap` and `checkScroll` (the `AUTOSCROLL BORDER` shape) and the
-  minimap's cursor follow the view.
+- **Interface size**: how far the game is enlarged before a bigger window shows more map
+  instead: Small (1.5 ×), Medium (2 ×, the default), Large (2.5 ×) or Fill window, on the
+  settings page (the button in the window's bottom right corner, `src/online/ui.js`),
+  kept in the browser. `?ui=<factor>` overrides it for a visit.
+- **The map view grows.** `map display manager` fixed the view at `pDisplayTileSize = [12,
+  9]` tiles of 50 × 50, skewed by 25. The merge tool patches it to `viewTileSize()` (a
+  movie handler in `src/lingo/movie - layout.ls`, from the stage size), moves the grid's
+  origin left by the extra rows' skew, lets the sprite pool use channels 200–4000, and
+  centres the sky on the stage. A `relayout` handler added to the manager lays the view
+  out again when the window changes size mid-mission. The scroll limits and the
+  `AUTOSCROLL BORDER` shape follow the view; the sky is drawn large enough to cover it.
 - **The interface is anchored.** The play frame's interface sprites are given anchors by
-  channel: the right-hand panel (minimap, unit display, actions, menu button) to the
-  right edge, the plans bar and its counters to the bottom, the scroll arrows to the
-  middles of the edges, and the popups (goal, menu, unit info, tutorial) centred on the
-  map view. A layout pass moves them after each `prepareFrame`, so the scripts that place
-  them relative to their score positions (the popups keep offsets from their first
-  sprite) keep working.
-- **The world maps** are pictures 610 × 440; they stay that size, centred, with the
-  backdrop (sky, clouds) stretched to the window.
-- **Interface size**: a setting, as in CrystAlien Conflict Online: how far the interface
-  is enlarged before a bigger window shows more map instead.
+  channel when the score places them: the right-hand panel (minimap, unit display,
+  actions, menu button) to the right edge, the plans bar and its counters to the bottom,
+  the scroll arrows to the middles of the edges, and the popups (goal, menu, unit info)
+  to the middle. Scripts that place sprites relative to their score positions keep
+  working, since the anchors move the score positions. The map's frame is drawn
+  nine-sliced to the view's size, and the panel's white and its rule run the stage's
+  height.
+- **Other frames** (title, world maps, licences) are pictures 610 × 440; they are drawn
+  that size in the middle, over a blurred, enlarged copy of their own background.
+- **The tutorial** points its arrows at the original layout, so while it runs the stage
+  is 610 × 440, scaled to fit. The tutorial's two entry points set `tutorialMode` before
+  the mission is built, so the map is built at that size; when the tutorial ends or is
+  skipped, the mission is laid out again for the window.
 
 ## 3. Phones and tablets
 
 The games are played with the mouse alone, plus the arrow keys and the space bar. On a
-touch screen:
+touch screen (`src/online/touch.js`, tested by `tools/verify/touch.py` on emulated phones
+both ways up and on a tablet):
 
-- **Tap** is a click. **Drag** moves the view (by `scrollmapManual` steps, then smooth
-  pixel scrolling once 2 is in), **pinch** zooms, within limits.
-- **Hover** does work in these games: rolling over a goal shows what it wants, over a
-  resource its contents, over a mission on the world map its name, and the cursor
-  changes to dig, fill or plant. On touch, the first tap on such a thing shows what
-  hovering would, and a second tap acts; a long press shows the information without
-  acting.
-- **The space bar** (the action button's shortcut, which the game's own billboard
-  advertises) becomes an on-screen button by the selected unit's actions.
-- **Upright**, the right-hand panel moves below the map and the plans bar shrinks to a
+- *Done:* **on the interface** a touch is the mouse, down when the finger lands and up
+  when it lifts, so buttons work and holding a scroll arrow scrolls. **On the map** a tap
+  is a click; a **drag** moves the map with the finger, pixel by pixel (the map display
+  manager already had a pixel scroll, which its own scrolling never used); a **long
+  press** shows what hovering there would (a goal's wants, a pile's bricks) without
+  clicking. The pointer stays where the finger was, so what hovering showed stays shown
+  until the next touch.
+- *To do:* **pinch** to change the interface size, within limits.
+- *To do:* **upright**, the game is drawn at 0.64 × on a phone, too small to tap well:
+  the right-hand panel should move below the map and the plans bar shrink to a
   scrolling strip.
-- Tested with `tools/verify/mobile.py` on emulated phones both ways up.
+- The space bar is the selected unit's action button's shortcut, and that button is
+  already on screen, so it needs nothing more.
 
 ## 4. Scores
 
@@ -202,9 +216,9 @@ CrystAlien Conflict Online.
 
 Each step builds on the ones before it.
 
-1. **One game** (1). Everything else is easier with one movie to change.
-2. **The window and the interface** (2), with the settings page (7).
-3. **Touch** (3), which needs the anchored interface of step 2.
+1. **One game** (1). Everything else is easier with one movie to change. *Done.*
+2. **The window and the interface** (2), with the settings page (7). *Done.*
+3. **Touch** (3), which needs the anchored interface of step 2. *Mostly done.*
 4. **Scores** (4), with the server.
 5. **The randomizer** (5), which scores can rank once it is in.
 6. **Races** (6.1), on the scores server's rooms; then **co-op** (6.2).
@@ -213,10 +227,14 @@ Each step builds on the ones before it.
 ## How
 
 As with CrystAlien Conflict Online, this evolves the 1:1 port rather than replacing it:
-the same Director runtime and the same translated Lingo, which here becomes
-hand-maintained source (`src/games/merged/scripts.js`, made once from World Builder 2's
-translation by the merge tool, then edited). The runtime itself is shared code: fixes
-to it go to the 1:1 port first and are pulled from there (`git pull html5 main`).
+the same Director runtime and the same translated Lingo. The merged game is made by
+`tools/merge.py` from the two games' Lingo, with its changes kept as small patches to
+the Lingo (`PATCHES`, each with its reason) and new scripts written in Lingo
+(`src/lingo/`), so it can be made again whenever the translator improves.
+`src/games/merged/scripts.js` is its output and is not edited by hand. The runtime is
+shared code: fixes to it go to the 1:1 port first and are pulled from there
+(`git pull html5 main`); what only the online game needs is a hook the runtime calls
+when it has one (`rt.layout`) and lives in `src/online/`.
 
 The games' feel and numbers stay as they are (no rebalancing): unit speeds, recipes,
 energy and monsters are the original's.
