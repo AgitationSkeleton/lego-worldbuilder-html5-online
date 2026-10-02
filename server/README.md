@@ -33,8 +33,9 @@ npm run deploy
 ```
 
 `deploy` makes the Worker, its Durable Object for races, and the address
-`wbserver.viosarcade.xyz` with its certificate (it can take a few minutes the first time). Check it at https://wbserver.viosarcade.xyz/health,
-which answers `{"ok":true,...}`. Later changes are `npm run deploy` again.
+`wbserver.viosarcade.xyz` with its certificate (it can take a few minutes the first time).
+Check it at https://wbserver.viosarcade.xyz/health, which answers `{"ok":true,...}`. Later
+changes are `npm run deploy` again.
 
 With `DISCORD_WEBHOOK` set, the server posts each new best time to that channel
 (`src/discord.js`). The webhook is a secret, never in this repository. Without it nothing is
