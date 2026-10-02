@@ -30,7 +30,7 @@ then open <http://localhost:8000/>.
   and licences keep their original size in the middle of the window. The tutorial keeps
   the original layout, since its arrows point at it.
 - **Touch**: a tap is a click, a drag moves the map, a long press on the map shows what
-  hovering would.
+  hovering would, and two fingers pinch the interface smaller or bigger.
 - **Scores**: each mission is timed to its goal and its bonus goal. Best times are kept in
   the browser and, if the player chooses, sent to score tables on a small server
   ([server/](server/), not deployed yet).

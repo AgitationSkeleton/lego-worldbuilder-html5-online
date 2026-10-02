@@ -141,10 +141,13 @@ both ways up and on a tablet):
   press** shows what hovering there would (a goal's wants, a pile's bricks) without
   clicking. The pointer stays where the finger was, so what hovering showed stays shown
   until the next touch.
-- *To do:* **pinch** to change the interface size, within limits.
+- *Done:* two fingers **pinch** the interface smaller (more map) or bigger, for the visit,
+  from half size to as big as fits; whatever the first finger had pressed is let go
+  without a click.
 - *To do:* **upright**, the game is drawn at 0.64 × on a phone, too small to tap well:
   the right-hand panel should move below the map and the plans bar shrink to a
-  scrolling strip.
+  scrolling strip. For now an upright phone is told, once, that turning it sideways
+  gives a bigger view.
 - The space bar is the selected unit's action button's shortcut, and that button is
   already on screen, so it needs nothing more.
 
@@ -244,7 +247,7 @@ Each step builds on the ones before it.
 
 1. **One game** (1). Everything else is easier with one movie to change. *Done.*
 2. **The window and the interface** (2), with the settings page (7). *Done.*
-3. **Touch** (3), which needs the anchored interface of step 2. *Mostly done.*
+3. **Touch** (3), which needs the anchored interface of step 2. *Done, but for an upright layout.*
 4. **Scores** (4), with the server. *Done, not deployed.*
 5. **The randomizer** (5), which scores can rank once it is in. *Done, as remixes.*
 6. **Races** (6.1), on the scores server's rooms *(done, not deployed)*; then **co-op** (6.2).

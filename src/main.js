@@ -57,8 +57,11 @@ async function main() {
     // settings ask for (src/online/ui.js).
     const ui = new OnlineUI(rt, canvas);
     rt.layout = makeLayout(rt, { maxScale: () => ui.maxScale() });
-    // and a finger does what the mouse did (src/online/touch.js)
-    installTouch(rt, canvas);
+    // and a finger does what the mouse did (src/online/touch.js); two pinch the interface
+    installTouch(rt, canvas, { pinch: {
+      get: () => rt.renderer.scale / rt.renderer.dpr,
+      set: (scale) => ui.pinched(scale),
+    } });
     // generated missions (src/online/missions.js), and missions timed for the score tables
     // (src/online/scores.js), whose hooks go on after the generated missions' own
     window.__online = ui;

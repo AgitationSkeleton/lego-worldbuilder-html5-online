@@ -48,6 +48,14 @@ export class OnlineUI {
   maxScale() {
     return this.forcedScale || UI_SCALES[this.settings.size];
   }
+  // Two fingers pinched the interface to this size (for the visit; the settings' sizes
+  // are kept).
+  pinched(scale) {
+    this.forcedScale = Math.max(0.5, Math.min(4, scale));
+    this.render();
+    this.rt.renderer.resize();
+    this.rt.needsDraw = true;
+  }
   build() {
     this.gear = el('button', {
       id: 'gear', type: 'button', title: 'Settings', 'aria-label': 'Settings', html: GEAR,
@@ -107,8 +115,18 @@ export class OnlineUI {
         el('div', { class: 'choices' },
           el('button', { type: 'button', class: 'choice', text: 'Race with others', onclick: () => this.races && this.races.open() }))));
     this.buildTables();
+    // an upright phone draws the game small: a word about turning it, until it is turned
+    // or the word is closed
+    this.hint = el('div', { id: 'turn-hint', role: 'status', hidden: '' },
+      el('span', { text: 'Turn your phone sideways for a bigger view.' }),
+      el('button', { type: 'button', 'aria-label': 'Close', text: '×', onclick: () => {
+        this.hintClosed = true;
+        this.checkHint();
+      } }));
+    window.addEventListener('resize', () => this.checkHint());
     document.addEventListener('fullscreenchange', () => this.render());
-    document.body.append(this.gear, this.panel, this.tables);
+    document.body.append(this.gear, this.panel, this.tables, this.hint);
+    this.checkHint();
     this.render();
   }
   buildTables() {
@@ -212,6 +230,11 @@ export class OnlineUI {
   save() {
     saveSettings(this.settings);
     this.render();
+  }
+  checkHint() {
+    const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    const upright = window.innerHeight > window.innerWidth && window.innerWidth < 700;
+    this.hint.hidden = !(touch && upright) || !!this.hintClosed;
   }
   newCode() {
     if (!this.random) return;

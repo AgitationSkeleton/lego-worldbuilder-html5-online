@@ -9,6 +9,10 @@
 //
 // The pointer stays where the finger last was, so whatever hovering showed stays shown
 // until the next touch.
+//
+// Two fingers pinch: the interface grows or shrinks with them (options.pinch), as the
+// settings' interface size does, for the visit.  Whatever the first finger had begun is
+// let go without a click.
 
 import * as L from '../director/lingo.js';
 
@@ -17,8 +21,10 @@ const HOLD_MS = 450;        // held this long without moving: hover only
 const MAP_CHANNELS = 200;   // the map's tiles and everything on it are in channels 200 up
 const SKY = 1;              // the sky behind the map
 
-export function installTouch(rt, canvas) {
-  let touch = null;         // the finger being followed: { id, x0, y0, sx, sy, mode, timer }
+export function installTouch(rt, canvas, options = {}) {
+  let touch = null;         // the finger being followed: { id, x0, y0, sx, sy, cx, cy, mode, timer }
+  let second = null;        // a second finger, pinching: { id, cx, cy }
+  let pinch = null;         // { d0, s0 }: the fingers' first distance, the scale then
 
   const stagePos = (e) => rt.renderer.toStage(e.clientX, e.clientY);
   const mapDisplay = () => {
@@ -34,7 +40,10 @@ export function installTouch(rt, canvas) {
     e.preventDefault();
     rt.sound.resume();
     canvas.focus();
-    if (touch) return;      // a second finger: ignored (pinching is the page's, not the game's)
+    if (touch) {
+      if (!second && options.pinch && touch.mode !== 'ignore') startPinch(e);
+      return;
+    }
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     const [x, y] = stagePos(e);
     rt.mouse.x = x;
@@ -43,7 +52,7 @@ export function installTouch(rt, canvas) {
     // on the map: whatever is drawn there is the map, what is on it, or the sky behind it
     const top = rt.spriteAt(x, y, true);
     const onMap = (top === 0 || top === SKY || top >= MAP_CHANNELS) && !!mapDisplay();
-    touch = { id: e.pointerId, x0: e.clientX, y0: e.clientY, sx: x, sy: y, mode: onMap ? 'pending' : 'mouse', timer: 0 };
+    touch = { id: e.pointerId, x0: e.clientX, y0: e.clientY, sx: x, sy: y, cx: e.clientX, cy: e.clientY, mode: onMap ? 'pending' : 'mouse', timer: 0 };
     if (onMap) {
       touch.timer = setTimeout(() => { if (touch && touch.mode === 'pending') touch.mode = 'hover'; }, HOLD_MS);
     } else {
@@ -51,10 +60,35 @@ export function installTouch(rt, canvas) {
     }
   }
 
+  function startPinch(e) {
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    clearTimeout(touch.timer);
+    if (touch.mode === 'mouse') {
+      // let go of what the first finger pressed, without a click
+      rt.mouse.x = -10000;
+      rt.mouse.y = -10000;
+      rt.mouseUp();
+    }
+    touch.mode = 'pinch';
+    second = { id: e.pointerId, cx: e.clientX, cy: e.clientY };
+    pinch = { d0: Math.max(1, Math.hypot(second.cx - touch.cx, second.cy - touch.cy)), s0: options.pinch.get() };
+  }
+
   function move(e) {
     if (e.pointerType !== 'touch') return;
     e.stopPropagation();
-    if (!touch || e.pointerId !== touch.id) return;
+    if (second && e.pointerId === second.id) {
+      second.cx = e.clientX;
+      second.cy = e.clientY;
+    } else if (touch && e.pointerId === touch.id) {
+      touch.cx = e.clientX;
+      touch.cy = e.clientY;
+    }
+    if (pinch && touch && second) {
+      options.pinch.set(pinch.s0 * Math.hypot(second.cx - touch.cx, second.cy - touch.cy) / pinch.d0);
+      return;
+    }
+    if (!touch || e.pointerId !== touch.id || touch.mode === 'ignore') return;
     const [x, y] = stagePos(e);
     if (touch.mode === 'pending' && Math.hypot(e.clientX - touch.x0, e.clientY - touch.y0) >= DRAG_START) {
       touch.mode = 'drag';
@@ -96,6 +130,14 @@ export function installTouch(rt, canvas) {
   function up(e) {
     if (e.pointerType !== 'touch') return;
     e.stopPropagation();
+    if (pinch && touch && (e.pointerId === touch.id || (second && e.pointerId === second.id))) {
+      // the pinch is over; the finger still down does nothing until it lifts
+      const left = e.pointerId === touch.id ? second : touch;
+      touch = { id: left.id, mode: 'ignore', timer: 0 };
+      second = null;
+      pinch = null;
+      return;
+    }
     if (!touch || e.pointerId !== touch.id) return;
     clearTimeout(touch.timer);
     const t = touch;
@@ -119,6 +161,12 @@ export function installTouch(rt, canvas) {
   function cancel(e) {
     if (e.pointerType !== 'touch') return;
     e.stopPropagation();
+    if (second && e.pointerId === second.id) {
+      second = null;
+      pinch = null;
+      if (touch) touch.mode = 'ignore';
+      return;
+    }
     if (!touch || e.pointerId !== touch.id) return;
     clearTimeout(touch.timer);
     if (touch.mode === 'mouse') rt.mouseUp();

@@ -69,6 +69,16 @@ class Finger:
         self._send('touchStart', x, y)
         self._send('touchEnd', x, y)
 
+    def pinch(self, cx, cy, d0, d1, steps=8):
+        # two fingers either side of (cx, cy), from d0 apart to d1
+        def pts(d):
+            return [{'x': cx - d / 2, 'y': cy, 'id': 1}, {'x': cx + d / 2, 'y': cy, 'id': 2}]
+        self.cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': pts(d0)[:1]})
+        self.cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': pts(d0)})
+        for i in range(1, steps + 1):
+            self.cdp.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': pts(d0 + (d1 - d0) * i / steps)})
+        self.cdp.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []})
+
     def hold(self, x, y, frames):
         self._send('touchStart', x, y)
         self.page.evaluate('n => window.__step(n)', frames)
@@ -154,6 +164,22 @@ def main():
         page.evaluate('window.__step(10)')
         page.screenshot(path=os.path.join(a.out, 'menu.png'))
         check('a tap on %s opens the menu' % btn[2], page.evaluate(STATE)['menuShown'], '')
+
+        # two fingers pinch the interface: together, smaller (more map); apart, bigger again
+        size = lambda: page.evaluate('[window.__rt.stage.width, window.__rt.stage.height, window.__rt.renderer.scale / window.__rt.renderer.dpr]')
+        before = size()
+        # (in the middle of the window, the fingers on it however narrow it is)
+        mx, my = w / 2, h / 2
+        d0 = min(300, w * 0.7)
+        finger.pinch(mx, my, d0, d0 / 2)
+        page.evaluate('window.__step(1)')
+        smaller = size()
+        check('pinching in shrinks the interface, showing more map', smaller[2] < before[2] - 0.1 and smaller[0] > before[0],
+              '%s -> %s' % (before, smaller))
+        finger.pinch(mx, my, d0 / 2, d0)
+        page.evaluate('window.__step(1)')
+        bigger = size()
+        check('pinching out grows it again', abs(bigger[2] - min(before[2], smaller[2] * 2)) < 0.05, '%s -> %s' % (smaller, bigger))
 
         errors = page.evaluate('window.__rt.errors')
         check('no script errors', not errors, json.dumps(errors[:3]))
