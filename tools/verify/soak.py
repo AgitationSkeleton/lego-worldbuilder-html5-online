@@ -33,7 +33,10 @@ START = '''([w, l]) => {
 QUIT = '''() => {
   const rt = window.__rt;
   const s = rt.movieHandlers.quitlevel.script;
-  rt.call(rt.scriptSelf(s), s, 'quitlevel');
+  // random clicks may have ended the mission already, through its own menu
+  const glob = rt.globals.glob;
+  const i = glob.k.findIndex(k => k.key === 'map_display');
+  if (i >= 0 && glob.v[i] !== undefined) rt.call(rt.scriptSelf(s), s, 'quitlevel');
   rt.step(2);
   return rt.frame;
 }'''
