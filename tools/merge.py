@@ -283,6 +283,23 @@ def merge():
     add(wb1_frame(labels1['license']), 'license')
     # after a licence screen the playhead loops there (frameloop); nothing follows it
 
+    # The title, for both games: World Builder's picture and logo (the campaign starts in its
+    # worlds), World Builder 2's logo under it, and the loading bar's and Start button's
+    # place moved down below the two.  (World Builder 2's own picture has its logo painted
+    # in.)  The frames before the world maps are the loading, slideshow and splash frames.
+    art, logo, banner = find_ref(out, 'final_title_image'), find_ref(out, 'title_logo'), find_ref(out, 'wb2_title_banner')
+    for fr in frames[:labels2['world 1'] - 1]:
+        sp = fr['sprites']
+        assert '2' not in sp and '4' not in sp, 'title channels taken'
+        sp['1'].update(member=art, width=607, height=395)
+        sp['2'] = dict(member=logo, ink=0, locH=424, locV=76, width=335, height=57, foreColor=255, backColor=0)
+        sp['4'] = dict(member=banner, ink=36, locH=471, locV=115, width=240, height=24, foreColor=255, backColor=0)
+        # the loading bar fills along World Builder's logo's line, as it did there
+        sp['3'].update(locH=261, locV=97, width=326, foreColor=255, foreRGB=[255, 153, 0])
+        for ch in ('5', '6', '7'):
+            if ch in sp:
+                sp[ch]['locV'] += 47   # (clear of the slideshow's bubble below)
+
     # The buttons between the two games' world maps
     jump_script = [ONLINE_LIB, sorted(os.listdir(os.path.join(ROOT, 'src', 'lingo'))).index('world jump button beh.ls') + 1]
     for w in range(1, 8):

@@ -57,9 +57,8 @@ add to them (the collect goal, more tree and street types).
 
 ## 1. One game
 
-*Done, except importing the originals' progress and a new title.* The two licences are
-two screens for now: World Builder's after World Three, World Builder 2's after World
-Seven.
+*Done, except importing the originals' progress.* The two licences are two screens for
+now: World Builder's after World Three, World Builder 2's after World Seven.
 
 Built on World Builder 2's movie, with what only World Builder has added to it:
 
@@ -89,7 +88,9 @@ Built on World Builder 2's movie, with what only World Builder has added to it:
 - **The licence.** Each game ends with a builder's licence of three or four classes. The
   merged game shows World Builder's licence for worlds 1–5 and World Builder 2's for 6–7,
   on the licence screen side by side.
-- **Title.** A new splash: both games' title art, and one Start.
+- **Title.** One splash for both: World Builder's picture and logo, since the campaign
+  starts in its worlds, with World Builder 2's logo under it, World Builder's loading bar
+  along its logo's line, and one Start; then World Builder 2's slideshow of the units.
 
 Worth checking once it runs: World Builder's missions on World Builder 2's engine. The
 config and terrain table say they behave the same, and the soak test
