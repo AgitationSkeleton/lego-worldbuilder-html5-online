@@ -3,96 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LEGO World Builder</title>
-<meta name="description" content="LEGO World Builder and LEGO World Builder 2, the Shockwave construction games by Gamelab for LEGO.com, running in the browser without Shockwave.">
-<link rel="icon" href="assets/wb1/icon.png">
-<style>
-  :root {
-    --bg: #f4f1ea;
-    --card: #ffffff;
-    --ink: #1d1d1b;
-    --muted: #5d5a54;
-    --line: #ddd7cb;
-    --accent: #d01012;
-    --accent-ink: #ffffff;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 6px 18px rgba(0, 0, 0, .08);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #17171a;
-      --card: #222226;
-      --ink: #eeeae2;
-      --muted: #a8a49c;
-      --line: #34343a;
-      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 18px rgba(0, 0, 0, .35);
-    }
-  }
-  * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--ink);
-    font: 16px/1.5 Arial, "Liberation Sans", Helvetica, sans-serif;
-  }
-  header {
-    background: var(--accent);
-    color: var(--accent-ink);
-    padding: 20px 16px 18px;
-  }
-  header .wrap, main, footer { max-width: 980px; margin: 0 auto; }
-  h1 { margin: 0; font: 900 clamp(26px, 5vw, 38px)/1.1 "Arial Black", Arial, sans-serif; letter-spacing: -.5px; }
-  header p { margin: 6px 0 0; opacity: .92; }
-  main { padding: 28px 16px 8px; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
-  .game {
-    display: flex; flex-direction: column;
-    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
-    box-shadow: var(--shadow); overflow: hidden; color: inherit; text-decoration: none;
-    transition: transform .12s ease, box-shadow .12s ease;
-  }
-  .game:hover, .game:focus-visible { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0,0,0,.08), 0 12px 28px rgba(0,0,0,.14); }
-  .game:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-  .game img { display: block; width: 100%; height: auto; aspect-ratio: 610 / 440; object-fit: cover; background: #ccc; }
-  .game .body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
-  .game h2 { margin: 0; font: 900 21px/1.2 "Arial Black", Arial, sans-serif; }
-  .game p { margin: 0; color: var(--muted); font-size: 15px; }
-  .play {
-    margin-top: auto; align-self: flex-start; padding: 7px 18px; border-radius: 6px;
-    background: var(--accent); color: var(--accent-ink); font-weight: bold; font-size: 15px;
-  }
-  footer { padding: 18px 16px 32px; color: var(--muted); font-size: 13px; }
-  footer p { margin: 6px 0; }
-  footer a { color: inherit; }
-</style>
+<title>LEGO World Builder Online</title>
+<meta name="description" content="LEGO World Builder and LEGO World Builder 2 as one game in the browser: both campaigns, seven worlds.">
+<link rel="icon" href="assets/wb2/icon.png">
+<link rel="stylesheet" href="src/page.css">
 </head>
-<body>
-<header>
-  <div class="wrap">
-    <h1>LEGO World Builder</h1>
-    <p>The two Shockwave construction games from LEGO.com, playable again in your browser.</p>
-  </div>
-</header>
-<main>
-  <a class="game" href="wb1/">
-    <img src="assets/wb1/title.jpg" alt="The title screen of LEGO World Builder" width="610" height="440">
-    <div class="body">
-      <h2>World Builder</h2>
-      <p>Gather bricks, find plans and build vehicles and buildings to complete each mission. Five worlds, among them the Ocean and Prehistoric challenge worlds.</p>
-      <span class="play">Play</span>
-    </div>
-  </a>
-  <a class="game" href="wb2/">
-    <img src="assets/wb2/title.jpg" alt="The title screen of LEGO World Builder 2" width="610" height="440">
-    <div class="body">
-      <h2>World Builder 2</h2>
-      <p>Streets, white bricks and new buildings, the Freezebot, and lions on the loose. Two worlds of twelve missions each.</p>
-      <span class="play">Play</span>
-    </div>
-  </a>
-</main>
-<footer>
-  <p>LEGO World Builder and LEGO World Builder 2 were made by Gamelab for The LEGO Group. LEGO is a trademark of The LEGO Group, which does not sponsor, authorise or endorse this unofficial, non-commercial port.</p>
-  <p>The games run from their original Shockwave movies, translated to run without the plugin. Progress is saved in this browser.</p>
-</footer>
+<body data-game="merged">
+<canvas id="stage" tabindex="0" aria-label="LEGO World Builder Online"></canvas>
+<p id="status" role="status">Loading…</p>
+<button id="gate" type="button" hidden>Click to play</button>
+<noscript><p class="noscript">LEGO World Builder Online needs JavaScript to run.</p></noscript>
+<script type="module" src="src/main.js"></script>
 </body>
 </html>

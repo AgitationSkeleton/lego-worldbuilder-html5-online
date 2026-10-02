@@ -23,7 +23,7 @@ def run(game, script, out, base, width, height, seed, headed):
         page = b.new_page(viewport={'width': width, 'height': height})
         page.on('console', lambda m: logs.append('%s: %s' % (m.type, m.text)))
         page.on('pageerror', lambda e: logs.append('pageerror: %s' % e))
-        page.goto('%s%s/?test&seed=%d' % (base, game, seed))
+        page.goto('%s%s?test&seed=%d' % (base, game + '/' if game else '', seed))
         page.wait_for_function('window.__rt && window.__rt.started', timeout=60000)
         n = 0
         for cmd in script:

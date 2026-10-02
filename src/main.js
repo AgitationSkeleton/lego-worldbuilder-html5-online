@@ -6,6 +6,7 @@ import { Runtime } from './director/movie.js';
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
   wb2: { title: 'LEGO World Builder 2' },
+  merged: { title: 'LEGO World Builder Online' },
 };
 
 const params = new URLSearchParams(location.search);

@@ -19,6 +19,7 @@ from playwright.sync_api import sync_playwright
 MISSIONS = {
     'wb1': [(w, l) for w in (1, 2, 3, 4, 5) for l in range(1, 13)],
     'wb2': [(w, l) for w in (1, 2) for l in range(1, 13)],
+    'merged': [(w, l) for w in range(1, 8) for l in range(1, 13)],
 }
 
 START = '''([w, l]) => {
@@ -60,7 +61,8 @@ def main():
     with sync_playwright() as p:
         b = p.chromium.launch()
         page = b.new_page(viewport={'width': 610, 'height': 440})
-        page.goto('%s%s/?test&seed=%d' % (a.base, a.game, a.seed))
+        path = '' if a.game == 'merged' else a.game + '/'
+        page.goto('%s%s?test&seed=%d' % (a.base, path, a.seed))
         page.wait_for_function('window.__rt && window.__rt.started', timeout=60000)
         page.evaluate('window.__step(10)')
         for (w, l) in missions:
