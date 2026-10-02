@@ -5,6 +5,7 @@ import { Runtime } from './director/movie.js';
 import { makeLayout } from './online/layout.js';
 import { OnlineUI } from './online/ui.js';
 import { installTouch } from './online/touch.js';
+import { Scores } from './online/scores.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -56,6 +57,9 @@ async function main() {
     rt.layout = makeLayout(rt, { maxScale: () => ui.maxScale() });
     // and a finger does what the mouse did (src/online/touch.js)
     installTouch(rt, canvas);
+    // missions are timed, for the score tables (src/online/scores.js)
+    ui.scores = new Scores(rt, ui, params);
+    ui.scores.install(scripts.scripts);
   }
   window.__rt = rt;
   window.__step = (n) => rt.step(n);

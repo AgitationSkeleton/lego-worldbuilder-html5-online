@@ -1,0 +1,16 @@
+{
+  "name": "worldbuilder-server",
+  "private": true,
+  "description": "World Builder Online's server: the score tables (a Cloudflare Worker with a D1 database).",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute worldbuilder --remote --file=schema.sql",
+    "db:init:local": "wrangler d1 execute worldbuilder --local --file=schema.sql",
+    "test": "node test/run.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

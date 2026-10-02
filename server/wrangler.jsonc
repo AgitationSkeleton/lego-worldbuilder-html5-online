@@ -1,0 +1,31 @@
+// World Builder Online's server (a Cloudflare Worker): the score tables, in D1.
+// See README.md here for deploying it.
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "worldbuilder-server",
+	"main": "src/index.js",
+	"compatibility_date": "2026-09-01",
+	"observability": {
+		"enabled": true
+	},
+	// The score tables.  `npx wrangler d1 create worldbuilder` prints the id to put here.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "worldbuilder",
+			"database_id": "00000000-0000-0000-0000-000000000000"
+		}
+	],
+	"vars": {
+		// Pages that may use the server (a trailing :* allows any port, for testing locally).
+		"ALLOWED_ORIGINS": "https://wbonline.viosarcade.xyz,http://localhost:*,http://127.0.0.1:*"
+	},
+	// The server's address.  viosarcade.xyz must be a zone on this Cloudflare account; the
+	// address and its certificate are made on the first deploy.
+	"routes": [
+		{
+			"pattern": "wbserver.viosarcade.xyz",
+			"custom_domain": true
+		}
+	]
+}

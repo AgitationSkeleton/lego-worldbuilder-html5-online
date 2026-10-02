@@ -9,8 +9,13 @@ const KEY = 'lego-wb-online:settings';
 // it all the way, as the 1:1 port does.
 export const UI_SCALES = { small: 1.5, medium: 2, large: 2.5, fill: Infinity };
 
+// Whether a time reached is sent to the score tables: asked each time, always, or never.
+export const SEND_CHOICES = ['ask', 'always', 'never'];
+
 export const DEFAULTS = {
   size: 'medium',
+  name: '',                 // the name on the score tables
+  scores: 'ask',            // one of SEND_CHOICES
 };
 
 export function loadSettings() {
@@ -22,6 +27,9 @@ export function loadSettings() {
   }
   const s = Object.assign({}, DEFAULTS, saved && typeof saved === 'object' ? saved : {});
   if (!(s.size in UI_SCALES)) s.size = DEFAULTS.size;
+  if (typeof s.name !== 'string') s.name = DEFAULTS.name;
+  s.name = s.name.slice(0, 15);
+  if (!SEND_CHOICES.includes(s.scores)) s.scores = DEFAULTS.scores;
   return s;
 }
 

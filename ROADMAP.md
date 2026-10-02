@@ -149,23 +149,29 @@ both ways up and on a tablet):
 
 ## 4. Scores
 
-Neither game kept scores, but each mission has a clock (`game clock beh`, shown in the
-right-hand panel) and a bonus goal. A result is: the mission, the time from start to the
-goal, whether the bonus goal was reached and when, and how many units were built and
-taken apart.
+*Done, except deploying the server and checking times.* Neither game kept scores, but each
+mission has a clock (`game clock beh`, shown in the right-hand panel) and a bonus goal, which
+opens once the goal is reached.
 
-- **Recording**: `goal.goal.reportSuccess` and `goal.bonus.reportSuccess` already tell the
-  worlds manager; they also tell the scores client, with the clock's time. A restart
-  (`restartlevel`) starts a new attempt.
-- **Server**: a Cloudflare Worker with a D1 database, like CrystAlien Conflict's
-  (`cacserver.viosarcade.xyz`), at `wbserver.viosarcade.xyz`: `POST /score` and
-  `GET /scores?mission=6.3`. Tables per mission (fastest goal, fastest goal-and-bonus)
-  and overall (missions completed, bonuses, total time).
-- **Honesty**: the server checks times against a lower bound per mission (the time a unit
-  needs to drive the shortest route at its speed), and later against a replay: the
-  runtime's test mode already runs the game on a virtual clock with seeded random numbers,
-  so a run's inputs, frame by frame, replay to the same result.
-- **Names**: asked for the first time a score is sent, kept in the settings.
+- **Recording** (`src/online/scores.js`): the scores client wraps two of the game's handlers
+  as the scripts load, leaving their Lingo as it is: `startlevel` starts an attempt (a
+  restart, `restartlevel`, calls it again), and the worlds manager's `reportSuccess`, which
+  `goal.goal` and `goal.bonus` already call, ends it with the time by the game's clock. The
+  tutorial is not timed. The player's best times are kept in the browser.
+- **Sending** is the player's choice in the settings: ask each time (the default; the first
+  time, a name is asked for), always, or never. After a time is sent, its place on the
+  table shows, and a link opens the tables.
+- **Server** (`server/`): a Cloudflare Worker with a D1 database, like CrystAlien
+  Conflict's, at `wbserver.viosarcade.xyz`: `POST /scores`, `GET /scores?mission=6.3` (the
+  fastest to the goal and to the bonus, each name's best) and `GET /scores/overall`
+  (missions with the goal reached, with the bonus, and their goal times added up). Names
+  go through CrystAlien Conflict's profanity filter. Not deployed yet: `server/README.md`
+  has the steps.
+- **Honesty**, *to do*: the server checks only that a time is possible at all (3 seconds to
+  6 hours) and limits how many come from one address. Next: a least time per mission (the
+  time a unit needs to drive the shortest route at its speed), then replays: the runtime's
+  test mode already runs the game on a virtual clock with seeded random numbers, so a run's
+  inputs, frame by frame, replay to the same result.
 
 ## 5. A level randomizer
 
@@ -219,7 +225,7 @@ Each step builds on the ones before it.
 1. **One game** (1). Everything else is easier with one movie to change. *Done.*
 2. **The window and the interface** (2), with the settings page (7). *Done.*
 3. **Touch** (3), which needs the anchored interface of step 2. *Mostly done.*
-4. **Scores** (4), with the server.
+4. **Scores** (4), with the server. *Done, not deployed.*
 5. **The randomizer** (5), which scores can rank once it is in.
 6. **Races** (6.1), on the scores server's rooms; then **co-op** (6.2).
 7. **The offline client and smooth drawing** (7).

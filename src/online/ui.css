@@ -18,7 +18,7 @@
 #gear svg { display: block; width: 100%; height: 100%; fill: #000; }
 #gear:hover, #gear:focus-visible { opacity: 1; }
 
-#settings {
+.panel {
   position: fixed;
   inset: 0;
   z-index: 10;
@@ -29,31 +29,31 @@
   background: rgba(0, 0, 0, 0.45);
   overflow-y: auto;
 }
-#settings[hidden] { display: none; }
-#settings .bubble {
-  width: min(440px, 100%);
+.panel[hidden] { display: none; }
+.bubble, #scores-toast {
   box-sizing: border-box;
-  padding: 14px 20px 18px;
   background: #fff;
   border: 4px solid #000;
   border-radius: 14px;
   color: #000;
   font: 15px/1.35 Arial, sans-serif;
 }
-#settings h2 {
+.panel .bubble { width: min(460px, 100%); padding: 14px 20px 18px; }
+.panel h2 {
   margin: 0 0 6px;
   font: 900 26px 'Arial Black', Arial, sans-serif;
   color: #aaa;
 }
-#settings h3 {
+.panel h3 {
   margin: 14px 0 4px;
   font: 400 12px 'WB 04b_08', monospace;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-#settings p { margin: 0 0 8px; }
-#settings .choices { display: flex; flex-wrap: wrap; gap: 6px; }
-#settings button.choice, #settings button.done {
+.panel p { margin: 0 0 8px; }
+.panel .choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.panel .choices + .choices { margin-top: 8px; }
+.panel button.choice, .panel button.done, #scores-toast button.send, #scores-toast button.skip {
   min-height: 30px;
   padding: 4px 12px;
   border: 0;
@@ -64,8 +64,64 @@
   text-transform: uppercase;
   cursor: pointer;
 }
-#settings button.choice[aria-pressed="true"] { background: #33bb22; color: #fff; }
-#settings button.choice:hover, #settings button.done:hover { filter: brightness(1.08); }
-#settings button:focus-visible { outline: 2px solid #000; outline-offset: 2px; }
-#settings .actions { display: flex; justify-content: flex-end; margin-top: 16px; }
-#settings button.done { min-width: 110px; }
+.panel button.choice[aria-pressed="true"] { background: #33bb22; color: #fff; }
+.panel button:hover, #scores-toast button:hover { filter: brightness(1.08); }
+.panel button:focus-visible, .panel input:focus-visible, .panel select:focus-visible,
+#scores-toast button:focus-visible, #scores-toast input:focus-visible { outline: 2px solid #000; outline-offset: 2px; }
+.panel .actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+.panel button.done { min-width: 110px; }
+.panel input[type=text], .panel select, #scores-toast input[type=text] {
+  min-height: 30px;
+  box-sizing: border-box;
+  padding: 3px 8px;
+  border: 2px solid #000;
+  border-radius: 4px;
+  background: #fff;
+  color: #000;
+  font: 15px Arial, sans-serif;
+}
+.panel .name input { flex: 1 1 140px; min-width: 0; }
+.panel .pick select { flex: 1 1 160px; min-width: 0; }
+.panel .pick select[hidden] { display: none; }
+
+#scores .bubble { width: min(520px, 100%); }
+#scores .tables { min-height: 120px; max-height: min(60vh, 520px); overflow-y: auto; margin-top: 8px; }
+#scores table { width: 100%; border-collapse: collapse; font-size: 14px; }
+#scores th {
+  text-align: left;
+  font: 400 11px 'WB 04b_08', monospace;
+  text-transform: uppercase;
+  border-bottom: 2px solid #000;
+  padding: 2px 6px;
+}
+#scores td { padding: 3px 6px; border-bottom: 1px solid #ddd; font-variant-numeric: tabular-nums; }
+#scores td:first-child, #scores th:first-child { width: 2.5em; color: #777; }
+#scores tr.me td { background: #e6ffd9; font-weight: bold; }
+
+#scores-toast {
+  position: fixed;
+  left: 50%;
+  top: max(10px, env(safe-area-inset-top));
+  transform: translateX(-50%);
+  z-index: 8;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 8px 14px;
+}
+#scores-toast[hidden] { display: none; }
+#scores-toast b { font: 900 17px 'Arial Black', Arial, sans-serif; }
+#scores-toast .note { color: #555; }
+#scores-toast .line { margin-top: 2px; }
+#scores-toast button.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #1a6e00;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+#scores-toast form { margin-top: 4px; }
+#scores-toast .row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+#scores-toast .row input { flex: 1 1 140px; min-width: 0; }
+#scores-toast .always { font-size: 13px; color: #333; }

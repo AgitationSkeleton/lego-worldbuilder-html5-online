@@ -31,6 +31,9 @@ then open <http://localhost:8000/>.
   the original layout, since its arrows point at it.
 - **Touch**: a tap is a click, a drag moves the map, a long press on the map shows what
   hovering would.
+- **Scores**: each mission is timed to its goal and its bonus goal. Best times are kept in
+  the browser and, if the player chooses, sent to score tables on a small server
+  ([server/](server/), not deployed yet).
 
 ## Checking it
 
@@ -39,11 +42,13 @@ With the repository served at <http://127.0.0.1:8766/>:
 ```
 python tools/verify/soak.py merged --base http://127.0.0.1:8766/ --size 1280x720
 python tools/verify/touch.py --size 844x390
+python tools/verify/scores.py --server http://127.0.0.1:8787
 ```
 
 The first plays every mission with random clicks and reports script errors; the second
 plays one with a finger on an emulated phone and checks that taps, drags and the scroll
-arrows do what they should.
+arrows do what they should; the third times a mission and sends its results to a local
+score server (`server/`: `npm run dev`).
 
 ## How the port works
 
