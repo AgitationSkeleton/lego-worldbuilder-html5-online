@@ -33,7 +33,7 @@ then open <http://localhost:8000/>.
   hovering would, and two fingers pinch the interface smaller or bigger.
 - **Scores**: each mission is timed to its goal and its bonus goal. Best times are kept in
   the browser and, if the player chooses, sent to score tables on a small server
-  ([server/](server/), not deployed yet).
+  ([server/](server/), at wbserver.viosarcade.xyz).
 - **Random missions**: one of the game's missions remixed, its items and puzzles kept and
   the ground between them laid out anew, named by a code (like `6D-K2Q9`) that can be
   shared, from the settings or `?random=6D-K2Q9`.

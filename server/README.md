@@ -7,8 +7,10 @@ sends the time here. It also keeps races (`src/race.js`): a Durable Object for e
 the players' games connect to by WebSocket.
 
 Its address is **https://wbserver.viosarcade.xyz** (`?server=URL` on the game's page points
-it at another). **It is not deployed yet.** Until it is, the game keeps the player's best
-times in the browser and says the server could not be reached.
+it at another). It is deployed (2026-10-02), on the same Cloudflare account as CrystAlien
+Conflict's server, with its own D1 database (`worldbuilder`); later changes to it are just
+`npm run deploy` again. The game keeps the player's best times in the browser as well, and
+if the server cannot be reached it says so.
 
 ## Deploying it (once)
 

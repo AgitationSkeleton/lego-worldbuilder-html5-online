@@ -153,7 +153,7 @@ both ways up and on a tablet):
 
 ## 4. Scores
 
-*Done, except deploying the server and checking times.* Neither game kept scores, but each
+*Done, except checking times.* Neither game kept scores, but each
 mission has a clock (`game clock beh`, shown in the right-hand panel) and a bonus goal, which
 opens once the goal is reached.
 
@@ -169,8 +169,7 @@ opens once the goal is reached.
   Conflict's, at `wbserver.viosarcade.xyz`: `POST /scores`, `GET /scores?mission=6.3` (the
   fastest to the goal and to the bonus, each name's best) and `GET /scores/overall`
   (missions with the goal reached, with the bonus, and their goal times added up). Names
-  go through CrystAlien Conflict's profanity filter. Not deployed yet: `server/README.md`
-  has the steps.
+  go through CrystAlien Conflict's profanity filter. Deployed 2026-10-02.
 - **Honesty**, *to do*: the server checks only that a time is possible at all (3 seconds to
   6 hours) and limits how many come from one address. Next: a least time per mission (the
   time a unit needs to drive the shortest route at its speed), then replays: the runtime's
@@ -217,7 +216,7 @@ when it is left), so the engine needs no change to play them (`src/online/random
 World Builder is a single-player puzzle about building, so the multiplayer that fits
 it is, in order of effort:
 
-1. **Races**, *done, not deployed*: the same mission (a campaign one or a generated one)
+1. **Races**, *done*: the same mission (a campaign one or a generated one)
    for two to six players, each in their own game (`src/online/race.js`,
    `server/src/race.js`). One player makes a race and shares its code or a link
    (`?race=CODE`); the host picks the mission and starts it; every game counts down and
@@ -248,9 +247,9 @@ Each step builds on the ones before it.
 1. **One game** (1). Everything else is easier with one movie to change. *Done.*
 2. **The window and the interface** (2), with the settings page (7). *Done.*
 3. **Touch** (3), which needs the anchored interface of step 2. *Done, but for an upright layout.*
-4. **Scores** (4), with the server. *Done, not deployed.*
+4. **Scores** (4), with the server. *Done.*
 5. **The randomizer** (5), which scores can rank once it is in. *Done, as remixes.*
-6. **Races** (6.1), on the scores server's rooms *(done, not deployed)*; then **co-op** (6.2).
+6. **Races** (6.1), on the scores server's rooms *(done)*; then **co-op** (6.2).
 7. **The offline client and smooth drawing** (7).
 
 ## How
