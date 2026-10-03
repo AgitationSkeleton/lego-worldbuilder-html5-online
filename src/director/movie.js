@@ -454,7 +454,8 @@ export class Runtime {
     for (const s of this.sprites) {
       const a = s && s.anchor;
       if (!a) continue;
-      const dx = Math.round(a.ax * ex), dy = Math.round(a.ay * ey);
+      // (or as far down as a page's own rule for it says: a.dyOf)
+      const dx = Math.round(a.ax * ex), dy = a.dyOf ? a.dyOf(ey) : Math.round(a.ay * ey);
       s.locH += dx - a.dx;
       s.locV += dy - a.dy;
       a.dx = dx;
