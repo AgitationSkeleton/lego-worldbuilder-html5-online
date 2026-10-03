@@ -5,7 +5,7 @@
 import { UI_SCALES, loadSettings, saveSettings } from './settings.js';
 import { isClean } from './profanity.js';
 import { WORLD_NAMES, clock } from './scores.js';
-import { parseCode, showCode } from './random.js';
+import { parseCode, showCode } from './puzzle.js';
 import { el, dialog } from './dom.js';
 
 const SIZES = [
@@ -80,9 +80,17 @@ export class OnlineUI {
       this.settings.name = n;
       this.save();
     });
-    this.randomWorld = el('select', { 'aria-label': 'Made from the missions of' },
-      el('option', { value: '', text: 'Any world' }),
-      ...WORLD_NAMES.map((n, i) => el('option', { value: String(i + 1), text: n })));
+    this.randomDifficulty = el('select', { 'aria-label': 'Difficulty' },
+      el('option', { value: '', text: 'Any difficulty' }),
+      el('option', { value: '1', text: 'Easy: one gate' }),
+      el('option', { value: '2', text: 'Harder: two gates' }),
+      el('option', { value: '3', text: 'Hardest: two gates, more to haul' }));
+    this.randomLook = el('select', { 'aria-label': 'Look' },
+      el('option', { value: '', text: 'Any look' }),
+      el('option', { value: 'A', text: 'Grassland' }),
+      el('option', { value: 'B', text: 'Prehistoric' }),
+      el('option', { value: 'C', text: 'Jungle' }),
+      el('option', { value: 'D', text: 'City' }));
     this.codeInput = el('input', { type: 'text', maxlength: '8', spellcheck: 'false', autocapitalize: 'characters', 'aria-label': 'Mission code', placeholder: 'Code' });
     this.randomNote = el('p', { class: 'note', 'aria-live': 'polite' });
     const fullRow = document.fullscreenEnabled
@@ -106,8 +114,9 @@ export class OnlineUI {
         el('div', { class: 'choices' },
           el('button', { type: 'button', class: 'choice', text: 'Main menu', onclick: () => this.showMenu() }))));
     this.randomPanel = dialog('random', 'Random mission', () => this.closeRandom(),
-      el('p', { text: "A mission made from one of the game's own: its units, bricks, plans and goals are the designers', the ground between them is new. The same code makes the same mission, so a code can be shared." }),
-      el('div', { class: 'choices pick' }, this.randomWorld, this.codeInput),
+      el('p', { text: 'A new mission, made to be solved: regions joined by gates of rocky ground, water or trees, each passed only by the right unit, built from bricks you haul to it. Every mission is played through before you get it. The same code makes the same mission, so a code can be shared.' }),
+      el('div', { class: 'choices pick' }, this.randomDifficulty, this.randomLook),
+      el('div', { class: 'choices pick' }, this.codeInput),
       el('div', { class: 'choices' },
         el('button', { type: 'button', class: 'choice', text: 'New code', onclick: () => this.newCode() }),
         el('button', { type: 'button', class: 'choice', text: 'Play', onclick: () => this.playCode() }),
@@ -237,7 +246,7 @@ export class OnlineUI {
   }
   newCode() {
     if (!this.random) return;
-    const code = this.random.newCode(Number(this.randomWorld.value) || 0);
+    const code = this.random.newCode(Number(this.randomDifficulty.value) || 0, this.randomLook.value || '');
     this.codeInput.value = code ? showCode(code) : '';
     this.randomNote.textContent = '';
   }
@@ -246,7 +255,7 @@ export class OnlineUI {
     if (!this.codeInput.value.trim()) this.newCode();
     const c = parseCode(this.codeInput.value);
     if (!c) {
-      this.randomNote.textContent = 'A code is two characters and four more, like 6D-K2Q9.';
+      this.randomNote.textContent = 'A code is two characters and four more, like 2C-K2Q9.';
       return;
     }
     if (!this.random.make(c.code)) {

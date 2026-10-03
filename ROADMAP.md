@@ -178,38 +178,50 @@ opens once the goal is reached.
 
 ## 5. A level randomizer
 
-*Done, as remixes; a solver that plays them is to do.* Generated missions are in the game's
-own map format and are played in their template's place (the text member
-`map<world>.<mission>` and the mission's name are swapped while one is played and put back
-when it is left), so the engine needs no change to play them (`src/online/random.js`,
-`src/online/missions.js`).
+*Done.* Generated missions are puzzles made from the game's own rules, each with a
+solution that is played through before the mission is given (`src/online/puzzle.js`).
+They are in the game's own map format and are played in the place of one of the game's
+own missions, from the world whose look (sky, music) they have, with that mission's map
+and name swapped while it is played (`src/online/missions.js`). So the engine needs no
+change to play them.
 
-- **What is made**: one of the game's missions remixed. Its items (units, piles, plans,
-  goals, monsters) and the plans it starts with stay the designers', and so does the ground
-  touching each cluster of items, where a mission's puzzle usually is: a pile on an
-  island, a goal in water to fill, a boulder to push. The ground between the clusters is
-  new, in the template's proportions of land, water and holes (holes towards the edges,
-  land and water by smoothed noise), and a dense template gets a slightly larger map.
-  The clusters with the player's units go down first, the monsters' far from them.
-- **Reachable**: every cluster is joined to the others, by land for what stands on land and
-  by water for what floats, digging the cheapest way through what is between (never
-  through an item). "Land" is the ground every unit the player starts with can cross:
-  normal ground, and rocky ground when they all can (or when the template is built on it).
-  Then the template's trees, mountains, rocks and swamps are scattered where they cut
-  nothing off. World Three's second mission, whose plan is walled in by floating bricks to
-  tow away, is not used as a template; nor is the tutorial.
-- **Checked**: `tools/verify/random.mjs` generates 40 codes from each template and checks
-  each map keeps its template's items, has a goal and has its clusters joined: about 97% of
-  codes make a mission (four dense templates fail more often; a code that makes nothing is
-  refused, and the "New code" button only offers codes that work).
-  `tools/verify/soak.py merged --random N` plays generated missions with random input.
-  Nothing yet checks that a mission is winnable by playing it; that is the solver's job,
-  still to do (pick up, build, drive to the goal in the test-mode runtime).
-- **Codes**: a mission is its code, its world and mission (the template) and a seed, like
-  `6D-K2Q9`. The settings make, type, play and copy a link to one; `?random=6D-K2Q9` plays
-  it from the first world map reached.
+- **What a mission is**: land regions, left to right, joined by gates that only the right
+  unit gets through. Rocky ground lets through a dirtbuggy or a dumptruck, but not the
+  buggy, forklift or steamshovel. A water channel is crossed when a steamshovel digs dirt
+  out of the ground nearby and fills the channel with it. A tree wall is cleared when a
+  treebot uproots its trees and plants them somewhere else. The player starts with a
+  carrier (a buggy or a forklift) and plans. The bricks for each gate's unit lie in two to
+  four piles in the region before it, each pile a trip's worth or more for the carrier, so
+  they have to be hauled to a site by the gate. The unit is built there (bricks within a
+  tile of the site count, as in the game), the gate is dealt with, and so on to the goal
+  in the last region. Units only recharge beside some buildings, so every route is planned
+  against their energy.
+- **Difficulty**: one gate (easy), two gates of different kinds (harder), or two gates with
+  more piles (hardest). From the harder ones on, the last gate's plan is not in hand but
+  lies somewhere in its region to be fetched, and a pile of bricks nothing needs lies off
+  to one side. A bonus goal asks for the first carrier to be brought into the last region,
+  when it can get there.
+- **Navigable**: walls of trees, mountains and rocks are grown into each region a tile at a
+  time, and a tile is kept only if every place the solution needs in the region can still
+  be reached from the others. The routes therefore wind round them.
+- **Beatable**: the solution is a list of steps as the game's controls do them (haul,
+  build, dig, fill, uproot, plant, go). Before a mission is given, the steps are played
+  through a model of the rules: paths over each unit's own ground, what each carries, the
+  energy each move costs (with a reserve kept, since the game's own routes are sometimes
+  longer than the shortest), and the ground dug, filled and cleared. A mission whose
+  solution does not play through is not given.
+- **Checked in the game**: `tools/verify/puzzles.py` starts generated missions as a player
+  would and plays each solution in the game itself through its own handlers (a unit's
+  menuclick and mapclick, the plan icon's doBuild, gotoPos), with `tools/verify/bot.js`.
+  It checks each step did what it should and that the goal and bonus goal are reached.
+  `tools/verify/puzzle.mjs` checks the generator on its own over many codes.
+- **Codes**: a mission is its code: its difficulty, its look (A grassland, B prehistoric,
+  C jungle, D city) and a seed, like `2C-K2Q9`. The random-mission panel makes, types,
+  plays and copies a link to one; `?random=2C-K2Q9` offers it.
 - **Scores**: a generated mission is timed like the others, under `R-` and its code, on a
-  table of its own; it does not count on the overall table, nor as the template played.
+  table of its own. It does not count on the overall table.
+- *To do*: more kinds of gate and goal: boats and whirlpools, pushing boulders, monsters
+  with defenders or a freezebot, buildings as goals.
 
 ## 6. Multiplayer
 
@@ -253,7 +265,7 @@ Each step builds on the ones before it.
 2. **The window and the interface** (2), with the settings page (7). *Done.*
 3. **Touch** (3), which needs the anchored interface of step 2. *Done, but for an upright layout.*
 4. **Scores** (4), with the server. *Done.*
-5. **The randomizer** (5), which scores can rank once it is in. *Done, as remixes.*
+5. **The randomizer** (5), which scores can rank once it is in. *Done.*
 6. **Races** (6.1), on the scores server's rooms *(done)*; then **co-op** (6.2).
 7. **The offline client and smooth drawing** (7).
 

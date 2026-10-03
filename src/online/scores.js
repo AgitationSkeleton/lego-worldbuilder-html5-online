@@ -9,7 +9,7 @@
 
 import * as L from '../director/lingo.js';
 import { isClean } from './profanity.js';
-import { showCode } from './random.js';
+import { showCode } from './puzzle.js';
 import { el } from './dom.js';
 
 const BESTS = 'lego-wb-online:bests';

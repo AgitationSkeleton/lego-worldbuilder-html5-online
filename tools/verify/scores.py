@@ -104,7 +104,7 @@ def main():
         page.evaluate("""() => { const rt = window.__rt; const s = rt.movieHandlers.quitlevel.script;
             rt.call(rt.scriptSelf(s), s, 'quitlevel'); }""")
         page.evaluate('window.__step(5)')
-        problem = page.evaluate("window.__online.random.play('6D-K2Q9')")
+        problem = page.evaluate("window.__online.random.play('2C-K2Q9')")
         check('a generated mission starts from the world map', problem is None, str(problem))
         page.evaluate('window.__step(300)')
         page.evaluate(REPORT, 'goal')
@@ -113,7 +113,7 @@ def main():
         page.click('#scores-toast button.link')
         page.wait_for_selector('#scores table', timeout=10000)
         shown = page.eval_on_selector('#scores select', 'e => e.selectedOptions[0].textContent')
-        check('the tables show it', shown == 'Random 6D-K2Q9' and name in page.inner_text('#scores tr.me'), shown)
+        check('the tables show it', shown == 'Random 2C-K2Q9' and name in page.inner_text('#scores tr.me'), shown)
         done = page.evaluate("window.__online.scores.bests['6.4']")
         check('and it does not count as the template played', done is None, str(done))
         page.keyboard.press('Escape')

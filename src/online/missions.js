@@ -1,11 +1,12 @@
-// Playing a generated mission (src/online/random.js).  The game reads a mission from the
-// text member map<world>.<mission> when it starts it, so a generated one is played in its
-// template's place: the member's text (and the mission's name) are swapped for the
-// generated ones while it is played, and put back when it is left.  A generated mission
-// counts for nothing in the campaign: reaching its goal does not mark the template done.
+// Playing a generated mission (src/online/puzzle.js).  The game reads a mission from the
+// text member map<world>.<mission> when it starts it, so a generated one is played in the
+// place of one of the game's own, from the world whose look (sky, music) it has: the
+// member's text (and the mission's name) are swapped for the generated ones while it is
+// played, and put back when it is left.  A generated mission counts for nothing in the
+// campaign: reaching its goal does not mark the mission it stands in for done.
 
 import * as L from '../director/lingo.js';
-import { generateMission, parseCode, showCode, randomCode } from './random.js';
+import { generatePuzzle, parseCode, showCode, randomCode } from './puzzle.js';
 
 export class RandomMissions {
   constructor(rt) {
@@ -42,18 +43,20 @@ export class RandomMissions {
     return m ? L.gp(m, 'text') : '';
   }
 
-  // The mission a code makes, or null.
+  // The mission a code makes, or null: {code, text, slot: [world, mission], solution, ...}.
   make(code) {
     const c = parseCode(code);
     if (!c) return null;
-    const g = generateMission(this.text(`map${c.world}.${c.mission}`), this.text('terrainmap'), this.text('config'), c.code);
-    return g ? Object.assign(g, c) : null;
+    if (this.made && this.made.code === c.code) return this.made;
+    const g = generatePuzzle(this.text('config'), c.code);
+    if (g) this.made = g;
+    return g;
   }
 
-  // A new code that makes a mission, from a world's templates (or any world's).
-  newCode(world) {
+  // A new code that makes a mission, of a difficulty (1 to 3) and look (A to D), or any.
+  newCode(difficulty, look) {
     for (let i = 0; i < 50; i++) {
-      const code = randomCode(world);
+      const code = randomCode(difficulty, look);
       if (this.make(code)) return code;
     }
     return null;
@@ -71,16 +74,17 @@ export class RandomMissions {
     if (!g) return 'That code makes no mission.';
     const rt = this.rt;
     const glob = rt.globals.glob;
-    const member = rt.builtins.member(`map${g.world}.${g.mission}`);
-    const names = L.gi(L.gp(glob, 'mission_names'), g.world);
+    const [world, mission] = g.slot;
+    const member = rt.builtins.member(`map${world}.${mission}`);
+    const names = L.gi(L.gp(glob, 'mission_names'), world);
     this.active = {
-      code: g.code, world: g.world, mission: g.mission,
-      saved: { text: L.gp(member, 'text'), name: L.gi(names, g.mission) },
+      code: g.code, world, mission, puzzle: g,
+      saved: { text: L.gp(member, 'text'), name: L.gi(names, mission) },
     };
     L.sp(member, 'text', g.text);
-    L.si(names, g.mission, 'Random ' + showCode(g.code));
+    L.si(names, mission, 'Random ' + showCode(g.code));
     const main = rt.movieHandlers.golevel.script;
-    rt.call(rt.scriptSelf(main), main, 'golevel', g.world, g.mission);
+    rt.call(rt.scriptSelf(main), main, 'golevel', world, mission);
     return null;
   }
 

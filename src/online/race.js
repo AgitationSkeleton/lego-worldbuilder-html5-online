@@ -17,7 +17,7 @@
 import * as L from '../director/lingo.js';
 import { el, dialog } from './dom.js';
 import { WORLD_NAMES, clock, scoreServer } from './scores.js';
-import { parseCode, showCode } from './random.js';
+import { parseCode, showCode } from './puzzle.js';
 
 const TOKEN = 'lego-wb-online:race-token';
 
@@ -372,7 +372,7 @@ export class Races {
     this.worldSelect.addEventListener('change', () => this.fillMissions());
     for (const e of [this.missionSelect, this.randomInput]) e.addEventListener('change', () => this.pickMission());
     this.newRandom = el('button', { type: 'button', class: 'choice', text: 'New code', onclick: () => {
-      const code = this.ui.random.newCode(0);
+      const code = this.ui.random.newCode();
       this.randomInput.value = code ? showCode(code) : '';
       this.pickMission();
     } });
@@ -422,7 +422,7 @@ export class Races {
       // (the tutorial's mission is no race: World One's second to begin with)
       if (w === '1' && !this.room) this.missionSelect.value = '1.2';
     } else if (!this.randomInput.value) {
-      const code = this.ui.random && this.ui.random.newCode(0);
+      const code = this.ui.random && this.ui.random.newCode();
       this.randomInput.value = code ? showCode(code) : '';
     }
     this.pickMission();
