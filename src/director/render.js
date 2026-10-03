@@ -81,7 +81,7 @@ export class Renderer {
     if (box) {
       // A frame made for the original stage is drawn at its size in the middle, over its
       // own backdrop spread out and blurred to fill the rest.
-      this.drawBackdrop(ctx, list[0], st);
+      this.drawBackdrop(ctx, largestPicture(list), st);
       ctx.translate(box.x, box.y);
       ctx.beginPath();
       ctx.rect(0, 0, box.w, box.h);
@@ -231,6 +231,18 @@ export class Renderer {
     }
     return true;
   }
+}
+
+// The biggest picture among the sprites, for a boxed frame's backdrop: a world map's picture
+// rather than the white strip with the logo above it.
+function largestPicture(list) {
+  let best = null, area = 0;
+  for (const s of list) {
+    if (!(s.member instanceof BitmapMember)) continue;
+    const a = s.width * s.height;
+    if (a > area) { best = s; area = a; }
+  }
+  return best;
 }
 
 // A picture washed with a colour, where it is not transparent; kept for the next time.

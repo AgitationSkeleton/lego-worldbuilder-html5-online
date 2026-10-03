@@ -332,6 +332,15 @@ def merge():
     with open(os.path.join(ROOT, 'data', 'merged.json'), 'w', encoding='utf-8') as fp:
         json.dump(out, fp, separators=(',', ':'), ensure_ascii=False)
     open(os.path.join(ROOT, 'assets', 'merged', 'bitmaps.bin'), 'wb').write(pack)
+    # the main menu's pictures (src/online/menu.js): the two games' logos and the title's
+    # picture, as the movies have them
+    online = os.path.join(ROOT, 'assets', 'online')
+    os.makedirs(online, exist_ok=True)
+    for name, out_name in (('title_logo', 'logo_wb.png'), ('wb2_title_banner', 'logo_wb2.png'),
+                           ('final_title_image', 'title_art.png')):
+        lib, num = find_ref(out, name)
+        off, ln = out['casts'][lib - 1]['members'][str(num)]['png']
+        open(os.path.join(online, out_name), 'wb').write(pack[off:off + ln])
     with open(os.path.join(ROOT, 'assets', 'wb2', 'sounds.bin'), 'rb') as fp:
         open(os.path.join(ROOT, 'assets', 'merged', 'sounds.bin'), 'wb').write(fp.read())
     print('merged: %d frames, %d casts, bitmaps %.1f MB' % (len(frames), len(out['casts']), len(pack) / 1e6))
@@ -374,6 +383,8 @@ def scripts(merged):
                 lasm = os.path.join(d, f[:-3] + '.lasm')
                 if os.path.exists(lasm):
                     text = T.fix_chunk_var_refs(text, open(lasm, encoding='latin-1').read())
+                # the 1:1 port's few changes to the games' Lingo first (tools/transpile.py)
+                text = T.apply_fixes(movie, cast, name, text)
                 for old, new in PATCHES.get((game, cast, name), []):
                     if old == '':
                         text = text.rstrip('\n') + '\n' + new

@@ -101,19 +101,18 @@ export class OnlineUI {
         el('div', { class: 'choices name' }, this.nameInput,
           el('button', { type: 'button', class: 'choice', text: 'See the tables', onclick: () => this.openTables() }))),
       el('section', null,
-        el('h3', { text: 'Random missions' }),
-        el('p', { text: "A mission made from one of the game's own: its units, bricks, plans and goals are the designers', the ground between them is new. The same code makes the same mission, so a code can be shared." }),
-        el('div', { class: 'choices pick' }, this.randomWorld, this.codeInput),
+        el('h3', { text: 'Leave' }),
+        el('p', { text: 'Back to the main menu (a mission being played is left).' }),
         el('div', { class: 'choices' },
-          el('button', { type: 'button', class: 'choice', text: 'New code', onclick: () => this.newCode() }),
-          el('button', { type: 'button', class: 'choice', text: 'Play', onclick: () => this.playCode() }),
-          el('button', { type: 'button', class: 'choice', text: 'Copy link', onclick: () => this.copyLink() })),
-        this.randomNote),
-      el('section', null,
-        el('h3', { text: 'Races' }),
-        el('p', { text: 'Two to six players, the same mission, each in their own game: the fastest to the goal wins.' }),
-        el('div', { class: 'choices' },
-          el('button', { type: 'button', class: 'choice', text: 'Race with others', onclick: () => this.races && this.races.open() }))));
+          el('button', { type: 'button', class: 'choice', text: 'Main menu', onclick: () => this.showMenu() }))));
+    this.randomPanel = dialog('random', 'Random mission', () => this.closeRandom(),
+      el('p', { text: "A mission made from one of the game's own: its units, bricks, plans and goals are the designers', the ground between them is new. The same code makes the same mission, so a code can be shared." }),
+      el('div', { class: 'choices pick' }, this.randomWorld, this.codeInput),
+      el('div', { class: 'choices' },
+        el('button', { type: 'button', class: 'choice', text: 'New code', onclick: () => this.newCode() }),
+        el('button', { type: 'button', class: 'choice', text: 'Play', onclick: () => this.playCode() }),
+        el('button', { type: 'button', class: 'choice', text: 'Copy link', onclick: () => this.copyLink() })),
+      this.randomNote);
     this.buildTables();
     // an upright phone draws the game small: a word about turning it, until it is turned
     // or the word is closed
@@ -125,7 +124,7 @@ export class OnlineUI {
       } }));
     window.addEventListener('resize', () => this.checkHint());
     document.addEventListener('fullscreenchange', () => this.render());
-    document.body.append(this.gear, this.panel, this.tables, this.hint);
+    document.body.append(this.gear, this.panel, this.randomPanel, this.tables, this.hint);
     this.checkHint();
     this.render();
   }
@@ -207,7 +206,7 @@ export class OnlineUI {
   }
   closeTables() {
     this.tables.hidden = true;
-    this.canvas.focus();
+    this.focusGame();
   }
   render() {
     const size = this.forcedScale ? null : this.settings.size;
@@ -246,12 +245,64 @@ export class OnlineUI {
     if (!this.random) return;
     if (!this.codeInput.value.trim()) this.newCode();
     const c = parseCode(this.codeInput.value);
-    const problem = c ? this.random.play(c.code) : 'A code is two characters and four more, like 6D-K2Q9.';
+    if (!c) {
+      this.randomNote.textContent = 'A code is two characters and four more, like 6D-K2Q9.';
+      return;
+    }
+    if (!this.random.make(c.code)) {
+      this.randomNote.textContent = 'That code makes no mission.';
+      return;
+    }
+    this.enterGame({ map: false });
+    const problem = this.random.go('R-' + c.code);
     if (problem) {
       this.randomNote.textContent = problem;
       return;
     }
-    this.close();
+    this.closeRandom();
+  }
+  openRandom(code) {
+    this.panel.hidden = true;
+    if (code) this.codeInput.value = code;
+    this.render();
+    this.randomPanel.hidden = false;
+    this.codeInput.focus();
+  }
+  closeRandom() {
+    this.randomPanel.hidden = true;
+    this.focusGame();
+  }
+  // Into the game, from the main menu: it starts if it has not yet (the menu's click lets
+  // its sound play), at the first world map unless asked not to.
+  enterGame(opts = {}) {
+    const rt = this.rt;
+    rt.sound.resume();
+    if (this.menu) this.menu.hide();
+    if (!rt.started) {
+      rt.run();
+      if (rt.testMode) rt.step(0);
+    }
+    if (opts.map !== false && !/^(world \d|play)$/.test(rt.labelAt(rt.frame) || '')) {
+      rt.go('world 1');
+      if (rt.testMode) rt.step(1);
+    }
+    this.canvas.focus();
+  }
+  // Back to the main menu, leaving a mission being played.
+  showMenu() {
+    this.panel.hidden = true;
+    const rt = this.rt;
+    const glob = rt.started && rt.globals.glob;
+    if (glob && this.random && rt.labelAt(rt.frame) === 'play') {
+      const main = rt.movieHandlers.quitlevel.script;
+      rt.call(rt.scriptSelf(main), main, 'quitlevel');
+    }
+    if (this.menu) this.menu.show();
+  }
+  // Focus back where it belongs: the menu if it is up, else the game.
+  focusGame() {
+    if (this.menu && this.menu.shown) this.menu.show();
+    else this.canvas.focus();
   }
   copyLink() {
     const c = parseCode(this.codeInput.value) || (this.random && this.random.active && parseCode(this.random.active.code));
@@ -283,6 +334,6 @@ export class OnlineUI {
   }
   close() {
     this.panel.hidden = true;
-    this.canvas.focus();
+    this.focusGame();
   }
 }

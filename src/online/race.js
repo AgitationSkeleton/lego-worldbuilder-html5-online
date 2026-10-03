@@ -174,6 +174,8 @@ export class Races {
     this.racing = { mission, started: false };
     this.close();
     this.ui.close();
+    // (from the main menu too: the game starts, and shows, for the race)
+    this.ui.enterGame({ map: false });
     const at = performance.now() + ms;
     const tick = () => {
       const left = Math.ceil((at - performance.now()) / 1000);
@@ -503,6 +505,6 @@ export class Races {
 
   close() {
     this.panel.hidden = true;
-    this.rt.canvas.focus();
+    this.ui.focusGame();
   }
 }

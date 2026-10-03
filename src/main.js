@@ -8,6 +8,7 @@ import { installTouch } from './online/touch.js';
 import { Scores } from './online/scores.js';
 import { RandomMissions } from './online/missions.js';
 import { Races } from './online/race.js';
+import { MainMenu } from './online/menu.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -74,18 +75,26 @@ async function main() {
     ui.races = new Races(rt, ui, params);
     ui.races.install(scripts.scripts);
     ui.scores.listeners.push((kind, ms, mission) => ui.races.reached(kind, ms, mission));
-    // ?random=CODE plays that generated mission, from the first world map reached;
-    // ?race=CODE joins that race once the game is going
-    if (params.get('random')) playWhenReady(rt, ui, params.get('random'));
-    if (params.get('race')) {
-      const code = params.get('race');
-      const timer = setInterval(() => { if (rt.started) { clearInterval(timer); ui.races.join(code); } }, 250);
-    }
+    // the main menu (src/online/menu.js) comes first, but for the tests' runs
+    ui.menu = new MainMenu(ui);
   }
   window.__rt = rt;
   window.__step = (n) => rt.step(n);
-  await rt.load((p) => say('Loading… ' + Math.round(p * 100) + '%'));
+  const menu = rt.layout && window.__online.menu;
+  await rt.load((p) => { if (menu) menu.progress(p); else say('Loading… ' + Math.round(p * 100) + '%'); });
   say('');
+  if (menu) {
+    const ui = window.__online;
+    if (options.test && !params.has('menu')) {
+      menu.hide();
+    } else {
+      menu.setReady();
+      // ?random=CODE offers that generated mission; ?race=CODE joins that race
+      if (params.get('random')) ui.openRandom(params.get('random'));
+      if (params.get('race')) ui.races.join(params.get('race'));
+      return;
+    }
+  }
   if (rt.sound.ctx && rt.sound.ctx.state !== 'running' && !options.test) {
     // Browsers keep sound off until the page is clicked; the original started its music at
     // once, so wait for that click before starting.
@@ -94,15 +103,6 @@ async function main() {
   rt.run();
   if (options.test) rt.step(0);
   canvas.focus();
-}
-
-function playWhenReady(rt, ui, code) {
-  const timer = setInterval(() => {
-    if (!rt.started || !ui.random.canPlay()) return;
-    clearInterval(timer);
-    const problem = ui.random.play(code);
-    if (problem) console.warn(problem);
-  }, 250);
 }
 
 function waitForClick(rt) {

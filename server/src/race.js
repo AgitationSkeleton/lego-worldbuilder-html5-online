@@ -26,6 +26,15 @@
 import { DurableObject } from 'cloudflare:workers';
 import { json, allowedOrigin, cleanName } from './http.js';
 import { censor } from '../../src/online/profanity.js';
+import { discord, plain, clock } from './discord.js';
+
+// A race's mission, for the owner's log: "World 6, mission 2", or "random mission 6D-K2Q9".
+function missionText(m) {
+  if (!m) return 'no mission';
+  if (m.startsWith('R-')) return 'random mission ' + m.slice(2, 4) + '-' + m.slice(4);
+  const [w, l] = m.split('.');
+  return 'World ' + w + ', mission ' + l;
+}
 
 const CODE_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 const CODE_RE = /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5}$/;
@@ -154,6 +163,11 @@ export class Race extends DurableObject {
     this.broadcast({ type: 'room', room: this.view() });
   }
 
+  // The owner's log (a Discord channel; see discord.js).
+  log(text) {
+    discord(this.env, this.ctx, text);
+  }
+
   onMessage(conn, m) {
     if (!m || typeof m.type !== 'string') return;
     if (m.type === 'ping') return this.send(conn.ws, { type: 'pong', t: m.t });
@@ -178,6 +192,7 @@ export class Race extends DurableObject {
         r.phase = 'racing';
         for (const q of this.players.values()) Object.assign(q, { started: false, goal: null, bonus: null, quit: false });
         this.broadcast({ type: 'start', mission: r.mission, in: COUNTDOWN_MS });
+        this.log(`\u{1F6A6} **Race ${r.code}** started: ${missionText(r.mission)}, ${this.present().length} racing (${this.present().map((q) => plain(q.name)).join(', ')})`);
         return this.changed();
       case 'again':
         if (!host || r.phase === 'lobby') return;
@@ -225,6 +240,7 @@ export class Race extends DurableObject {
       if (this.race.phase !== 'lobby') return this.send(conn.ws, { type: 'error', reason: 'running' });
       p = { id: randomId(), token, ready: false, started: false, goal: null, bonus: null, quit: false, gone: false };
       this.players.set(p.id, p);
+      if (this.players.size === 1) this.log(`\u{1F3C1} **Race ${this.race.code}** made by ${plain(name)}`);
     }
     Object.assign(p, { name, ws: conn.ws, connected: true });
     conn.player = p;
@@ -260,7 +276,14 @@ export class Race extends DurableObject {
   checkDone() {
     if (this.race.phase !== 'racing') return;
     const left = this.present().filter((q) => q.goal === null && !q.quit);
-    if (!left.length) this.race.phase = 'done';
+    if (left.length) return;
+    this.race.phase = 'done';
+    const all = [...this.players.values()].filter((q) => q.started || q.goal !== null);
+    const finished = all.filter((q) => q.goal !== null).sort((a, b) => a.goal - b.goal);
+    const gaveUp = all.filter((q) => q.goal === null);
+    const lines = finished.map((q, i) => `${i + 1}. ${plain(q.name)} ${clock(q.goal)}${q.bonus !== null ? ' (bonus ' + clock(q.bonus) + ')' : ''}`);
+    if (gaveUp.length) lines.push('gave up: ' + gaveUp.map((q) => plain(q.name)).join(', '));
+    this.log(`\u{1F3C6} **Race ${this.race.code}** over, ${missionText(this.race.mission)}: ${lines.join('; ') || 'no one finished'}`);
   }
 
   expireSoon() {
