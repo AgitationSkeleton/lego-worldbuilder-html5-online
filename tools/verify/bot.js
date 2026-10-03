@@ -21,9 +21,13 @@ async (code) => {
   const P = ([x, y]) => L.list([x + 1, y + 1]);      // the game counts tiles from 1
   const tile = (at) => L.mc(md, 'gettileat', P(at));
   const terrain = (at) => L.gp(tile(at), 'terrain').key;
-  const posOf = (u) => L.gp(L.gp(u, 'ptile'), 'pos').a.map((v) => v - 1).join(',');
+  const posOf = (u) => { const t = L.gp(u, 'ptile'); return t ? L.gp(t, 'pos').a.map((v) => v - 1).join(',') : 'nowhere (gone)'; };
+  // (the units, buildings and monsters the steps name; a monster in a pen of more than a
+  // tile wanders, so only those named are looked for)
   const units = {};
+  const named = new Set(p.solution.concat(p.bonus).flatMap((s) => [s.unit, s.target]).filter(Boolean));
   for (const [name, at] of Object.entries(p.units)) {
+    if (!named.has(name)) continue;
     units[name] = L.gp(tile(at), 'occupant');
     if (!units[name]) return fail('nothing on the map for ' + name + ' at ' + at);
   }
@@ -40,7 +44,7 @@ async (code) => {
     return false;
   };
   const cargo = (u) => { const c = L.gp(u, 'pcargo'); const b = c && L.gp(c, 'bricks'); return b ? b.v.reduce((a, n) => a + (typeof n === 'number' ? n : 0), 0) : 0; };
-  const energy = (u) => L.mc(u, 'energystatus');
+  const energy = (u) => (L.gp(u, 'ptile') ? L.mc(u, 'energystatus') : 'none');
   const where = (u) => ' (at ' + posOf(u) + ', energy ' + energy(u) + ')';
   // (a plan picked up from the map names its unit with a string, the game's own with a symbol)
   const name = (v) => String(v && v.key !== undefined ? v.key : v).toLowerCase();

@@ -39,11 +39,12 @@ then open <http://localhost:8000/>.
 - **Scores**: each mission is timed to its goal and its bonus goal. Best times are kept in
   the browser and, if the player chooses, sent to score tables on a small server
   ([server/](server/), at wbserver.viosarcade.xyz).
-- **Random missions**: puzzles made from the game's rules: regions joined by gates of
-  rocky ground, water or trees that only the right unit gets through, built from bricks
-  hauled to it. Every mission's own solution is played through before it is given. A
-  mission is named by a code (like `2C-K2Q9`) that can be shared, from the main menu or
-  `?random=2C-K2Q9`.
+- **Random missions**: puzzles made from the game's rules, two to five areas joined by
+  the game's own obstacles (rocky ground, water to fill, trees, boulders to push, rivers
+  and whirlpools for boats, swamp, monsters held by a freezebot), with any of its units,
+  buildings and monsters, a goal and a bonus goal. Every mission's own solution, goal and
+  bonus, is played through before it is given. A mission is named by a code (like
+  `2C-K2Q9`) that can be shared, from the main menu or `?random=2C-K2Q9`.
 - **Races**: two to six players play the same mission, each in their own game, and the
   fastest to the goal wins; a race is joined by its code or a link (`?race=CODE`). The
   other players' units show on your map as ghosts in their colours, named when pointed at.
@@ -58,7 +59,7 @@ python tools/verify/touch.py --size 844x390
 python tools/verify/scores.py --server http://127.0.0.1:8787
 python tools/verify/race.py --server http://127.0.0.1:8787
 python tools/verify/soak.py merged --base http://127.0.0.1:8766/ --random 20
-node tools/verify/puzzle.mjs
+node tools/verify/puzzle.mjs 50 --report
 python tools/verify/puzzles.py --count 40
 ```
 
@@ -67,7 +68,7 @@ plays one with a finger on an emulated phone and checks that taps, drags and the
 arrows do what they should; the third times a mission and sends its results to a local
 score server (`server/`: `npm run dev`); the fourth races two browsers through it; the
 fifth plays generated missions with random input; the sixth generates puzzles over many
-codes and checks each plays through the model of the rules; the last plays generated
+codes, checks each plays through the model of the rules and counts what they have; the last plays generated
 missions' solutions in the game itself and checks they reach the goal.
 
 ## How the port works

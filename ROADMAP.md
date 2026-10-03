@@ -184,43 +184,61 @@ own missions, from the world whose look (sky, music) they have, with that missio
 and name swapped while it is played (`src/online/missions.js`). So the engine needs no
 change to play them.
 
-- **What a mission is**: land regions, left to right, joined by gates that only the right
-  unit gets through. Rocky ground lets through a dirtbuggy or a dumptruck, but not the
-  buggy, forklift or steamshovel. A water channel is crossed when a steamshovel digs dirt
-  out of the ground nearby and fills the channel with it. A tree wall is cleared when a
-  treebot uproots its trees and plants them somewhere else. The player starts with a
-  carrier (a buggy or a forklift) and plans. The bricks for each gate's unit lie in two to
-  four piles in the region before it, each pile a trip's worth or more for the carrier, so
-  they have to be hauled to a site by the gate. The unit is built there (bricks within a
-  tile of the site count, as in the game), the gate is dealt with, and so on to the goal
-  in the last region. Units only recharge beside some buildings, so every route is planned
-  against their energy.
-- **Difficulty**: one gate (easy), two gates of different kinds (harder), or two gates with
-  more piles (hardest). From the harder ones on, the last gate's plan is not in hand but
-  lies somewhere in its region to be fetched, and a pile of bricks nothing needs lies off
-  to one side. A bonus goal asks for the first carrier to be brought into the last region,
-  when it can get there.
-- **Navigable**: walls of trees, mountains and rocks are grown into each region a tile at a
-  time, and a tile is kept only if every place the solution needs in the region can still
-  be reached from the others. The routes therefore wind round them.
-- **Beatable**: the solution is a list of steps as the game's controls do them (haul,
-  build, dig, fill, uproot, plant, go). Before a mission is given, the steps are played
-  through a model of the rules: paths over each unit's own ground, what each carries, the
-  energy each move costs (with a reserve kept, since the game's own routes are sometimes
-  longer than the shortest), and the ground dug, filled and cleared. A mission whose
-  solution does not play through is not given.
+- **What a mission is**: two to five areas (by difficulty) laid out on a small grid, in a
+  row, a column, an L, a U or a zigzag, or scattered and joined by whirlpools. Each link
+  between two areas is one of the game's obstacles, with what gets past it: rocky ground
+  (a dirtbuggy, dumptruck or repairbot drives over it); water a steamshovel fills with
+  ground it digs elsewhere, from either side; trees a treebot takes up and plants
+  elsewhere, from either side; a few boulders in a narrow place, a pushing puzzle for a
+  bulldozer, found by search; a tree or boulder in a gap that a factory built beside it
+  turns into bricks for what is built next; a river a tugboat or freighter carries bricks
+  over; ponds far apart joined by whirlpools; water a duck or frog swims to fetch a plan;
+  a wide swamp only a defender's shield gets through; a narrow way past a monster's den
+  (a shark or water crab by a path, a crab or alligator by rocky ground, a lion, scorpion,
+  T. rex or crab on a river bank) that a freezebot kept within reach holds frozen, and
+  that a defender may take apart.
+- **Bricks and plans**: what is built is found in different ways: bricks already by its
+  site, a pile to fetch with a carrier, a windmill or garage built where its one free
+  side is by the site to make the energy brick or wheels that are short, a unit the
+  mission is done with taken apart for its bricks. Plans are in hand or lie on the map
+  (or float on the water) to be fetched; harder missions give plans that are not needed.
+  A unit short of energy for a trip recharges at a gas station, robot lab, marina or
+  repairbot, built for it if there is none.
+- **Goals**: a unit, an animal or a boat brought to a nook or the end of a pond; a
+  building built on a place (house, gas station, robot lab, guard tower, factory,
+  windmill, garage, nursery, marina); a monster between two boulders frozen, the boulders
+  pushed aside and the monster pushed into its pen or onto the goal (it ends shut in a
+  nook by the bulldozer, a freezebot in reach); a boulder pushed into a nook. Every
+  mission has a bonus goal too, mostly of another kind, in any of its areas. Goals claim
+  their room before anything else is put down.
+- **The areas**: shaped with ponds, groves, outcrops, rocky ground, swamp, caged monsters
+  and walled pools with sharks or water crabs in them, and in the city streets and
+  cement, before anything is put on them; once the solution is made, trees and rocks are
+  added where no unit goes.
+- **Beatable**: the solution is a list of steps as the game's controls do them (go, pick,
+  drop, dig, fill, uproot, plant, push, whirlpool, build, take apart, a factory's colour,
+  waiting for a building to make something, recharge, attack), each naming the tile its
+  unit stands on to act. It is played step by step on a model of the rules
+  (`src/online/puzzle/model.js`): piles brick by brick as the game takes and uses them,
+  energy (with a margin for the game's longer routes), the swamp's harm, monsters' pens
+  and the tiles beside them, freezes of 25 seconds renewed only as they end, whirlpools,
+  goals that stop a unit on them, what a factory, windmill, garage or nursery does.
+  No way as short as the solution's may lead a unit over swamp, a whirlpool, a goal or a
+  monster's side, since the game's pathfinder knows nothing of them. The finished map is
+  played again from the start, goal and then bonus; a mission that does not play through
+  is not given.
 - **Checked in the game**: `tools/verify/puzzles.py` starts generated missions as a player
   would and plays each solution in the game itself through its own handlers (a unit's
-  menuclick and mapclick, the plan icon's doBuild, gotoPos), with `tools/verify/bot.js`.
-  It checks each step did what it should and that the goal and bonus goal are reached.
-  `tools/verify/puzzle.mjs` checks the generator on its own over many codes.
+  menuclick and mapclick, the map's tilePosclick for a push, the plan icon's doBuild, a
+  building's menuclick, gotoPos), with `tools/verify/bot.js`. It checks each step did what
+  it should and that the goal and bonus goal are reached. `tools/verify/puzzle.mjs`
+  checks the generator on its own over many codes and, with `--report`, counts the
+  units, buildings, monsters, terrains, links and goals the missions have.
 - **Codes**: a mission is its code: its difficulty, its look (A grassland, B prehistoric,
   C jungle, D city) and a seed, like `2C-K2Q9`. The random-mission panel makes, types,
   plays and copies a link to one; `?random=2C-K2Q9` offers it.
 - **Scores**: a generated mission is timed like the others, under `R-` and its code, on a
   table of its own. It does not count on the overall table.
-- *To do*: more kinds of gate and goal: boats and whirlpools, pushing boulders, monsters
-  with defenders or a freezebot, buildings as goals.
 
 ## 6. Multiplayer
 
