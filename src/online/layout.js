@@ -64,6 +64,7 @@ export function makeLayout(rt, options = {}) {
     // points at the original layout).
     zoomOf(s) {
       if (this.zoom === 1 || classic(rt) || !(s.channel >= MAP_CHANNELS || MAP_LAYER.has(s.channel))) return 1;
+      if (s.channel === HIGHLIGHT && this.highlightOnUI()) return 1;
       return rt.labelAt(rt.frame) === 'play' ? this.zoom : 1;
     },
     // The most the map zooms out: until its edges would come into the view, as far as the
@@ -252,8 +253,21 @@ export function makeLayout(rt, options = {}) {
           if (ps && ps.v) for (const s of ps.v) if (s && s.channel) out.push(s);
         }
       }
-      if (rt.sprites[HIGHLIGHT]) out.push(rt.sprites[HIGHLIGHT]);
+      if (rt.sprites[HIGHLIGHT] && !this.highlightOnUI()) out.push(rt.sprites[HIGHLIGHT]);
       return out;
+    },
+    // The arrow over the thing chosen is the map's when that is on the map, and the
+    // interface's when it is a plan in the plans bar (its build icon): then it is not
+    // zoomed, carried or glided with the map.
+    highlightOnUI() {
+      const glob = rt.globals.glob;
+      const o = glob && L.gp(glob, 'highlighted_object');
+      if (!(o instanceof L.LInstance)) return false;
+      try {
+        return L.t(L.mc(o, 'buildiconp'));
+      } catch (e) {
+        return false;
+      }
     },
     drawsBetween() {
       return !rt.testMode;
@@ -307,6 +321,7 @@ export function makeLayout(rt, options = {}) {
       for (const s of L.gp(md, 'ptilesprites').a) own.add(s.channel);
       for (const s of rt.sprites) {
         if (!s || own.has(s.channel) || s.channel === 1 || (s.anchor && s.anchor.grow)) continue;
+        if (s.channel === HIGHLIGHT && this.highlightOnUI()) continue;
         if (!(MAP_LAYER.has(s.channel) || (s.channel >= MAP_CHANNELS && s.channel < GHOSTS))) continue;
         // (1000, 1000) is where the game puts what it hides
         if (s.locH === 1000 && s.locV === 1000) continue;
