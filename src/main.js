@@ -11,6 +11,7 @@ import { SeedHistory } from './online/history.js';
 import { Races } from './online/race.js';
 import { MainMenu } from './online/menu.js';
 import { Controls } from './online/controls.js';
+import { fileUrl } from './files.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -29,7 +30,7 @@ function say(text) {
 }
 
 async function loadFonts() {
-  const face = new FontFace('WB 04b_08', 'url(' + new URL('assets/fonts/04b08.otf', root) + ')');
+  const face = new FontFace('WB 04b_08', 'url(' + fileUrl('assets/fonts/04b08.otf', root) + ')');
   try {
     await face.load();
     document.fonts.add(face);
@@ -45,7 +46,7 @@ async function main() {
   if (!GAMES[game]) throw new Error('unknown game ' + game);
   say('Loading…');
   const [data, scripts] = await Promise.all([
-    fetch(new URL('data/' + game + '.json', root)).then(r => { if (!r.ok) throw new Error('data'); return r.json(); }),
+    fetch(fileUrl('data/' + game + '.json', root)).then(r => { if (!r.ok) throw new Error('data'); return r.json(); }),
     import(new URL('src/games/' + game + '/scripts.js', root).href),
     loadFonts(),
   ]);
@@ -54,7 +55,9 @@ async function main() {
     seed: params.has('seed') ? parseInt(params.get('seed'), 10) : undefined,
     verbose: params.has('verbose'),
   };
-  const rt = new Runtime({ game, data, scripts, canvas, assetBase: new URL('assets/' + game + '/', root).href, options });
+  // (the movie's media by their contents, as the page names them: src/files.js)
+  const assetUrl = (name) => fileUrl('assets/' + game + '/' + name, root);
+  const rt = new Runtime({ game, data, scripts, canvas, assetBase: new URL('assets/' + game + '/', root).href, assetUrl, options });
   if (game === 'merged') {
     // The online game fills the window (src/online/layout.js), at the interface size its
     // settings ask for (src/online/ui.js).

@@ -6,7 +6,7 @@ import { UI_SCALES, loadSettings, saveSettings } from './settings.js';
 import { isClean } from './profanity.js';
 import { WORLD_NAMES, clock } from './scores.js';
 import { parseCode, showCode } from './puzzle.js';
-import { el, dialog } from './dom.js';
+import { el, dialog, focusField } from './dom.js';
 
 const SIZES = [
   ['small', 'Small'],
@@ -162,7 +162,7 @@ export class OnlineUI {
       el('div', { class: 'choices pick' }, this.codeInput),
       el('div', { class: 'choices' },
         el('button', { type: 'button', class: 'choice', text: 'New code', onclick: () => this.newCode() }),
-        el('button', { type: 'button', class: 'choice', text: 'Play', onclick: () => this.playCode() }),
+        this.randomPlay = el('button', { type: 'button', class: 'choice', text: 'Play', onclick: () => this.playCode() }),
         el('button', { type: 'button', class: 'choice', text: 'Copy link', onclick: () => this.copyLink() })),
       this.randomNote,
       el('section', { class: 'history' }, el('h3', { text: 'Seed History' }), this.seedEmpty, this.seedList));
@@ -304,7 +304,8 @@ export class OnlineUI {
     this.render();
     this.renderSeeds();
     this.randomPanel.hidden = false;
-    this.codeInput.focus();
+    // (on a phone, not the code: Play makes one)
+    focusField(this.codeInput, this.randomPlay);
   }
   // The Seed History: each generated mission played here, the last first, with the world
   // map's own flags for its goal and its bonus goal (grey until reached) and the best times

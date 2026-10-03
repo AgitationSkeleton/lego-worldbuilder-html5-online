@@ -7,8 +7,10 @@
 // over a blurred copy of the title's picture.
 
 import { el } from './dom.js';
+import { fileUrl } from '../files.js';
 
-const ART = 'assets/online/';
+// (its pictures by their contents, as the page names them: src/files.js)
+const art = (name) => fileUrl('assets/online/' + name, document.baseURI);
 
 export class MainMenu {
   constructor(ui) {
@@ -35,15 +37,15 @@ export class MainMenu {
     ];
     this.status = el('p', { class: 'status', 'aria-live': 'polite', text: 'Loading…' });
     this.root = el('div', { id: 'menu', role: 'dialog', 'aria-label': 'LEGO World Builder Online' },
-      el('div', { class: 'backdrop', style: `background-image: url(${ART}title_art.png)` }),
+      el('div', { class: 'backdrop', style: `background-image: url(${art('title_art.png')})` }),
       el('div', { class: 'bubble' },
         el('div', { class: 'logos' },
-          el('img', { class: 'logo1', src: ART + 'logo_wb.png', alt: 'LEGO World Builder' }),
-          el('img', { class: 'logo2', src: ART + 'logo_wb2.png', alt: 'LEGO World Builder 2' }),
+          el('img', { class: 'logo1', src: art('logo_wb.png'), alt: 'LEGO World Builder' }),
+          el('img', { class: 'logo2', src: art('logo_wb2.png'), alt: 'LEGO World Builder 2' }),
           el('span', { class: 'online', text: 'Online' })),
         el('div', { class: 'body' },
           el('nav', null, ...this.buttons, this.status),
-          el('img', { class: 'art', src: ART + 'title_art.png', alt: '' })),
+          el('img', { class: 'art', src: art('title_art.png'), alt: '' })),
         el('p', { class: 'footnote', text: 'LEGO World Builder and LEGO World Builder 2 were made by Gamelab for The LEGO Group. LEGO is a trademark of the LEGO Group, which does not sponsor, authorise or endorse this unofficial, non-commercial port.' })));
     document.body.append(this.root);
   }

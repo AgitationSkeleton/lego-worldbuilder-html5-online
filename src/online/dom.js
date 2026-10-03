@@ -40,3 +40,12 @@ window.addEventListener('keydown', (e) => {
   e.stopPropagation();
   open[open.length - 1].onClose();
 }, true);
+
+// A text box focused, ready to type in; but not on a touch screen, where focusing one brings
+// up the keyboard over the page unasked (and the page, shorter, is laid out again): there
+// `instead` is focused, if given.
+export function focusField(input, instead) {
+  const touch = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  const target = touch ? instead : input;
+  if (target) target.focus();
+}

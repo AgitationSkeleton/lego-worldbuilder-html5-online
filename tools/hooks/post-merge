@@ -1,0 +1,5 @@
+#!/bin/sh
+# After a pull (the 1:1 port's runtime, say): the page's files named anew in index.html, to
+# go with the next commit (tools/stamp.py says why).
+py -3.13 tools/stamp.py || python tools/stamp.py
+if ! git diff --quiet -- index.html; then echo "index.html stamped: commit it with the merge's files"; fi

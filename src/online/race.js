@@ -17,7 +17,7 @@
 // be kept in step.
 
 import * as L from '../director/lingo.js';
-import { el, dialog } from './dom.js';
+import { el, dialog, focusField } from './dom.js';
 import { WORLD_NAMES, clock, scoreServer } from './scores.js';
 import { parseCode, showCode } from './puzzle.js';
 
@@ -668,7 +668,7 @@ export class Races {
     this.ui.close();
     this.render();
     this.panel.hidden = false;
-    (this.code ? this.chatInput : this.codeInput).focus();
+    focusField(this.code ? this.chatInput : this.codeInput);
     if (!this.code) {
       this.raceList.replaceChildren(el('p', { class: 'empty', text: 'Looking for races\u2026' }));
       this.refresh();

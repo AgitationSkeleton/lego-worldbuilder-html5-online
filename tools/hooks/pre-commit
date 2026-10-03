@@ -1,0 +1,5 @@
+#!/bin/sh
+# Names the page's files by their contents in index.html, as they are about to be
+# committed, and commits that too (tools/stamp.py says why).
+py -3.13 tools/stamp.py || python tools/stamp.py || exit 1
+git add index.html
