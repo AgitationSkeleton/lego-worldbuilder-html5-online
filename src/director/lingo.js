@@ -347,7 +347,13 @@ export function eqv(a, b) {
     for (let i = 0; i < va.length; i++) if (!eqv(va[i], vb[i])) return false;
     return true;
   }
-  if (a instanceof LColor && b instanceof LColor) return a.r === b.r && a.g === b.g && a.b === b.b;
+  // Two palette colours are equal by their index (getPixel on an indexed image answers
+  // with one, which the world maps' mini units compare with paletteIndex(n)); two RGB
+  // colours by their channels.
+  if (a instanceof LColor && b instanceof LColor) {
+    if (a.index !== undefined && b.index !== undefined) return a.index === b.index;
+    return a.r === b.r && a.g === b.g && a.b === b.b;
+  }
   if (a && a.lgEquals) return a.lgEquals(b);
   if (b && b.lgEquals) return b.lgEquals(a);
   if (typeof a === 'object' || typeof b === 'object') {

@@ -58,8 +58,8 @@ export class LImage {
   getPixel(x, y) {
     x = x | 0; y = y | 0;
     if (x < 0 || y < 0 || x >= this.width || y >= this.height) return 0;
-    if (this.indices && this.depth <= 8) return new LColor(0, 0, 0, this.indices[y * this.width + x]);
     const o = (y * this.width + x) * 4;
+    if (this.indices && this.depth <= 8) return new LColor(this.buf[o], this.buf[o + 1], this.buf[o + 2], this.indices[y * this.width + x]);
     return new LColor(this.buf[o], this.buf[o + 1], this.buf[o + 2]);
   }
   setPixel(x, y, c) {
