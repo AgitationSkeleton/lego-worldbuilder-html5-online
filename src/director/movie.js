@@ -739,13 +739,17 @@ export class Runtime {
       this.mouseUp();
     });
     c.addEventListener('contextmenu', (e) => e.preventDefault());
+    // (keys typed into the page's own controls, a page around the game may have, are theirs)
+    const forPage = (e) => e.target !== c && e.target instanceof Element &&
+      !!e.target.closest('input, textarea, select, button, a[href], [contenteditable]');
     window.addEventListener('keydown', (e) => {
       this.sound.resume();
+      if (forPage(e)) return;
       if (e.ctrlKey && (e.key === 'r' || e.key === 'R')) return;
       this.keyDown(e);
       if (e.key.startsWith('Arrow') || e.key === ' ' || e.key === 'Backspace') e.preventDefault();
     });
-    window.addEventListener('keyup', (e) => this.keyUp(e));
+    window.addEventListener('keyup', (e) => { if (!forPage(e)) this.keyUp(e); });
     window.addEventListener('resize', () => { this.needsDraw = true; });
   }
   rollover() {
