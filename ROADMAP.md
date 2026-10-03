@@ -146,8 +146,7 @@ both ways up and on a tablet):
   without a click.
 - *To do:* **upright**, the game is drawn at 0.64 × on a phone, too small to tap well:
   the right-hand panel should move below the map and the plans bar shrink to a
-  scrolling strip. For now an upright phone is told, once, that turning it sideways
-  gives a bigger view.
+  scrolling strip.
 - The space bar is the selected unit's action button's shortcut, and that button is
   already on screen, so it needs nothing more.
 

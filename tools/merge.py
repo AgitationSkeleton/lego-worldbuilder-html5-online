@@ -157,6 +157,15 @@ PATCHES = {
         #   the middle (a small map, a phone, zoomed out). The tutorial, which points at the
         #   original layout, keeps the original's limits.
         (LIMITS_OLD, LIMITS_NEW),
+        # A unit's action that waits for a click near it (the dozer's Push) was left waiting
+        # when the next click was further away: a later click by the old place pushed from
+        # wherever the unit had got to, a tile or several, or failed once it was taken apart.
+        # A click out of its reach lets it go.
+        ('    if manhattan(tilepos, pMapclickOverride.options[#pos]) > pMapclickOverride.options[#distance] then\n'
+         '      return 0\n',
+         '    if manhattan(tilepos, pMapclickOverride.options[#pos]) > pMapclickOverride.options[#distance] then\n'
+         '      if not pMapclickOverride.options[#forever] then\n        pMapclickOverride = VOID\n      end if\n'
+         '      return 0\n'),
         ('', RELAYOUT),
     ],
     # The map can be zoomed (src/online/layout.js): the two scripts that read the mouse

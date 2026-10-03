@@ -122,18 +122,8 @@ export class OnlineUI {
         el('button', { type: 'button', class: 'choice', text: 'Copy link', onclick: () => this.copyLink() })),
       this.randomNote);
     this.buildTables();
-    // an upright phone draws the game small: a word about turning it, until it is turned
-    // or the word is closed
-    this.hint = el('div', { id: 'turn-hint', role: 'status', hidden: '' },
-      el('span', { text: 'Turn your phone sideways for a bigger view.' }),
-      el('button', { type: 'button', 'aria-label': 'Close', text: '×', onclick: () => {
-        this.hintClosed = true;
-        this.checkHint();
-      } }));
-    window.addEventListener('resize', () => this.checkHint());
     document.addEventListener('fullscreenchange', () => this.render());
-    document.body.append(this.gear, this.panel, this.randomPanel, this.tables, this.hint);
-    this.checkHint();
+    document.body.append(this.gear, this.panel, this.randomPanel, this.tables);
     this.render();
   }
   buildTables() {
@@ -237,11 +227,6 @@ export class OnlineUI {
   save() {
     saveSettings(this.settings);
     this.render();
-  }
-  checkHint() {
-    const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-    const upright = window.innerHeight > window.innerWidth && window.innerWidth < 700;
-    this.hint.hidden = !(touch && upright) || !!this.hintClosed;
   }
   newCode() {
     if (!this.random) return;

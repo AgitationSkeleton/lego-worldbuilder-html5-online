@@ -1270,12 +1270,13 @@ const S1_115 = {
       this.$.pslide = $L.plist([$s_offset, o, $s_mode, $s_out, $s_bounce, 0]);
     },
     showinfo(me, uclass, uname) {
-      let descmem, o;
-      if ($L.t($L.eq(this.$.pshowing, uname))) {
+      let descmem, o, shown;
+      shown = $L.cat($L.cat($B.string(uclass), "/"), uname);
+      if ($L.t($L.eq(this.$.pshowing, shown))) {
         $L.mc(me, "hideinfo");
         return;
       }
-      this.$.pshowing = uname;
+      this.$.pshowing = shown;
       $L.sp($L.gp($L.gp(this.$.ss, "title"), "member"), "text", uname);
       descmem = $L.cat($L.cat($L.cat($L.gi(uclass, 1), "."), $L.gi(uclass, 2)), ".description");
       $L.sp($L.gp($L.gp(this.$.ss, "description"), "member"), "rtf", $L.gp($B.member(descmem), "rtf"));
@@ -3526,6 +3527,9 @@ const S1_129 = {
       }
       if ($L.t($L.gpi(this.$.pmapclickoverride, "options", $s_distance))) {
         if ($L.t($L.gt($R.call(this, S1_129, "manhattan", tilepos, $L.gpi(this.$.pmapclickoverride, "options", $s_pos)), $L.gpi(this.$.pmapclickoverride, "options", $s_distance)))) {
+          if ($L.t($L.not($L.gpi(this.$.pmapclickoverride, "options", $s_forever)))) {
+            this.$.pmapclickoverride = undefined;
+          }
           return 0;
         }
       }
@@ -10205,16 +10209,19 @@ const S6_9 = {
       $L.sp(this.$.psprite, "member", this.$.prollover);
       this.$.pmousewithin = 1;
       $R.call(this, S6_9, "pass");
+      return;
     },
     mouseleave(me) {
       $L.sp(this.$.psprite, "member", this.$.pmember);
       this.$.pmousewithin = 0;
       $R.call(this, S6_9, "pass");
+      return;
     },
     mousedown(me) {
       this.$.pmousedown = 1;
       $L.sp(this.$.psprite, "member", this.$.ppressed);
       $R.call(this, S6_9, "pass");
+      return;
     },
     mouseup(me) {
       this.$.pmousedown = 0;
@@ -10224,6 +10231,7 @@ const S6_9 = {
         $L.sp(this.$.psprite, "member", this.$.pmember);
       }
       $R.call(this, S6_9, "pass");
+      return;
     },
     getpropertydescriptionlist() {
       return $L.plist([$s_pmember, $L.plist([$s_comment, "regular member:", $s_format, $s_member, $s_default, ""]), $s_prollover, $L.plist([$s_comment, "rollover member:", $s_format, $s_member, $s_default, ""]), $s_ppressed, $L.plist([$s_comment, "pressed member:", $s_format, $s_member, $s_default, ""])]);
