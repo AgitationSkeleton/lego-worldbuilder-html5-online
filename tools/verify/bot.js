@@ -137,6 +137,22 @@ async (code) => {
         rt.step(2);
         break;
       }
+      case 'recharge': {
+        const why = drive(u, s.stand);
+        if (why) return fail(why + ': ' + what);
+        if (!until(() => energy(u) >= 100, 1500)) return fail('not recharged' + where(u) + ': ' + what);
+        break;
+      }
+      case 'attack': {
+        // (a defender goes for a monster in reach on its own; it takes it apart, frozen)
+        const m = units[s.target];
+        if (!m) return fail('no monster ' + s.target + ': ' + what);
+        L.mc(u, 'gotopos', P(s.stand));
+        if (!until(() => L.t(L.gp(m, 'pdead')), 6000)) return fail('the monster still stands' + where(u) + ': ' + what);
+        if (!idle(u)) return fail('never stopped' + where(u) + ': ' + what);
+        if (posOf(u) !== s.stand.join()) return fail('fought from elsewhere' + where(u) + ': ' + what);
+        break;
+      }
       default:
         return fail('no such step: ' + what);
     }

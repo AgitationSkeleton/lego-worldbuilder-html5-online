@@ -31,7 +31,8 @@ const TREE_CHAR = { tree: 'T', tree2: '!', tree3: "'", tree4: '?' };
 export const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 const RESERVE = 12;          // energy no unit is planned to go below
 const SLACK = 1.12;          // the game's routes, at times longer than the shortest
-const FREEZE_SAFE = 18000;   // of a freeze's 25 seconds, what a plan may count on
+const FREEZE = 25000;       // how long a freeze lasts (the freezebot's freeze_duration)
+const FREEZE_SAFE = 4000;   // of a freeze, what a plan does not count on at its end
 const key = (x, y) => x + ',' + y;
 const man = (ax, ay, bx, by) => Math.abs(ax - bx) + Math.abs(ay - by);
 
@@ -120,7 +121,7 @@ export class Model {
     let e = energy;
     if (!e) e = cls === 'monster' && kind !== 'boulder' ? [100] : new Array(c.recipe.energy || 0).fill(100);
     const u = { name, cls, kind, x, y, energy: e.slice().sort((a, b) => a - b), cargo: { bricks: {}, energy: [] }, dist: 0 };
-    if (cls === 'monster') { u.frozenAt = -1e9; u.pen = new Set([key(x, y)]); }
+    if (cls === 'monster') { u.frozenUntil = -1e9; u.pen = new Set([key(x, y)]); }
     if (kind === 'factory') u.color = 0;
     this.units[name] = u;
     this.occ[y][x] = name;
@@ -182,14 +183,29 @@ export class Model {
     return seen;
   }
   monsters() { return Object.values(this.units).filter((u) => u.cls === 'monster' && u.kind !== 'boulder'); }
-  // Is a monster held by a freeze, as far as a plan may count on it?
-  held(m) { return this.clock - m.frozenAt <= FREEZE_SAFE; }
   places(m) {
     if (m.loose) return null;
     return [...m.pen].map((k) => k.split(',').map(Number));
   }
-  // The freezebots: each freezes any monster within its range (2) wherever in its pen it
-  // is; while it stays there, it freezes it again as each freeze ends.
+  frozen(m) { return this.clock < m.frozenUntil; }
+  // A freezebot within reach of everywhere the monster can be.
+  inReach(m) {
+    if (m.loose) return false;
+    const r = this.cfg.freezebot.freezeRange || 2;
+    return Object.values(this.units).some((f) => f.kind === 'freezebot' && this.energyOf(f) > 1 && this.places(m).every(([x, y]) => man(x, y, f.x, f.y) <= r));
+  }
+  // Is a monster held, as far as a plan may count on it?  Frozen with time to spare; or
+  // with a freezebot in reach to freeze it again the moment it thaws, shut in where it is
+  // so that it cannot take the step it might in that moment.
+  held(m) {
+    if (this.clock < m.frozenUntil - FREEZE_SAFE) return true;
+    if (!this.inReach(m)) return false;
+    const p = this.penOf(m);
+    return !!p && p.size === 1;
+  }
+  // The freezebots: each freezes any monster within its reach (2) that is not frozen,
+  // wherever in its pen it is; a freeze lasts 25 seconds, and while the freezebot stays
+  // in reach it freezes it again as it ends.
   freezeAround() {
     for (const f of Object.values(this.units)) {
       if (f.kind !== 'freezebot' || this.energyOf(f) <= 1) continue;
@@ -197,13 +213,15 @@ export class Model {
       for (const m of this.monsters()) {
         if (!this.cfg[m.kind].freezable || m.loose) continue;
         if (!this.places(m).every(([x, y]) => man(x, y, f.x, f.y) <= r)) continue;
-        if (this.clock - (m.lastFreeze ?? -1e9) >= 25000) { m.lastFreeze = this.clock; this.useEnergy(f, this.cfg.freezebot.energy.freeze || 2); }
-        m.frozenAt = this.clock;
+        while (this.clock >= m.frozenUntil) {
+          m.frozenUntil = Math.max(this.clock, m.frozenUntil) + FREEZE;
+          this.useEnergy(f, this.cfg.freezebot.energy.freeze || 2);
+        }
       }
     }
     // a monster no longer held wanders again, in whatever pen it is in now
     for (const m of this.monsters()) {
-      if (!this.held(m) && m.pen.size === 1 && !m.loose) {
+      if (!this.held(m) && !m.loose) {
         const p = this.penOf(m);
         if (p) m.pen = p; else m.loose = true;
       }
@@ -574,7 +592,7 @@ export class Model {
         const o = this.unitAt(x, y);
         const r = this.res.get(key(x, y));
         if (o) {
-          const pushable = o.kind === 'boulder' || (o.cls === 'monster' && this.held(o) && o.pen.size === 1);
+          const pushable = o.kind === 'boulder' || (o.cls === 'monster' && this.clock < o.frozenUntil - FREEZE_SAFE && o.pen.size === 1);
           if (!pushable) fail('cannot push ' + o.kind);
           if (!this.inside(bx, by) || this.occ[by][bx]) fail('no room to push into');
           const ground = o.kind === 'boulder' ? this.cfg.boulder.terrain : this.cfg[o.kind].terrain.filter((t) => t !== 'swamp');
