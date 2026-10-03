@@ -3188,7 +3188,7 @@ const S1_129 = {
       return $L.mc(me, "scrollmap", s);
     },
     scrollmap(me, s, p) {
-      let i, leftmost, newtopleft, reachededge, x;
+      let farx, fary, hi, i, lo, nearx, neary, newtopleft, reachededge, slackx, slacky, x;
       if ($L.t($B.voidp(p))) {
         p = $B.point(0, 0);
       }
@@ -3210,33 +3210,32 @@ const S1_129 = {
         }
       }
       newtopleft = $L.add(this.$.pdisplaytiletopleft, s);
-      leftmost = (-1);
+      nearx = (-1);
       if ($L.t($L.gt($L.gi(this.$.pdisplaytilesize, 2), 9))) {
-        leftmost = $L.sub((-1), $L.div($L.sub($L.add($L.mul($L.sub($L.gi(this.$.pdisplaytilesize, 2), 9), $L.gi(this.$.pdisplaypixelskew, 1)), $L.gi(this.$.ptilesize, 1)), 1), $L.gi(this.$.ptilesize, 1)));
+        nearx = $L.sub((-1), $L.div($L.sub($L.add($L.mul($L.sub($L.gi(this.$.pdisplaytilesize, 2), 9), $L.gi(this.$.pdisplaypixelskew, 1)), $L.gi(this.$.ptilesize, 1)), 1), $L.gi(this.$.ptilesize, 1)));
       }
-      if ($L.t($L.le($L.gi(newtopleft, 1), leftmost))) {
-        $L.si(newtopleft, 1, leftmost);
-        $L.si(this.$.pdisplaypixelscroll, 1, 0);
-      } else if ($L.t($L.ge($L.sub($L.add($L.gi(newtopleft, 1), $L.gi(this.$.pdisplaytilesize, 1)), 1), $L.add($L.gi(this.$.pmapsize, 1), 5)))) {
-        $L.si(newtopleft, 1, $L.add($L.add($L.sub($L.gi(this.$.pmapsize, 1), $L.gi(this.$.pdisplaytilesize, 1)), 1), 5));
-        $L.si(this.$.pdisplaypixelscroll, 1, 0);
-      } else {
-        reachededge = $L.add(reachededge, 1);
+      farx = $L.add($L.add($L.sub($L.gi(this.$.pmapsize, 1), $L.gi(this.$.pdisplaytilesize, 1)), 1), 5);
+      neary = (-2);
+      fary = $L.add($L.add($L.sub($L.gi(this.$.pmapsize, 2), $L.gi(this.$.pdisplaytilesize, 2)), 1), 3);
+      slackx = 0;
+      slacky = 0;
+      if ($L.t($L.ne($L.gi($G.glob, $s_tutorialmode), 1))) {
+        slackx = $B.max(2, $L.div($L.gi(this.$.pdisplaytilesize, 1), 8));
+        slacky = $B.max(2, $L.div($L.gi(this.$.pdisplaytilesize, 2), 8));
       }
-      if ($L.t($L.le($L.gi(newtopleft, 2), (-2)))) {
-        $L.si(newtopleft, 2, (-2));
-        $L.si(this.$.pdisplaypixelscroll, 2, 0);
-      } else if ($L.t($L.ge($L.sub($L.add($L.gi(newtopleft, 2), $L.gi(this.$.pdisplaytilesize, 2)), 1), $L.add($L.gi(this.$.pmapsize, 2), 3)))) {
-        $L.si(newtopleft, 2, $L.add($L.add($L.sub($L.gi(this.$.pmapsize, 2), $L.gi(this.$.pdisplaytilesize, 2)), 1), 3));
-        $L.si(this.$.pdisplaypixelscroll, 2, 0);
-      } else {
-        reachededge = $L.add(reachededge, 1);
-      }
-      if ($L.t($L.lt($L.gi(newtopleft, 1), leftmost))) {
-        $L.si(newtopleft, 1, leftmost);
-      }
-      if ($L.t($L.lt($L.gi(newtopleft, 2), (-2)))) {
-        $L.si(newtopleft, 2, (-2));
+      lo = $L.list([$L.sub($B.min(nearx, farx), slackx), $L.sub($B.min(neary, fary), slacky)]);
+      hi = $L.list([$L.add($B.max(nearx, farx), slackx), $L.add($B.max(neary, fary), slacky)]);
+      for (let $t2 = (i = 1, 0); $L.le(i, 2); i = $L.add(i, 1)) {
+        if (++$t2 > 5e6) $L.stuck();
+        if ($L.t($L.le($L.gi(newtopleft, i), $L.gi(lo, i)))) {
+          $L.si(newtopleft, i, $L.gi(lo, i));
+          $L.si(this.$.pdisplaypixelscroll, i, 0);
+        } else if ($L.t($L.gt($L.gi(newtopleft, i), $L.gi(hi, i)))) {
+          $L.si(newtopleft, i, $L.gi(hi, i));
+          $L.si(this.$.pdisplaypixelscroll, i, 0);
+        } else {
+          reachededge = $L.add(reachededge, 1);
+        }
       }
       this.$.pdisplaytiletopleft = newtopleft;
       $L.mc(me, "showmap");

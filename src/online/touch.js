@@ -102,7 +102,9 @@ export function installTouch(rt, canvas, options = {}) {
         const dx = Math.round((x - touch.sx) / z), dy = Math.round((y - touch.sy) / z);
         if (dx || dy) {
           try {
-            shiftMap(md, dx, dy);
+            // (what is on the map goes with it: see carryMap)
+            if (rt.layout && rt.layout.carryMap) rt.layout.carryMap(() => shiftMap(md, dx, dy));
+            else shiftMap(md, dx, dy);
           } catch (err) {
             rt.reportError(err);
           }

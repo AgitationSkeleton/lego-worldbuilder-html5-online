@@ -99,6 +99,17 @@ async function main() {
       menu.hide();
     } else {
       menu.setReady();
+      // The game runs behind the menu from the start, so that its title frames start the
+      // intro music as the original's do; the browser lets sound out at the first tap or
+      // key on the page.
+      rt.run();
+      const letSoundOut = () => {
+        rt.sound.resume();
+        window.removeEventListener('pointerdown', letSoundOut, true);
+        window.removeEventListener('keydown', letSoundOut, true);
+      };
+      window.addEventListener('pointerdown', letSoundOut, true);
+      window.addEventListener('keydown', letSoundOut, true);
       // ?random=CODE offers that generated mission; ?race=CODE joins that race
       if (params.get('random')) ui.openRandom(params.get('random'));
       if (params.get('race')) ui.races.join(params.get('race'));

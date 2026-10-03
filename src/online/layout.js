@@ -39,6 +39,11 @@ anchorRange(130, 140, 0.5, 0.5);  // the menu
 const MAP_LAYER = new Set([1, 16, 29, 54, 56]);
 for (const [a, b] of [[57, 69], [111, 128], [143, 169]]) for (let c = a; c <= b; c++) MAP_LAYER.add(c);
 const MAP_CHANNELS = 200;
+const CLICK_SPIKE = 16;        // the arrow a click on the map shows (click spike behavior)
+// the map display's pool of sprites runs from channel 200 to 4000 (tools/merge.py): this
+// many may be the view's tiles, the rest kept for the units and piles on it
+const MAP_TILE_SPRITES = 3000;
+const GHOSTS = 4001;          // the race ghosts (src/online/race.js), placed at every drawing
 
 // options.maxScale() gives the interface size: how many CSS pixels a stage pixel may take
 // at most (Infinity: as many as fill the window).
@@ -70,7 +75,14 @@ export function makeLayout(rt, options = {}) {
       const xs = locs.map((p) => p.h), ys = locs.map((p) => p.v);
       const worldW = Math.max(...xs) - Math.min(...xs) + 150, worldH = Math.max(...ys) - Math.min(...ys) + 150;
       const viewW = rt.stage.width - 113, viewH = rt.stage.height;
-      return Math.min(1, Math.max(viewW / worldW, viewH / worldH, 0.2));
+      // out until the whole map shows, with room round it, and always somewhat (the view
+      // can be moved a little past the map's edges, to put the map in the middle)
+      let z = Math.max(0.2, Math.min(0.75, 0.85 * Math.min(viewW / worldW, viewH / worldH)));
+      // but no further than the map display's sprites stretch to: a sprite a tile of the
+      // view (viewTileSize in src/lingo/movie - layout.ls), and room for what is on the map
+      const tiles = (k) => (12 + Math.floor((rt.stage.width / k - 610 + 49) / 50)) * (9 + Math.floor((rt.stage.height / k - 440 + 49) / 50));
+      while (z < 1 && tiles(z) > MAP_TILE_SPRITES) z = Math.min(1, z + 0.01);
+      return z;
     },
     // Zoom the map to z, keeping the map's point under (ux, uy) (stage pixels) where it is.
     setZoom(z, ux, uy) {
@@ -83,15 +95,49 @@ export function makeLayout(rt, options = {}) {
         const corner = () => L.mc(md, 'postoloc', L.list([0, 0]));
         const p0 = corner();
         const rel = [ux / z0 - p0.h, uy / z0 - p0.v];
-        this.zoom = z;
-        L.mc(md, 'relayout');
-        const p1 = corner();
-        shiftMap(md, Math.round(ux / z - rel[0] - p1.h), Math.round(uy / z - rel[1] - p1.v));
+        this.carryMap(() => {
+          this.zoom = z;
+          L.mc(md, 'relayout');
+          const p1 = corner();
+          shiftMap(md, Math.round(ux / z - rel[0] - p1.h), Math.round(uy / z - rel[1] - p1.v));
+        });
         this.regrow();
       } catch (e) {
         rt.reportError(e);
       }
       rt.needsDraw = true;
+    },
+    // The games hide a sprite by putting it at (1000, 1000), past the edges of their
+    // 610 x 440 stage (once, at (10000, 10000)). The stage here can be bigger, and the map
+    // zoomed out brings that point into view: such a sprite is left undrawn.
+    parked(s) {
+      return (s.locH === 1000 && s.locV === 1000) || (s.locH === 10000 && s.locV === 10000);
+    },
+    // Moves the map between the game's frames (a finger dragging it, a zoom), by move().
+    // Everything on the map is placed from the map's corner, but only on the game's next
+    // frame; until then it is carried along by as much as the corner moved, so that the
+    // units, piles and popups keep to the terrain while the map moves.
+    carryMap(move) {
+      const md = mapDisplay();
+      if (!md) { move(); return; }
+      const corner = () => L.mc(md, 'postoloc', L.list([0, 0]));
+      const before = corner();
+      move();
+      const after = corner();
+      const dx = after.h - before.h, dy = after.v - before.v;
+      if (!dx && !dy) return;
+      // (the terrain's own sprites, which scrollmap has placed, and the pool's spare ones)
+      const own = new Set();
+      for (const row of L.gp(md, 'pmapsprites').a) for (const s of row.a) own.add(s.channel);
+      for (const s of L.gp(md, 'ptilesprites').a) own.add(s.channel);
+      for (const s of rt.sprites) {
+        if (!s || own.has(s.channel) || s.channel === 1 || (s.anchor && s.anchor.grow)) continue;
+        if (!(MAP_LAYER.has(s.channel) || (s.channel >= MAP_CHANNELS && s.channel < GHOSTS))) continue;
+        // (1000, 1000) is where the game puts what it hides
+        if (s.locH === 1000 && s.locV === 1000) continue;
+        s.locH += dx;
+        s.locV += dy;
+      }
     },
     // The sprites sized from the view, sized again (the zoom changed the view).
     regrow() {
@@ -120,6 +166,10 @@ export function makeLayout(rt, options = {}) {
     },
     anchor(rt_, label, ch, spr) {
       if (label !== 'play') return;
+      // the click spike waits under the plans bar in the score, out of sight there, until
+      // the first click on the map; here the bar is lower, so it waits where the game puts
+      // what it hides
+      if (ch === CLICK_SPIKE) { spr.locH = 1000; spr.locV = 1000; return; }
       const ex = rt.stage.width - BASE_W, ey = rt.stage.height - BASE_H;
       const a = PLAY_ANCHORS.get(ch);
       if (a) {

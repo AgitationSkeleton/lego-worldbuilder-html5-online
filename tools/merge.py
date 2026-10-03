@@ -52,6 +52,63 @@ on relayout me
 end
 """
 
+# scrollmap's limits, as the original has them, and as the merged game has them (see the
+# map display manager's patches).
+LIMITS_OLD = """  newTopLeft = pDisplayTileTopleft + s
+  if newTopLeft[1] <= -1 then
+    newTopLeft[1] = -1
+    pDisplayPixelScroll[1] = 0
+  else
+    if (newTopLeft[1] + pDisplayTileSize[1] - 1) >= (pMapSize[1] + 5) then
+      newTopLeft[1] = pMapSize[1] - pDisplayTileSize[1] + 1 + 5
+      pDisplayPixelScroll[1] = 0
+    else
+      reachedEdge = reachedEdge + 1
+    end if
+  end if
+  if newTopLeft[2] <= -2 then
+    newTopLeft[2] = -2
+    pDisplayPixelScroll[2] = 0
+  else
+    if (newTopLeft[2] + pDisplayTileSize[2] - 1) >= (pMapSize[2] + 3) then
+      newTopLeft[2] = pMapSize[2] - pDisplayTileSize[2] + 1 + 3
+      pDisplayPixelScroll[2] = 0
+    else
+      reachedEdge = reachedEdge + 1
+    end if
+  end if
+"""
+LIMITS_NEW = """  newTopLeft = pDisplayTileTopleft + s
+  nearX = -1
+  if pDisplayTileSize[2] > 9 then
+    nearX = -1 - ((((pDisplayTileSize[2] - 9) * pDisplayPixelSkew[1]) + pTileSize[1] - 1) / pTileSize[1])
+  end if
+  farX = pMapSize[1] - pDisplayTileSize[1] + 1 + 5
+  nearY = -2
+  farY = pMapSize[2] - pDisplayTileSize[2] + 1 + 3
+  slackX = 0
+  slackY = 0
+  if glob[#tutorialMode] <> 1 then
+    slackX = max(2, pDisplayTileSize[1] / 8)
+    slackY = max(2, pDisplayTileSize[2] / 8)
+  end if
+  lo = [min(nearX, farX) - slackX, min(nearY, farY) - slackY]
+  hi = [max(nearX, farX) + slackX, max(nearY, farY) + slackY]
+  repeat with i = 1 to 2
+    if newTopLeft[i] <= lo[i] then
+      newTopLeft[i] = lo[i]
+      pDisplayPixelScroll[i] = 0
+    else
+      if newTopLeft[i] > hi[i] then
+        newTopLeft[i] = hi[i]
+        pDisplayPixelScroll[i] = 0
+      else
+        reachedEdge = reachedEdge + 1
+      end if
+    end if
+  end repeat
+"""
+
 # Script changes, by (game, cast, script name): (old, new) pairs of Lingo text.
 PATCHES = {
     # One progress file, with the first mission of World One, both challenge worlds and
@@ -86,19 +143,20 @@ PATCHES = {
          '  pDisplayPixelTopLeft = point(22, 19) - point(80 + (25 * (pDisplayTileSize[2] - 9)), 32)\n'),
         ('  sprite(1).loc = point(305, 220) - (pDisplayTileTopleft * x)\n',
          '  sprite(1).loc = viewCenter() - (pDisplayTileTopleft * x)\n'),
-        # The skewed grid's lower rows lie further left, by 25 pixels a row: scrollmap's
-        # limit at the left, made for nine rows, goes a tile further for every two more, so
-        # that a taller view still reaches the map's left edge at its bottom row.
-        ('  if newTopLeft[1] <= -1 then\n    newTopLeft[1] = -1\n',
-         '  leftmost = -1\n  if pDisplayTileSize[2] > 9 then\n'
-         '    leftmost = -1 - ((((pDisplayTileSize[2] - 9) * pDisplayPixelSkew[1]) + pTileSize[1] - 1) / pTileSize[1])\n'
-         '  end if\n  if newTopLeft[1] <= leftmost then\n    newTopLeft[1] = leftmost\n'),
-        # A view bigger than the map is held at the map's top left: scrollmap's limit at the
-        # far edge would otherwise put it past the near one, and each scroll flip between them.
-        ('  pDisplayTileTopleft = newTopLeft\n',
-         '  if newTopLeft[1] < leftmost then\n    newTopLeft[1] = leftmost\n  end if\n'
-         '  if newTopLeft[2] < -2 then\n    newTopLeft[2] = -2\n  end if\n'
-         '  pDisplayTileTopleft = newTopLeft\n'),
+        # scrollmap's limits. The original's, for its fixed view of 12 x 9 tiles, are a
+        # tile or two round the map, whole tiles at a time. Here:
+        # - the skewed grid's lower rows lie further left, by 25 pixels a row, so the limit
+        #   at the left goes a tile further for every two rows more than nine;
+        # - a finger drags the map by pixels (src/online/touch.js): on the far limit's own
+        #   tile with some pixel scroll the view is still short of it, so only a tile past it
+        #   is held (the original took the tile itself as past, which made no difference to
+        #   whole tiles, but jumped a drag back a tile);
+        # - the view may go a little past the map's edges (two tiles, or an eighth of a big
+        #   view), into the sky round it, and a view bigger than the map moves between the
+        #   two limits rather than flipping between them, so that the map can be moved into
+        #   the middle (a small map, a phone, zoomed out). The tutorial, which points at the
+        #   original layout, keeps the original's limits.
+        (LIMITS_OLD, LIMITS_NEW),
         ('', RELAYOUT),
     ],
     # The map can be zoomed (src/online/layout.js): the two scripts that read the mouse
