@@ -394,7 +394,14 @@ export function makeLayout(rt, options = {}) {
       if (grow) {
         if (!spr.anchor) spr.anchor = { ax: 0, ay: 0, dx: 0, dy: 0 };
         const base = { w: spr.width, h: spr.height, left: spr.left, top: spr.top, locH: spr.locH - spr.anchor.dx, locV: spr.locV - spr.anchor.dy };
-        spr.anchor.grow = (s, ex2, ey2) => grow(s, base, ex2, ey2, layout.zoomOf(s));
+        const dx0 = spr.anchor.dx, dy0 = spr.anchor.dy;
+        // (its top left goes where its anchor has taken it since: the plans bar down the
+        // stage as the window grows taller, a phone's address bar going away)
+        spr.anchor.grow = (s, ex2, ey2) => {
+          const a = s.anchor;
+          const at = Object.assign({}, base, { left: base.left + a.dx - dx0, top: base.top + a.dy - dy0 });
+          grow(s, at, ex2, ey2, layout.zoomOf(s));
+        };
         spr.anchor.grow(spr, ex, ey);
         if (name === 'top_and_left_border') spr.nine = { l: 40, t: 40, r: 30, b: 12 };
       }
