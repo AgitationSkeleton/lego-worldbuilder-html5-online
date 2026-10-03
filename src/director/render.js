@@ -220,16 +220,13 @@ export class Renderer {
     }
     if (x < l || y < t || x >= l + w || y >= t + h) return false;
     if (m instanceof BitmapMember && s.ink === INK_MATTE) {
+      // (from the pixels the matte was made from, not read back from its canvas)
       const c = this.inked(m, s);
-      let mask = c._mask;
-      if (!mask) {
-        const cc = c.getContext ? c : null;
-        if (!cc) return true;
-        mask = c._mask = cc.getContext('2d').getImageData(0, 0, c.width, c.height).data;
-      }
-      let px = Math.floor((x - l) * m.width / w), py = Math.floor((y - t) * m.height / h);
-      if (s.flipH) px = m.width - 1 - px;
-      if (s.flipV) py = m.height - 1 - py;
+      const mask = c._px;
+      if (!mask) return true;
+      let px = Math.floor((x - l) * c.width / w), py = Math.floor((y - t) * c.height / h);
+      if (s.flipH) px = c.width - 1 - px;
+      if (s.flipV) py = c.height - 1 - py;
       return mask[(py * c.width + px) * 4 + 3] > 0;
     }
     return true;
@@ -271,16 +268,17 @@ function drawNine(ctx, src, x, y, w, h, n) {
   }
 }
 
+// The member's picture with its ink applied: worked out on its exact pixels (never read
+// back from a canvas, see png.js), kept with the canvas made from them (c._px) for hit tests.
 function makeInked(m, ink, bg, fore, back) {
-  const src = m.canvas();
-  const w = src.width, h = src.height;
+  const px = m.pixels();
+  const w = px.width, h = px.height;
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
-  const ctx = c.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(src, 0, 0);
-  const img = ctx.getImageData(0, 0, w, h);
-  const d = img.data;
+  const ctx = c.getContext('2d');
+  const d = new Uint8ClampedArray(px.data);
+  const img = new ImageData(d, w, h);
   const [br, bgG, bb] = bg;
   if (ink === INK_BG_TRANSPARENT) {
     for (let i = 0; i < d.length; i += 4) {
@@ -313,5 +311,6 @@ function makeInked(m, ink, bg, fore, back) {
     }
   }
   ctx.putImageData(img, 0, 0);
+  c._px = d;
   return c;
 }

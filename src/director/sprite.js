@@ -46,8 +46,11 @@ export class Sprite {
     this.foreRGB = sp.foreRGB || null;
     this.backRGB = sp.backRGB || null;
     const m = this.member;
-    if (m && (m instanceof ShapeMember || sp.stretch ||
-        (m instanceof BitmapMember && (sp.width !== m.width || sp.height !== m.height)))) {
+    // The score's size is used only for a shape, or a sprite stretched in the score; any
+    // other sprite is its member's size, whatever size the score last saw it at (as
+    // Director does, and ScummVM's Sprite::setCast: the minimap and the energy icon are
+    // saved at sizes their members no longer have).
+    if (m && (m instanceof ShapeMember || sp.stretch)) {
       this.w = sp.width;
       this.h = sp.height;
     }
@@ -164,6 +167,14 @@ export class Sprite {
           this.locV = t + this.regY;
         }
         return;
+      case 'left': case 'top': case 'right': case 'bottom': {
+        // one edge of the sprite's rect moved, the others kept: the sprite is resized (the
+        // energy bar's stripe is drawn so, its right edge set from the unit's energy)
+        const r = this.rect();
+        const n = toInt(v);
+        this.lgSet('rect', new LRect(name === 'left' ? n : r.l, name === 'top' ? n : r.t, name === 'right' ? n : r.r, name === 'bottom' ? n : r.b));
+        return;
+      }
       case 'width': this.w = toInt(v); if (this.h === null) this.h = this.height; return;
       case 'height': this.h = toInt(v); if (this.w === null) this.w = this.width; return;
       case 'puppet': this.puppet = !!toInt(v); return;
@@ -203,7 +214,7 @@ export class Sprite {
     for (const inst of this.scriptInstances.slice()) {
       if (!(inst instanceof LInstance)) continue;
       const h = inst.findHandler(name);
-      if (h) { result = h.fn.call(h.inst, h.inst, ...args); handled = true; }
+      if (h) { result = h.fn.call(h.inst, inst, ...args); handled = true; }
     }
     if (!handled) onWarning('sprite ' + this.channel + ': no handler ' + name);
     return result;

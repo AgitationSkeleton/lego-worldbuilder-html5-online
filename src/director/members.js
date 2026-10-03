@@ -4,6 +4,7 @@
 import { LPoint, LRect, LList, sym, str, toInt, num, LingoError, onWarning, repr } from './lingo.js';
 import { TextLayout, parseHtml } from './text.js';
 import { LImage } from './image.js';
+import { decodePNG } from './png.js';
 
 export class CastLib {
   constructor(runtime, number, name) {
@@ -119,14 +120,37 @@ export class BitmapMember extends Member {
   get height() { return this.h; }
   get regX() { return this.rx; }
   get regY() { return this.ry; }
-  // Pixels as a canvas, for drawing and for the Lingo image.
+  // The exact pixels, {data (RGBA, row by row), width, height}: the Lingo image's if it has
+  // one, else the PNG's, decoded here when first asked for (png.js says why not by the
+  // browser).
+  pixels() {
+    if (this._image) return { data: this._image.buf, width: this._image.width, height: this._image.height };
+    if (!this._pixels) {
+      const w = Math.max(1, this.w), h = Math.max(1, this.h);
+      const png = this.rec && this.rec.png;
+      let px = null;
+      if (png && this.runtime.bitmapBytes) {
+        try {
+          const im = decodePNG(new Uint8Array(this.runtime.bitmapBytes, png[0], png[1]));
+          if (im.width === w && im.height === h) px = im.data;
+        } catch (e) {
+          onWarning('could not decode ' + this.name + ': ' + e.message);
+        }
+      }
+      if (!px) px = new Uint8ClampedArray(w * h * 4).fill(255);
+      this._pixels = { data: px, width: w, height: h };
+    }
+    return this._pixels;
+  }
+  // Pixels as a canvas, made from the exact pixels.
   canvas() {
     if (this._image) return this._image.canvas;
     if (!this._canvas) {
+      const px = this.pixels();
       const c = document.createElement('canvas');
-      c.width = Math.max(1, this.w);
-      c.height = Math.max(1, this.h);
-      if (this.source) c.getContext('2d').drawImage(this.source, 0, 0);
+      c.width = px.width;
+      c.height = px.height;
+      c.getContext('2d').putImageData(new ImageData(px.data, px.width, px.height), 0, 0);
       this._canvas = c;
     }
     return this._canvas;
@@ -139,7 +163,8 @@ export class BitmapMember extends Member {
     switch (name) {
       case 'image':
         if (!this._image) {
-          this._image = LImage.fromCanvas(this.canvas(), this.depth === 32 ? 32 : this.depth, this.alpha);
+          const px = this.pixels();
+          this._image = LImage.fromPixels(px.data, px.width, px.height, this.depth === 32 ? 32 : this.depth, this.alpha);
           this._image.onChange = () => this.changed();
         }
         return this._image;
@@ -157,6 +182,13 @@ export class BitmapMember extends Member {
         if (!img) return;
         this._image = img;
         this._image.onChange = () => this.changed();
+        // A new picture is registered at its centre.  (The minimap's sprite sits on the
+        // middle of the right-hand panel and gets a picture the map's size: only so does a
+        // map of any size come out in the middle, as it does in the original.)
+        if (img.width !== this.w || img.height !== this.h) {
+          this.rx = Math.floor(img.width / 2);
+          this.ry = Math.floor(img.height / 2);
+        }
         this.w = img.width;
         this.h = img.height;
         this.alpha = img.useAlpha;

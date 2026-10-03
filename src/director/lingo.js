@@ -60,8 +60,12 @@ export class LInstance {
     for (const p of script.props) this.$[p] = undefined;
     this.id = ++instanceCount;
   }
-  // The handler, here or up the ancestor chain, and the instance that has it (which is
-  // the "me" it runs with).
+  // The handler, here or up the ancestor chain, and the instance that has it.  The
+  // handler runs on that instance (its property variables are that instance's), but its
+  // "me" is the object the message was sent to, as in Director: a child's message handled
+  // by its ancestor gets the child as "me", and ancestor.handler() gets the ancestor.
+  // (The game relies on it: a unit's menu is shown only for the object highlighted, which
+  // is the child, from a handler in vehicle.generic.)
   findHandler(name) {
     let o = this;
     for (let depth = 0; o instanceof LInstance && depth < 100; depth++) {
@@ -816,7 +820,7 @@ export function spi(o, name, i, v) { si(gp(o, name), i, v); }
 export function mc(o, name, ...args) {
   if (o instanceof LInstance) {
     const h = o.findHandler(name);
-    if (h) return h.fn.call(h.inst, h.inst, ...args);
+    if (h) return h.fn.call(h.inst, o, ...args);
     if (name === 'count') return 0;
     if (name === 'ilk') return sym('instance');
     if (name === 'handler') return o.findHandler(str(args[0]).toLowerCase()) ? 1 : 0;

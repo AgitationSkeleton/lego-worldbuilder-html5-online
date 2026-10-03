@@ -33,7 +33,7 @@ export class SoundSystem {
   async decode(member, bytes) {
     if (!this.ctx) return;
     try {
-      member.buffer = await this.ctx.decodeAudioData(bytes);
+      member.buffer = trimmed(this.ctx, await this.ctx.decodeAudioData(bytes), member.rec);
     } catch (e) {
       console.warn('could not decode sound', member.name, e);
     }
@@ -44,6 +44,24 @@ export class SoundSystem {
     for (const ch of this.channels) ch.pump();
   }
   stopAll() { for (const ch of this.channels) ch.stop(); }
+}
+
+// Shockwave Audio is MPEG audio, which decodes to more than the sound: the encoder's and
+// the decoder's delay before it (576 + 529 samples for MPEG-2 Layer III, as every sound in
+// the two games bears out) and padding to a whole frame after.  The sound is cut to the
+// samples its header gives, so that the music's short pieces, played back to back, follow
+// each other without a gap.
+const MPEG_DELAY = 576 + 529;
+
+function trimmed(ctx, buf, rec) {
+  if (!rec || rec.format !== 'mp3' || !rec.samples || !rec.rate) return buf;
+  const k = buf.sampleRate / rec.rate;
+  const from = Math.round(MPEG_DELAY * k);
+  const len = Math.min(Math.round(rec.samples * k), buf.length - from);
+  if (len <= 0) return buf;
+  const out = ctx.createBuffer(buf.numberOfChannels, len, buf.sampleRate);
+  for (let c = 0; c < buf.numberOfChannels; c++) out.copyToChannel(buf.getChannelData(c).subarray(from, from + len), c);
+  return out;
 }
 
 class SoundChannel {
@@ -79,7 +97,11 @@ class SoundChannel {
       const m = this.memberOf(get('member'));
       if (!m) return null;
       const lc = get('loopCount');
-      return { member: m, loopCount: lc === undefined ? 1 : toInt(lc) };
+      // the part of the sound to play, in milliseconds (the music's pieces are cut so, to
+      // keep two channels' pieces the same length)
+      const st = get('startTime'), et = get('endTime');
+      return { member: m, loopCount: lc === undefined ? 1 : toInt(lc),
+        startTime: st === undefined ? 0 : Math.max(0, num(st)) / 1000, endTime: et === undefined ? null : num(et) / 1000 };
     }
     const m = this.memberOf(x);
     return m ? { member: m, loopCount: m.rec && m.rec.loop ? 0 : 1 } : null;
@@ -96,12 +118,18 @@ class SoundChannel {
     const node = sys.ctx.createBufferSource();
     node.buffer = m.buffer;
     const loops = entry.loopCount;
-    if (loops === 0) node.loop = true;
+    const from = Math.min(entry.startTime || 0, m.buffer.duration);
+    const to = entry.endTime === null || entry.endTime === undefined ? m.buffer.duration : Math.max(from, Math.min(entry.endTime, m.buffer.duration));
+    const dur = Math.max(0.001, to - from);
+    if (loops === 0 || loops > 1) {
+      node.loop = true;
+      node.loopStart = from;
+      node.loopEnd = to;
+    }
     node.connect(this.gain);
-    node.start(when);
-    const dur = m.buffer.duration;
+    node.start(when, from);
     const end = loops === 0 ? Infinity : when + dur * Math.max(1, loops);
-    if (loops > 1) { node.loop = true; node.stop(end); }
+    if (end !== Infinity) node.stop(end);
     return { entry, node, start: when, end };
   }
   playEntry(entry) {

@@ -393,6 +393,32 @@ def fix_chunk_var_refs(text, lasm):
     return text
 
 
+# Changes made to the games' Lingo before it is translated: few, each asked for, each with
+# its reason.  Keyed by (movie, cast, script name); each change is (old, new) text.
+INFO_TOGGLE = [
+    # The INFO button shows a unit's information bubble; in the original, pressing it again
+    # slid the bubble in again from the right, and only the bubble's own Close button put
+    # it away.  Here pressing INFO again for the same unit puts it away too.
+    ('property ss, sloc, pObj, pPlan, pSlide\n', 'property ss, sloc, pObj, pPlan, pSlide, pShowing\n'),
+    ('on hideAll me\n', 'on hideAll me\n  pShowing = VOID\n'),
+    ('on hideInfo me\n', 'on hideInfo me\n  pShowing = VOID\n'),
+    ('on showinfo me, uclass, uname\n',
+     'on showinfo me, uclass, uname\n  if pShowing = uname then\n    me.hideInfo()\n    return \n  end if\n  pShowing = uname\n'),
+]
+FIXES = {
+    ('worldbuilder', 'Internal', 'unit info bubble behavior'): INFO_TOGGLE,
+    ('worldbuilder2', 'Internal', 'unit info bubble behavior'): INFO_TOGGLE,
+}
+
+
+def apply_fixes(movie, cast, name, text):
+    for old, new in FIXES.get((movie, cast, name), []):
+        if old not in text:
+            raise SystemExit('fix for %s/%s/%s no longer applies: %r' % (movie, cast, name, old))
+        text = text.replace(old, new, 1)
+    return text
+
+
 def load_scripts(movie):
     base = os.path.join(WORK, 'pr', movie, movie, 'casts')
     movie_json = None
@@ -408,6 +434,7 @@ def load_scripts(movie):
             lasm = os.path.join(d, f[:-3] + '.lasm')
             if os.path.exists(lasm):
                 text = fix_chunk_var_refs(text, open(lasm, encoding='latin-1').read())
+            text = apply_fixes(movie, cast, name, text.replace('\r\n', '\n'))
             scripts.append(dict(cast=cast, number=num, name=name, kind=SCRIPT_KINDS.get(kind, kind),
                                 ast=parse(text, f), source=f))
     return scripts

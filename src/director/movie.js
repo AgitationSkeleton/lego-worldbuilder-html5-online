@@ -323,7 +323,7 @@ export class Runtime {
     const a0 = args[0];
     if (a0 instanceof LInstance) {
       const h = a0.findHandler(name);
-      if (h) return h.fn.call(h.inst, h.inst, ...args.slice(1));
+      if (h) return h.fn.call(h.inst, a0, ...args.slice(1));
     } else if (a0 instanceof ScriptRef) {
       if (name === 'new') return this.newInstance(a0.script, args.slice(1));
       const h = a0.script.handlers[name];
@@ -365,7 +365,7 @@ export class Runtime {
     const h = inst.findHandler(event);
     if (!h) return false;
     this.passed = false;
-    this.guard(() => h.fn.call(h.inst, h.inst, ...args));
+    this.guard(() => h.fn.call(h.inst, inst, ...args));
     return !this.passed;
   }
   // An event to a sprite's behaviors: all of them hear it.
@@ -623,7 +623,7 @@ export class Runtime {
       // an actor taken off the list by another's stepFrame is not stepped
       if (o instanceof LInstance && list.a.includes(o)) {
         const h = o.findHandler('stepframe');
-        if (h) this.guard(() => h.fn.call(h.inst, h.inst));
+        if (h) this.guard(() => h.fn.call(h.inst, o));
       }
     }
   }
@@ -635,7 +635,7 @@ export class Runtime {
         const handler = str(t.handler).toLowerCase();
         if (t.target instanceof LInstance) {
           const h = t.target.findHandler(handler);
-          if (h) this.guard(() => h.fn.call(h.inst, h.inst, t));
+          if (h) this.guard(() => h.fn.call(h.inst, t.target, t));
         } else {
           const mh = this.movieHandlers[handler];
           if (mh) this.guard(() => mh.fn.call(this.scriptSelf(mh.script), t));
@@ -821,20 +821,17 @@ export class Runtime {
     if (spec instanceof LList && spec.a.length) {
       const img = this.member(toInt(spec.a[0]), 1);
       const mask = spec.a.length > 1 ? this.member(toInt(spec.a[1]), 1) : null;
-      if (img instanceof BitmapMember && img.source) {
-        const w = img.width, h = img.height;
+      if (img instanceof BitmapMember) {
+        const ip = img.pixels();
+        const w = ip.width, h = ip.height;
         const c = document.createElement('canvas');
         c.width = w; c.height = h;
         const ctx = c.getContext('2d');
-        ctx.drawImage(img.canvas(), 0, 0);
-        const d = ctx.getImageData(0, 0, w, h);
+        const d = new ImageData(new Uint8ClampedArray(ip.data), w, h);
         let md = null;
-        if (mask instanceof BitmapMember && mask.source) {
-          const mc = document.createElement('canvas');
-          mc.width = w; mc.height = h;
-          const mctx = mc.getContext('2d');
-          mctx.drawImage(mask.canvas(), 0, 0);
-          md = mctx.getImageData(0, 0, w, h).data;
+        if (mask instanceof BitmapMember) {
+          const mp = mask.pixels();
+          if (mp.width === w && mp.height === h) md = mp.data;
         }
         for (let i = 0; i < w * h; i++) {
           const black = d.data[i * 4] < 128;
@@ -1150,7 +1147,7 @@ function makeBuiltins(rt) {
   B.new_ = (x, ...args) => {
     if (x instanceof ScriptRef) return rt.newInstance(x.script, args);
     if (x instanceof LSymbol) return rt.newMember(x.name.toLowerCase());
-    if (x instanceof LInstance) { const h = x.findHandler('new'); if (h) return h.fn.call(h.inst, h.inst, ...args); }
+    if (x instanceof LInstance) { const h = x.findHandler('new'); if (h) return h.fn.call(h.inst, x, ...args); }
     throw new L.LingoError('new: not a script');
   };
   B.new = B.new_;
@@ -1165,7 +1162,7 @@ function makeBuiltins(rt) {
     for (const t of targets) {
       if (t instanceof LInstance) {
         const h = t.findHandler(name);
-        if (h) result = h.fn.call(h.inst, h.inst, ...args);
+        if (h) result = h.fn.call(h.inst, t, ...args);
       } else if (t instanceof Sprite) {
         result = t.lgCall(name, args);
       }
@@ -1176,7 +1173,7 @@ function makeBuiltins(rt) {
     const name = str(handler).toLowerCase();
     if (target instanceof LInstance && target.$.ancestor instanceof LInstance) {
       const h = target.$.ancestor.findHandler(name);
-      if (h) return h.fn.call(h.inst, h.inst, ...args);
+      if (h) return h.fn.call(h.inst, target, ...args);
     }
   };
   B.sendsprite = (n, msg, ...args) => {
@@ -1184,7 +1181,7 @@ function makeBuiltins(rt) {
     let result;
     for (const inst of s.scriptInstances.slice()) {
       const h = inst instanceof LInstance ? inst.findHandler(str(msg).toLowerCase()) : null;
-      if (h) result = h.fn.call(h.inst, h.inst, ...args);
+      if (h) result = h.fn.call(h.inst, inst, ...args);
     }
     return result;
   };

@@ -125,10 +125,13 @@ def snd_to_wav(data):
 
 
 def swa_to_mp3(data):
-    """Shockwave Audio: a header (its own length first), then plain MPEG audio frames."""
+    """Shockwave Audio: a header (its own length first), then plain MPEG audio frames.
+    The header gives the sample rate and how many samples the sound really has: its MPEG
+    frames hold more, the encoder's and decoder's delay before it and padding after."""
     head = struct.unpack('>I', data[:4])[0]
     rate = struct.unpack('>I', data[8:12])[0]
-    return data[head + 4:], rate
+    samples = struct.unpack('>I', data[20:24])[0]
+    return data[head + 4:], rate, samples
 
 
 def convert_fonts(d, game_dir, fonts_out):
@@ -233,8 +236,8 @@ def build(game, movie):
                            filled=s[14], lineSize=s[15], lineDirection=s[16])
             elif m['type'] == 'sound':
                 if 'ediM' in ch:
-                    mp3, rate = swa_to_mp3(d.chunk(ch['ediM']))
-                    rec.update(format='mp3', data=sounds.add(mp3), rate=rate)
+                    mp3, rate, samples = swa_to_mp3(d.chunk(ch['ediM']))
+                    rec.update(format='mp3', data=sounds.add(mp3), rate=rate, samples=samples)
                 elif 'snd ' in ch:
                     rec.update(format='wav', data=sounds.add(snd_to_wav(d.chunk(ch['snd ']))))
                 rec['loop'] = not (m['flags'] & 16)

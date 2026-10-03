@@ -1191,7 +1191,7 @@ const S1_114 = {
 // Internal 115: unit info bubble behavior (score)
 const S1_115 = {
   castLib: 1, member: 115, name: "unit info bubble behavior", type: "score",
-  props: ["ss", "sloc", "pobj", "pplan", "pslide"],
+  props: ["ss", "sloc", "pobj", "pplan", "pslide", "pshowing"],
   handlers: {
     beginsprite(me) {
       let n, sn;
@@ -1251,6 +1251,7 @@ const S1_115 = {
     },
     hideall(me) {
       let s;
+      this.$.pshowing = undefined;
       for (let $t1 = this.$.ss, $t2 = $L.count($t1), $t3 = 1; $t3 <= $t2; $t3++) {
         s = $L.gi($t1, $t3);
         $L.sp(s, "loc", $B.point(1000, 1000));
@@ -1259,6 +1260,7 @@ const S1_115 = {
     },
     hideinfo(me) {
       let o;
+      this.$.pshowing = undefined;
       o = 0;
       if ($L.t($L.not($B.voidp(this.$.pslide)))) {
         o = $L.gp(this.$.pslide, "offset");
@@ -1267,6 +1269,11 @@ const S1_115 = {
     },
     showinfo(me, uclass, uname) {
       let descmem, o;
+      if ($L.t($L.eq(this.$.pshowing, uname))) {
+        $L.mc(me, "hideinfo");
+        return;
+      }
+      this.$.pshowing = uname;
       $L.sp($L.gp($L.gp(this.$.ss, "title"), "member"), "text", uname);
       descmem = $L.cat($L.cat($L.cat($L.gi(uclass, 1), "."), $L.gi(uclass, 2)), ".description");
       $L.sp($L.gp($L.gp(this.$.ss, "description"), "member"), "rtf", $L.gp($B.member(descmem), "rtf"));
