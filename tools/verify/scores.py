@@ -114,7 +114,7 @@ def main():
         page.wait_for_selector('#scores table', timeout=10000)
         shown = page.eval_on_selector('#scores select', 'e => e.selectedOptions[0].textContent')
         check('the tables show it', shown == 'Random 2C-K2Q9' and name in page.inner_text('#scores tr.me'), shown)
-        done = page.evaluate("window.__online.scores.bests['6.4']")
+        done = page.evaluate("window.__online.scores.bests['6.12']")
         check('and it does not count as the template played', done is None, str(done))
         page.keyboard.press('Escape')
         page.evaluate("""() => { const rt = window.__rt; const s = rt.movieHandlers.quitlevel.script;

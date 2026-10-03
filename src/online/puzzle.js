@@ -167,7 +167,9 @@ class Model {
     if (d < 0) throw new Error(name + ' cannot get to ' + tx + ',' + ty);
     const u = this.units[name];
     if (d > 0) [u.x, u.y] = next ? u.lastStop : [tx, ty];
-    u.energy -= d * (this.config[u.kind].move || 0);
+    // (a trip to beside a pile or a site: the game's unit at times stops a tile further
+    // round it than the nearest side, so a move more is counted)
+    u.energy -= (d + (next ? 1 : 0)) * (this.config[u.kind].move || 0);
     // (a reserve: the game's own routes are at times longer than the shortest)
     if (u.energy < RESERVE) throw new Error(name + ' runs out of energy');
   }

@@ -86,10 +86,17 @@ PATCHES = {
          '  pDisplayPixelTopLeft = point(22, 19) - point(80 + (25 * (pDisplayTileSize[2] - 9)), 32)\n'),
         ('  sprite(1).loc = point(305, 220) - (pDisplayTileTopleft * x)\n',
          '  sprite(1).loc = viewCenter() - (pDisplayTileTopleft * x)\n'),
+        # The skewed grid's lower rows lie further left, by 25 pixels a row: scrollmap's
+        # limit at the left, made for nine rows, goes a tile further for every two more, so
+        # that a taller view still reaches the map's left edge at its bottom row.
+        ('  if newTopLeft[1] <= -1 then\n    newTopLeft[1] = -1\n',
+         '  leftmost = -1\n  if pDisplayTileSize[2] > 9 then\n'
+         '    leftmost = -1 - ((((pDisplayTileSize[2] - 9) * pDisplayPixelSkew[1]) + pTileSize[1] - 1) / pTileSize[1])\n'
+         '  end if\n  if newTopLeft[1] <= leftmost then\n    newTopLeft[1] = leftmost\n'),
         # A view bigger than the map is held at the map's top left: scrollmap's limit at the
         # far edge would otherwise put it past the near one, and each scroll flip between them.
         ('  pDisplayTileTopleft = newTopLeft\n',
-         '  if newTopLeft[1] < -1 then\n    newTopLeft[1] = -1\n  end if\n'
+         '  if newTopLeft[1] < leftmost then\n    newTopLeft[1] = leftmost\n  end if\n'
          '  if newTopLeft[2] < -2 then\n    newTopLeft[2] = -2\n  end if\n'
          '  pDisplayTileTopleft = newTopLeft\n'),
         ('', RELAYOUT),
@@ -179,6 +186,12 @@ def merge():
                 m['name'] = 'sky%d' % (int(mm.group(1)) + WB2_WORLD_OFFSET)
             if name == 'label.back_to world 2':
                 m['name'] = 'label.back_to world 7'
+            # The water crab's frames (the 32-bit ones the game finds first by name) have up
+            # and down the wrong way about: the same pictures in its older 8-bit frames, and
+            # the land crab's, face the other way, so it walked backwards up and down.
+            mm = re.fullmatch(r'monster\.water_crab\.(up|down)(\..*)?', name)
+            if mm and m.get('depth') == 32:
+                m['name'] = 'monster.water_crab.%s%s' % ('down' if mm.group(1) == 'up' else 'up', mm.group(2) or '')
 
     # World Builder's casts, after World Builder 2's
     keep, wb1_frames = wb1_keep(wb1, wb2)
