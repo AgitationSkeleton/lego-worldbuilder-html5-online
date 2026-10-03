@@ -72,6 +72,21 @@ curl -H "Authorization: Bearer YOUR_ADMIN_KEY" "https://wbserver.viosarcade.xyz/
 curl -X DELETE -H "Authorization: Bearer YOUR_ADMIN_KEY" https://wbserver.viosarcade.xyz/results/ID
 ```
 
+## Generated missions' log
+
+- `POST /random`, multipart, with `code` (such as `2C-K2Q9`), `name` (may be empty),
+  `info` (JSON: the goal, the bonus goal, the map's size, its units, monsters and what is in
+  the way) and `image` (a JPEG or PNG of its map, drawn by the game:
+  `src/online/snapshot.js`). The first time a code is played, the server posts the picture
+  to the Discord channel with who played it, the code and that info, and a link that
+  offers the mission. Answers `{ok, posted}`.
+
+The game sends it when a generated mission starts, under the player's name unless they
+never send their times. What the info says is held to a few lower-case words of each kind
+(profanity starred out, links and mentions dropped), the picture to a JPEG or PNG of at most
+3 MB, and one address to 20 posts an hour; each code is posted once (the `random_posts`
+table, which `npm run db:init` makes).
+
 ## Races
 
 - `POST /races`: makes a race; answers `{code}` (five letters and numbers).

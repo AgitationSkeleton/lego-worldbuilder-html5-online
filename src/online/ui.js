@@ -15,6 +15,10 @@ const SIZES = [
   ['fill', 'Fill window'],
 ];
 
+// (a generated mission's code says how hard it is and how it looks: src/online/puzzle.js)
+const DIFFICULTIES = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };
+const LOOKS = { A: 'Grassland', B: 'Prehistoric', C: 'Jungle', D: 'City' };
+
 const SENDS = [
   ['ask', 'Ask each time'],
   ['always', 'Always send'],
@@ -37,6 +41,7 @@ export class OnlineUI {
     this.settings = loadSettings();
     this.scores = null;     // set by main.js (src/online/scores.js)
     this.random = null;     // and the generated missions (src/online/missions.js)
+    this.history = null;    // and those played here (src/online/history.js)
     this.races = null;      // and races (src/online/race.js)
     this.asked = 0;         // the tables last asked for (an older answer is dropped)
     // ?ui=1.5 (any factor) overrides the setting for the visit, for testing sizes
@@ -149,6 +154,9 @@ export class OnlineUI {
         el('p', { text: 'Back to the main menu (a mission being played is left).' }),
         el('div', { class: 'choices' },
           el('button', { type: 'button', class: 'choice', text: 'Main menu', onclick: () => this.showMenu() }))));
+    // (the generated missions played here before: src/online/history.js)
+    this.seedList = el('ul', { class: 'seeds' });
+    this.seedEmpty = el('p', { class: 'note', text: 'The random missions you play are kept here.' });
     this.randomPanel = dialog('random', 'Random mission', () => this.closeRandom(),
       el('div', { class: 'choices pick' }, this.randomDifficulty, this.randomLook),
       el('div', { class: 'choices pick' }, this.codeInput),
@@ -156,7 +164,8 @@ export class OnlineUI {
         el('button', { type: 'button', class: 'choice', text: 'New code', onclick: () => this.newCode() }),
         el('button', { type: 'button', class: 'choice', text: 'Play', onclick: () => this.playCode() }),
         el('button', { type: 'button', class: 'choice', text: 'Copy link', onclick: () => this.copyLink() })),
-      this.randomNote);
+      this.randomNote,
+      el('section', { class: 'history' }, el('h3', { text: 'Seed History' }), this.seedEmpty, this.seedList));
     this.buildTables();
     this.doneButtons = [
       el('button', { type: 'button', class: 'choice', text: 'New random mission', onclick: () => this.playAnother() }),
@@ -260,13 +269,7 @@ export class OnlineUI {
     if (document.activeElement !== this.nameInput) this.nameInput.value = this.settings.name;
     if (this.random) {
       const a = this.random.active;
-      if (a) {
-        this.randomNote.textContent = 'Playing ' + showCode(a.code) + '.';
-      } else if (!this.random.canPlay()) {
-        this.randomNote.textContent = 'A random mission starts from a world map.';
-      } else {
-        this.randomNote.textContent = '';
-      }
+      this.randomNote.textContent = a ? 'Playing ' + showCode(a.code) + '.' : '';
     }
   }
   applySound() {
@@ -307,8 +310,54 @@ export class OnlineUI {
     this.panel.hidden = true;
     this.codeInput.value = code || '';
     this.render();
+    this.renderSeeds();
     this.randomPanel.hidden = false;
     this.codeInput.focus();
+  }
+  // The Seed History: each generated mission played here, the last first, with the world
+  // map's own flags for its goal and its bonus goal (grey until reached) and the best times
+  // to them, and a Play button.
+  renderSeeds() {
+    const list = this.history ? this.history.list : [];
+    this.seedEmpty.hidden = list.length > 0;
+    if (!this.flags || !this.flags.goal) this.flags = { goal: this.icon('flag1'), bonus: this.icon('bonus_flag1') };
+    const result = (kind, ms) => {
+      const name = kind === 'goal' ? 'Goal' : 'Bonus goal';
+      const done = ms !== null;
+      return el('span', { class: 'result' + (done ? '' : ' none'), title: done ? name + ' in ' + clock(ms) : name + ' not reached yet' },
+        this.flags[kind] ? el('img', { src: this.flags[kind], alt: name }) : null,
+        el('span', { class: 'time', text: done ? clock(ms) : '–' }));
+    };
+    this.seedList.replaceChildren(...list.map((e) => {
+      const c = parseCode(e.code);
+      return el('li', null,
+        el('span', { class: 'seed' },
+          el('b', { text: showCode(e.code) }),
+          el('span', { class: 'what', text: DIFFICULTIES[c.difficulty] + ' · ' + LOOKS[c.look] })),
+        result('goal', e.goal),
+        result('bonus', e.bonus),
+        el('button', { type: 'button', class: 'choice', text: 'Play', 'aria-label': 'Play ' + showCode(e.code), onclick: () => this.playSeed(e.code) }));
+    }));
+  }
+  playSeed(code) {
+    this.codeInput.value = showCode(code);
+    this.playCode();
+  }
+  // A picture of the game's for the page, as the game draws it (its ink; the world map's
+  // flags are matte on the map): a data URL, or null before the game has loaded.
+  icon(name) {
+    const rt = this.rt;
+    const m = rt.builtins.member(name);
+    if (!m || !m.width || !rt.renderer || !rt.bitmapBytes) return null;
+    try {
+      const c = document.createElement('canvas');
+      c.width = m.width;
+      c.height = m.height;
+      rt.renderer.drawSprite(c.getContext('2d'), { member: m, ink: 8, blend: 100, foreColor: 255, backColor: 0, left: 0, top: 0, width: m.width, height: m.height });
+      return c.toDataURL();
+    } catch (e) {
+      return null;
+    }
   }
   closeRandom() {
     this.randomPanel.hidden = true;

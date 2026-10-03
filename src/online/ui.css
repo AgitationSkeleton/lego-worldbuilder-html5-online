@@ -269,6 +269,25 @@
 /* What next after a generated mission: its own two choices, no Done. */
 #random-done .actions { display: none; }
 
+/* The random missions' Seed History: each played here, its goal's and bonus goal's flags
+   (grey until reached) and best times, and Play. */
+#random .history h3 { margin-top: 16px; }
+#random .seeds { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: min(40vh, 300px); overflow-y: auto; }
+#random .seeds li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 10px; padding: 3px 4px 3px 8px; border: 2px solid #000; border-radius: 6px; }
+#random .seeds .seed { display: flex; flex-direction: column; min-width: 0; }
+#random .seeds .seed b { font: 400 13px 'WB 04b_08', monospace; }
+#random .seeds .what { color: #555; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#random .seeds .result { display: inline-flex; align-items: center; gap: 3px; min-width: 64px; font-size: 14px; font-variant-numeric: tabular-nums; }
+#random .seeds .result img { width: 22px; height: auto; image-rendering: pixelated; }
+#random .seeds .result.none img { filter: grayscale(1); opacity: 0.3; }
+#random .seeds .result.none .time { color: #999; }
+#random .seeds button.choice { min-height: 26px; padding: 2px 10px; }
+@media (max-width: 420px) {
+  #random .seeds li { gap: 6px; padding-left: 6px; }
+  #random .seeds .result { min-width: 50px; font-size: 13px; }
+  #random .seeds .result img { width: 18px; }
+}
+
 /* The settings: each category on one row, its label beside its buttons or slider. */
 #settings .bubble { width: min(600px, 100%); }
 .panel .choices > button.choice { white-space: nowrap; }

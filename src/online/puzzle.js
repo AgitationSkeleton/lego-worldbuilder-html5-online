@@ -114,6 +114,8 @@ function finish(c, g) {
     // where the units, buildings and monsters on the map start (0-based; the game counts
     // from 1)
     units,
+    // and what each is: {kind, cls} ('vehicle', 'monster')
+    pieces: g.world.items.filter((it) => it.t === 'unit').map((it) => ({ kind: it.kind, cls: it.cls })),
     goal: g.goalKind, bonusGoal: g.bonusKind,
     tags: [...g.tags].sort(),
   };

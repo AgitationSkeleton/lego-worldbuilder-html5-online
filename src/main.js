@@ -7,6 +7,7 @@ import { OnlineUI } from './online/ui.js';
 import { installTouch } from './online/touch.js';
 import { Scores } from './online/scores.js';
 import { RandomMissions } from './online/missions.js';
+import { SeedHistory } from './online/history.js';
 import { Races } from './online/race.js';
 import { MainMenu } from './online/menu.js';
 import { Controls } from './online/controls.js';
@@ -97,6 +98,12 @@ async function main() {
     ui.races = new Races(rt, ui, params);
     ui.races.install(scripts.scripts);
     ui.scores.listeners.push((kind, ms, mission) => ui.races.reached(kind, ms, mission));
+    // the generated missions played here (src/online/history.js), each one's first start
+    // sent to the server's log with a picture of its map (scores.announce)
+    ui.history = new SeedHistory();
+    ui.history.onChange = () => { if (!ui.randomPanel.hidden) ui.renderSeeds(); };
+    ui.random.onStarted = (g) => { ui.history.played(g.code); ui.scores.announce(g); };
+    ui.scores.listeners.push((kind, ms, mission) => { if (mission.startsWith('R-')) ui.history.reached(mission.slice(2), kind, ms); });
     // the main menu (src/online/menu.js) comes first, but for the tests' runs
     ui.menu = new MainMenu(ui);
   }

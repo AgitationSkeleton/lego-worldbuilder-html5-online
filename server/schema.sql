@@ -12,3 +12,12 @@ CREATE TABLE IF NOT EXISTS results (
 CREATE INDEX IF NOT EXISTS results_by_mission ON results (mission, kind, ms);
 CREATE INDEX IF NOT EXISTS results_by_name ON results (name COLLATE NOCASE);
 CREATE INDEX IF NOT EXISTS results_by_ip ON results (ip_hash, created);
+
+-- The generated missions posted to the log (src/random.js): each code once.
+CREATE TABLE IF NOT EXISTS random_posts (
+  code TEXT PRIMARY KEY,       -- "2C-K2Q9" without its dash
+  name TEXT NOT NULL,          -- who played it first, profanity starred out; empty if not given
+  created INTEGER NOT NULL,    -- milliseconds since 1970
+  ip_hash TEXT NOT NULL        -- for rate limiting; not the address itself
+);
+CREATE INDEX IF NOT EXISTS random_posts_by_ip ON random_posts (ip_hash, created);

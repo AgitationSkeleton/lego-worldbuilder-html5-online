@@ -10,9 +10,27 @@
 import * as L from '../director/lingo.js';
 import { isClean } from './profanity.js';
 import { showCode } from './puzzle.js';
+import { snapshot } from './snapshot.js';
 import { el } from './dom.js';
 
 const BESTS = 'lego-wb-online:bests';
+// A generated mission's picture is taken this long after it starts (its map laid out)
+const ANNOUNCE_AFTER = 1500;
+
+// What a generated mission is, for the server's log: its goals, its map's size, its units
+// and monsters, and what is in the way between its areas (src/online/puzzle.js, its tags).
+function describe(p) {
+  const tag = (prefix) => (p.tags.find((t) => t.startsWith(prefix)) || '').slice(prefix.length);
+  const kinds = (cls) => [...new Set((p.pieces || []).filter((u) => u.cls === cls).map((u) => u.kind))];
+  return {
+    goal: tag('goal: '),
+    bonus: tag('bonus: '),
+    size: [p.rows[0] ? p.rows[0].length : 0, p.rows.length],
+    units: kinds('vehicle'),
+    monsters: kinds('monster').filter((k) => k !== 'boulder'),
+    links: p.tags.filter((t) => t.startsWith('link ')).map((t) => t.slice(5)),
+  };
+}
 
 export const WORLD_NAMES = ['World One', 'World Two', 'World Three', 'Ocean World', 'Prehistoric World',
   'World Builder 2: World One', 'World Builder 2: World Two'];
@@ -160,6 +178,35 @@ export class Scores {
     } catch (e) {
       this.line('The score server could not be reached.');
     }
+  }
+
+  // A generated mission started here for the first time: a picture of its map and what it
+  // is go to the server's log (its owner's Discord channel: server/src/random.js), with
+  // the player's name if they send their times. The server posts each code once.
+  announce(puzzle) {
+    if (!this.sending || !puzzle) return;
+    const history = this.ui.history;
+    const code = puzzle.code;
+    const seen = history && history.find(code);
+    if (seen && seen.posted) return;
+    setTimeout(async () => {
+      const a = this.random && this.random.active;
+      if (!a || a.code !== code || this.rt.labelAt(this.rt.frame) !== 'play') return;
+      try {
+        const image = await snapshot(this.rt);
+        if (!image) return;
+        const s = this.ui.settings;
+        const form = new FormData();
+        form.append('code', code);
+        form.append('name', s.scores !== 'never' && s.name ? s.name : '');
+        form.append('info', JSON.stringify(describe(puzzle)));
+        form.append('image', image, 'mission-' + code + '.jpg');
+        const r = await fetch(this.server + '/random', { method: 'POST', body: form });
+        if (r.ok && history) history.posted(code);
+      } catch (e) {
+        // (the log is let go: the game never waits on it)
+      }
+    }, ANNOUNCE_AFTER);
   }
 
   // The toast: what was reached, and a line under it.
