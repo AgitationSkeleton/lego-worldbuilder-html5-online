@@ -38,7 +38,8 @@ then open <http://localhost:8000/>.
   the ground between them laid out anew, named by a code (like `6D-K2Q9`) that can be
   shared, from the settings or `?random=6D-K2Q9`.
 - **Races**: two to six players play the same mission, each in their own game, and the
-  fastest to the goal wins; a race is joined by its code or a link (`?race=CODE`).
+  fastest to the goal wins; a race is joined by its code or a link (`?race=CODE`). The
+  other players' units show on your map as ghosts in their colours, named when pointed at.
 
 ## Checking it
 

@@ -223,9 +223,14 @@ it is, in order of effort:
    starts the mission at once. Each game tells the race when its player starts, reaches
    the goal and the bonus (with the game's clock's time) or leaves the mission, which is
    giving up; a box in the corner shows everyone's progress, and the fastest to the goal
-   wins. Only those messages travel, so there is nothing to keep in step. A player who
-   loses their connection has 30 seconds to come back as themselves. *To do*: more
-   progress in the corner (plans found, units built) and the others on the minimap.
+   wins. Each game also sends where its player's units are, five times a second, and
+   draws the other players' units on its own map as **ghosts**: see-through, washed in
+   each player's colour, at the right depth among the map's own, gliding between
+   messages; pointing at one (or resting a finger on it) shows whose it is, in a tag like
+   the game's own. Only these messages travel, and the ghosts are only pictures, so
+   there is nothing to keep in step. A player who loses their connection has 30 seconds
+   to come back as themselves. *To do*: more progress in the corner (plans found, units
+   built) and the others on the minimap.
 2. **Co-op**: two players in one world, each with their own units, sharing the bricks,
    the plans and the inventory. The game's state lives in the map display manager and
    the units; to share it, both browsers run the same game in deterministic lockstep, as

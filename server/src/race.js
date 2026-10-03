@@ -12,9 +12,13 @@
 //   start {}                  the host: the race starts, for everyone, in a few seconds
 //   again {}                  the host, after a race: back to choosing, times cleared
 //   progress {what, ms}       what: started, goal, bonus (with the game's clock), quit
+//   units {u}                 where the player's units are, a few times a second while
+//                             racing, for the others to draw as ghosts: u is a list of
+//                             [member, x, y, column, row, flipped] (see src/online/race.js)
 //   ping {t}
 // From the room:
 //   welcome {you, room}  room {room}  start {mission, in}  pong {t}  error {reason}
+//   units {from, u}           another player's units, passed on as they came
 //
 // The room as the pages see it: {code, host, mission, phase, players: [{id, name, connected,
 // ready, started, goal, bonus, quit}], version}; phase is lobby, racing or done.
@@ -30,6 +34,8 @@ const MAX_PLAYERS = 6;
 const COUNTDOWN_MS = 4000;      // from the host's start to everyone's
 const GRACE_MS = 30000;         // how long a disconnected player's place is kept
 const EMPTY_MS = 60000;         // how long a room with nobody in it lasts
+const UNITS_MS = 100;           // units are passed on at most this often from one player
+const MAX_UNITS = 60;
 
 function newCode() {
   const b = new Uint8Array(5);
@@ -178,6 +184,19 @@ export class Race extends DurableObject {
         r.phase = 'lobby';
         for (const q of this.players.values()) Object.assign(q, { ready: false, started: false, goal: null, bonus: null, quit: false });
         return this.changed();
+      case 'units': {
+        if (r.phase !== 'racing' || !p.started || !Array.isArray(m.u) || m.u.length > MAX_UNITS) return;
+        const now = Date.now();
+        if (now - (p.unitsAt || 0) < UNITS_MS) return;
+        p.unitsAt = now;
+        const u = m.u.filter((x) => Array.isArray(x) && x.length === 6 && typeof x[0] === 'string' && x[0].length <= 48 &&
+          x.slice(1, 5).every(Number.isFinite)).map((x) => [x[0], Math.round(x[1]), Math.round(x[2]), Math.round(x[3]), Math.round(x[4]), x[5] ? 1 : 0]);
+        const out = JSON.stringify({ type: 'units', from: p.id, u });
+        for (const q of this.players.values()) {
+          if (q !== p && q.connected && q.ws) try { q.ws.send(out); } catch (e) { /* gone */ }
+        }
+        return;
+      }
       case 'progress': {
         if (r.phase !== 'racing') return;
         const ms = Number(m.ms);

@@ -4,7 +4,15 @@
 // generated one; when the host starts it, everyone's game counts down and starts the
 // mission at once.  Each game tells the race when its player reaches the goal and the bonus
 // goal, with the time by the game's clock, or leaves the mission; the fastest to the goal
-// wins.  Nothing else of a game is shared, so nothing has to be kept in step.
+// wins.
+//
+// While racing, each game also sends where its player's units are, a few times a second,
+// and draws the other players' units on its own map as ghosts: their pictures, washed in
+// each player's colour and see-through, at the right depth among the map's own (over the
+// ground, under the interface), moving smoothly between what was last heard.  Pointing at
+// a ghost (or resting a finger on it) shows whose it is, in a tag like the game's own.
+// The ghosts are only pictures: nothing in one game touches the other, so nothing has to
+// be kept in step.
 
 import * as L from '../director/lingo.js';
 import { el, dialog } from './dom.js';
@@ -12,6 +20,13 @@ import { WORLD_NAMES, clock, scoreServer } from './scores.js';
 import { parseCode, showCode } from './random.js';
 
 const TOKEN = 'lego-wb-online:race-token';
+
+// Each player's colour, by their place in the race (the same in every game).
+export const COLOURS = ['#e3000b', '#0057d9', '#ffcc00', '#ff7a00', '#a640d9', '#00b4c8'];
+const GHOST_CHANNEL = 4001;     // after the map's own sprites (channels 200 to 4000)
+const GHOST_BLEND = 60;
+const UNITS_MS = 200;           // how often this game sends where its units are
+const GLIDE_MAX = 120;          // stage pixels: further than this between messages is a jump
 
 function token() {
   try {
@@ -34,7 +49,17 @@ export class Races {
     this.room = null;
     this.leaving = false;
     this.racing = null;     // the race under way here: {mission, started}
+    this.ghosts = new Map();    // another player's id -> {prev, next}: their units as last heard
+    this.ghostSprites = 0;      // how many ghost channels are in use
     this.build();
+    // the ghosts are placed whenever the stage is drawn
+    const layout = rt.layout;
+    const before = layout.beforeDraw;
+    layout.beforeDraw = (r) => {
+      before.call(layout, r);
+      this.drawGhosts();
+    };
+    this.sender = setInterval(() => this.sendUnits(), UNITS_MS);
   }
 
   // Leaving a mission during a race is giving up (unless the goal was reached).
@@ -116,6 +141,7 @@ export class Races {
     this.code = null;
     this.room = null;
     this.racing = null;
+    this.ghosts.clear();
     this.hud.hidden = true;
     if (!quiet) this.close();
   }
@@ -128,7 +154,12 @@ export class Races {
     } else if (m.type === 'room') {
       this.room = m.room;
     } else if (m.type === 'start') {
+      this.ghosts.clear();
       this.countdown(m.mission, m.in);
+    } else if (m.type === 'units') {
+      const g = this.ghosts.get(m.from) || {};
+      this.ghosts.set(m.from, { prev: g.next || null, next: { t: performance.now(), u: m.u } });
+      return;
     } else if (m.type === 'error') {
       const why = { full: 'That race is full.', running: 'That race has started without you.', mission: 'That mission does not exist.' }[m.reason];
       this.note(why || 'The race said no (' + m.reason + ').');
@@ -180,6 +211,125 @@ export class Races {
     this.send({ type: 'progress', what: 'started' });
     this.rt.canvas.focus();
     this.render();
+  }
+
+  // ---------- ghosts ----------
+
+  mapDisplay() {
+    const glob = this.rt.globals.glob;
+    if (!glob || this.rt.labelAt(this.rt.frame) !== 'play') return null;
+    const md = L.gp(glob, 'map_display');
+    return md instanceof L.LInstance ? md : null;
+  }
+
+  // In this race's mission, as it is being played here.
+  inRace() {
+    const r = this.racing;
+    const a = this.ui.scores && this.ui.scores.attempt;
+    return !!(r && r.started && this.room && this.room.phase !== 'lobby' && a && a.mission === r.mission && this.mapDisplay());
+  }
+
+  // Where this player's units are: [member, x, y, column, row, flipped] each, x and y from
+  // the map's corner (tile 0, 0), so that any game can put them on its own map whatever
+  // it is scrolled to.
+  sendUnits() {
+    if (!this.inRace()) return;
+    const md = this.mapDisplay();
+    let units = [];
+    try {
+      const glob = this.rt.globals.glob;
+      const corner = L.mc(md, 'postoloc', new L.LPoint(0, 0));
+      const objects = L.gp(glob, 'objects');
+      for (const o of (objects && objects.a) || []) {
+        if (!(o instanceof L.LInstance) || L.t(L.gp(o, 'pdead'))) continue;
+        const cls = L.gp(o, 'pclass');
+        if (!cls || !cls.a || !cls.a[0] || cls.a[0].key !== 'vehicle') continue;
+        const main = L.gp(L.gp(o, 'psprites'), 'main');
+        const tile = L.gp(o, 'ptile');
+        const pos = tile && L.gp(tile, 'pos');
+        if (!main || !main.member || !main.member.name || !pos || !pos.a) continue;
+        if (Math.abs(main.locH - corner.h) > 5000) continue;    // (hidden in fog)
+        units.push([main.member.name, main.locH - corner.h, main.locV - corner.v, pos.a[0], pos.a[1], main.flipH ? 1 : 0]);
+      }
+    } catch (e) {
+      units = [];
+    }
+    this.send({ type: 'units', u: units.slice(0, 60) });
+  }
+
+  colour(id) {
+    const i = this.room ? this.room.players.findIndex((p) => p.id === id) : -1;
+    return COLOURS[(i < 0 ? 0 : i) % COLOURS.length];
+  }
+
+  // The other players' units on this map, each frame drawn.
+  drawGhosts() {
+    const rt = this.rt;
+    let n = 0;
+    const md = this.inRace() ? this.mapDisplay() : null;
+    const placed = [];
+    if (md) {
+      const corner = L.mc(md, 'postoloc', new L.LPoint(0, 0));
+      const now = performance.now();
+      for (const [id, g] of this.ghosts) {
+        const player = this.room.players.find((p) => p.id === id);
+        if (!player || player.quit || !g.next) continue;
+        // between the last two messages, as they came (a message's worth behind)
+        const prev = g.prev && g.prev.u.length === g.next.u.length ? g.prev.u : null;
+        const f = Math.min(1, (now - g.next.t) / UNITS_MS);
+        for (let i = 0; i < g.next.u.length; i++) {
+          const [name, x, y, col, row, flip] = g.next.u[i];
+          // (the same unit as before, moving, glides; one that jumped further than a unit
+          // moves between two messages, or appeared, is put straight where it is)
+          let was = prev && prev[i][0].split('.').slice(0, 2).join() === name.split('.').slice(0, 2).join() ? prev[i] : null;
+          if (was && Math.hypot(x - was[1], y - was[2]) > GLIDE_MAX) was = null;
+          const gx = was ? was[1] + (x - was[1]) * f : x;
+          const gy = was ? was[2] + (y - was[2]) * f : y;
+          const s = rt.sprite(GHOST_CHANNEL + n);
+          s.puppet = true;
+          if (!s.member || s.member.name !== name) L.sp(s, 'member', name);
+          s.locH = Math.round(corner.h + gx);
+          s.locV = Math.round(corner.v + gy);
+          s.locZ = L.mc(md, 'postolocz', L.list([col, row])) + 7;
+          s.ink = 36;
+          s.blend = GHOST_BLEND;
+          s.flipH = !!flip;
+          s.visible = true;
+          s.tint = this.colour(id);
+          placed.push({ s, player });
+          n++;
+        }
+      }
+    }
+    for (let i = n; i < this.ghostSprites; i++) {
+      const s = rt.sprites[GHOST_CHANNEL + i];
+      if (s) { s.visible = false; s.tint = null; }
+    }
+    this.ghostSprites = n;
+    this.tagGhost(placed);
+  }
+
+  // The tag over the ghost under the pointer.
+  tagGhost(placed) {
+    const rt = this.rt;
+    const r = rt.renderer;
+    let hit = null;
+    for (const g of placed.slice().sort((a, b) => b.s.locZ - a.s.locZ)) {
+      if (r.hit(g.s, rt.mouse.x, rt.mouse.y)) { hit = g; break; }
+    }
+    if (!hit) {
+      this.tag.hidden = true;
+      return;
+    }
+    const rect = rt.canvas.getBoundingClientRect();
+    const box = rt.box || { x: 0, y: 0 };
+    const px = (sx, sy) => [rect.left + ((sx + box.x) * r.scale + r.ox) / r.dpr, rect.top + ((sy + box.y) * r.scale + r.oy) / r.dpr];
+    const [x, y] = px(hit.s.locH, hit.s.top);
+    this.tagName.textContent = hit.player.name;
+    this.tagDot.style.background = this.colour(hit.player.id);
+    this.tag.style.left = Math.round(x) + 'px';
+    this.tag.style.top = Math.round(y - 6) + 'px';
+    this.tag.hidden = false;
   }
 
   missionName(mission) {
@@ -247,7 +397,10 @@ export class Races {
     this.panel = dialog('race', 'Race', () => this.close(), this.outside, this.inside, this.message);
     this.hud = el('button', { type: 'button', id: 'race-hud', hidden: '', onclick: () => this.open() });
     this.count = el('div', { id: 'race-count', hidden: '', 'aria-live': 'assertive' });
-    document.body.append(this.panel, this.hud, this.count);
+    this.tagDot = el('span', { class: 'dot' });
+    this.tagName = el('span');
+    this.tag = el('div', { id: 'ghost-tag', hidden: '' }, this.tagDot, this.tagName);
+    document.body.append(this.panel, this.hud, this.count, this.tag);
     this.fillMissions();
   }
 
@@ -307,7 +460,7 @@ export class Races {
     // (the host's first visit: their choice goes to the race)
     if (host && r.phase === 'lobby' && !r.mission) this.pickMission();
     this.list.replaceChildren(...this.standings().map((p) => el('li', { class: p.id === this.you ? 'me' : '' },
-      el('span', { class: 'name', text: p.name + (p.id === r.host ? ' (host)' : '') }),
+      el('span', { class: 'name' }, el('span', { class: 'dot', style: 'background:' + this.colour(p.id) }), p.name + (p.id === r.host ? ' (host)' : '')),
       el('span', { class: 'status', text: this.status(p) }))));
     this.readyButton.hidden = host || r.phase !== 'lobby';
     this.readyButton.textContent = this.me().ready ? 'Not ready' : 'Ready';
@@ -323,6 +476,7 @@ export class Races {
     if (!this.hud.hidden) {
       this.hud.replaceChildren(el('b', { text: r.phase === 'done' ? 'Race over' : 'Race' }),
         ...this.standings().map((p, i) => el('div', { class: p.id === this.you ? 'me' : '' },
+          el('span', { class: 'dot', style: 'background:' + this.colour(p.id) }),
           (p.goal !== null ? (i + 1) + '. ' : '') + p.name + ': ' + this.status(p))));
     }
   }

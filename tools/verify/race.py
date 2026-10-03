@@ -22,6 +22,11 @@ REPORT = """async (kind) => {
   L.mc(L.gp(rt.globals.glob, 'worlds_manager'), 'reportsuccess', L.sym(kind));
 }"""
 
+def clock(ms):
+    t = ms // 1000
+    return '%d:%02d' % (t // 60, t % 60)
+
+
 QUIT = """() => { const rt = window.__rt; const s = rt.movieHandlers.quitlevel.script;
   rt.call(rt.scriptSelf(s), s, 'quitlevel'); rt.step(2); }"""
 
@@ -82,20 +87,64 @@ def main():
                   until(page, "window.__online.races.racing && window.__online.races.racing.started && window.__rt.labelAt(window.__rt.frame) === 'play'", 8000))
         check('the race knows both started', until(ann, "window.__online.races.room.players.every(p => p.started)"))
 
+        # each sees the other's units as ghosts, in their colour, named when pointed at
+        ann.evaluate('window.__step(5)')
+        bob.evaluate('window.__step(5)')
+        check("Bob hears where Ann's units are", until(bob, "[...window.__online.races.ghosts.values()].some(g => g.next && g.next.u.length > 0)", 5000))
+        bob.evaluate('window.__step(2)')
+        ghosts = bob.evaluate('''(() => { const rt = window.__rt, r = window.__online.races;
+          const out = [];
+          for (let i = 0; i < r.ghostSprites; i++) { const s = rt.sprites[4001 + i];
+            out.push({name: s.member && s.member.name, x: s.locH, y: s.locV, top: s.top, tint: s.tint, blend: s.blend, visible: s.visible}); }
+          return out; })()''')
+        ann_colour = bob.evaluate("window.__online.races.colour(window.__online.races.room.players.find(p => p.name === 'Ann').id)")
+        check("Bob's map shows Ann's units as ghosts, in her colour", len(ghosts) > 0 and all(g['tint'] == ann_colour and g['visible'] for g in ghosts), str(ghosts[:2]))
+        own = bob.evaluate('''(() => { const L = []; const rt = window.__rt; for (let c = 200; c <= 4000; c++) { const s = rt.sprites[c];
+          if (s && s.visible && s.member && /^vehicle[.]/.test(s.member.name)) L.push([s.member.name, s.locH, s.locV]); } return L; })()''')
+        same = [g for g in ghosts if any(o[0] == g['name'] and abs(o[1] - g['x']) <= 1 and abs(o[2] - g['y']) <= 1 for o in own)]
+        check('at the same places as the same units on his own map (the same mission, not yet moved)', len(same) == len(ghosts), '%d of %d' % (len(same), len(ghosts)))
+        # Ann drives a truck: click it, then a tile two to the left; her ghost on Bob's map follows
+        moved = ann.evaluate('''(() => { const rt = window.__rt;
+          const t = [...rt.sprites].filter(s => s && s.visible && s.member && /^vehicle[.]/.test(s.member.name) && s.channel >= 200 && s.channel < 4001)[0];
+          const click = (x, y) => { rt.mouse.x = x; rt.mouse.y = y; rt.mouseDown(); rt.step(1); rt.mouseUp(); rt.step(1); };
+          click(t.locH, t.locV - 10);
+          click(t.locH - 100, t.locV - 10);
+          rt.step(90);
+          return [t.locH, t.locV]; })()''')
+        time.sleep(0.6)
+        bob.evaluate('window.__step(2)')
+        ghosts = bob.evaluate('''(() => { const rt = window.__rt, r = window.__online.races;
+          const out = [];
+          for (let i = 0; i < r.ghostSprites; i++) { const s = rt.sprites[4001 + i];
+            out.push({name: s.member && s.member.name, x: s.locH, y: s.locV, top: s.top}); }
+          return out; })()''')
+        own = bob.evaluate('''(() => { const L = []; const rt = window.__rt; for (let c = 200; c <= 4000; c++) { const s = rt.sprites[c];
+          if (s && s.visible && s.member && /^vehicle[.]/.test(s.member.name)) L.push([s.member.name, s.locH, s.locV]); } return L; })()''')
+        apart = [g for g in ghosts if not any(abs(o[1] - g['x']) <= 2 and abs(o[2] - g['y']) <= 2 for o in own)]
+        check("when Ann drives a truck, its ghost leaves Bob's", len(apart) == 1, '%s, Ann now at %s' % (apart, moved))
+        g = apart[0] if apart else ghosts[0]
+        bob.evaluate('([x, y]) => { const rt = window.__rt; rt.mouse.x = x; rt.mouse.y = y; rt.step(1); }', [g['x'], g['top'] + 8])
+        tag = bob.inner_text('#ghost-tag') if bob.is_visible('#ghost-tag') else ''
+        check('pointing at a ghost names its player', tag.strip().upper() == 'ANN', repr(tag))
+        bob.screenshot(path=os.path.join(a.out, 'ghost.png'))
+        bob.evaluate('() => { const rt = window.__rt; rt.mouse.x = 5; rt.mouse.y = 5; rt.step(1); }')
+        check('and the tag goes when the pointer does', not bob.is_visible('#ghost-tag'))
+
         ann.evaluate('window.__step(450)')
         ann.evaluate(REPORT, 'goal')
-        check("Ann's goal reaches Bob, with its time", until(bob, "window.__online.races.room.players.find(p => p.name === 'Ann').goal === 30000"))
+        ann_ms = ann.evaluate('window.__online.scores.attempt.goal')
+        check("Ann's goal reaches Bob, with its time", until(bob, "window.__online.races.room.players.find(p => p.name === 'Ann').goal === %d" % ann_ms), str(ann_ms))
         bob.evaluate('window.__step(60)')
         bob.screenshot(path=os.path.join(a.out, 'hud.png'))
         hud = bob.inner_text('#race-hud')
-        check("Bob's corner shows it", 'Ann: goal 0:30' in hud, hud.replace('\n', ' | '))
+        check("Bob's corner shows it", ('Ann: goal ' + clock(ann_ms)) in hud, hud.replace('\n', ' | '))
 
         bob.evaluate(QUIT)
         check('Bob leaving the mission gives up', until(ann, "window.__online.races.room.players.find(p => p.name === 'Bob').quit"))
         check('and the race is over', until(ann, "window.__online.races.room.phase === 'done'"))
         ann.evaluate('window.__online.races.open()')
         msg = ann.inner_text('#race .note')
-        check('Ann won', msg.startswith('Ann won, in 0:30'), msg)
+        check('Ann won', msg.startswith('Ann won, in ' + clock(ann_ms)), msg)
         ann.screenshot(path=os.path.join(a.out, 'done.png'))
 
         ann.click('#race button:has-text("Race again")')

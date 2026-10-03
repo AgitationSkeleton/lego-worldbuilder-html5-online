@@ -203,3 +203,34 @@
   font: 700 18px Arial, sans-serif;
   cursor: pointer;
 }
+
+/* Race ghosts: whose a ghost is, in a tag like the game's own (white, a black rounded edge,
+   04b_08), with the player's colour; and the colours by the names. */
+#ghost-tag {
+  position: fixed;
+  z-index: 4;
+  transform: translate(-50%, -100%);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px 3px 5px;
+  border: 2px solid #000;
+  border-radius: 6px;
+  background: #fff;
+  color: #000;
+  font: 400 10px 'WB 04b_08', monospace;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+#ghost-tag[hidden] { display: none; }
+#ghost-tag .dot, #race .dot, #race-hud .dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
+  border: 1px solid #000;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+#ghost-tag .dot { margin-right: 0; }

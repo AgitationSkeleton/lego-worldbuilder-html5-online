@@ -80,7 +80,9 @@ curl -X DELETE -H "Authorization: Bearer YOUR_ADMIN_KEY" https://wbserver.viosar
   of `src/race.js`: a player says hello (with a name and a token, so that one who loses
   their connection comes back as themselves), the host picks the mission and starts the
   race, and each game reports when its player starts, reaches the goal or the bonus (with
-  the time), or gives up. Everyone gets the race as it stands after each change.
+  the time), or gives up. Everyone gets the race as it stands after each change. While
+  racing, each game also sends where its player's units are, five times a second, which
+  the race passes on to the others (and keeps nothing of), for their ghosts.
 
 A race holds two to six players; no one joins one under way. A race with nobody connected
 is gone after a minute.

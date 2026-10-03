@@ -108,8 +108,10 @@ export class Renderer {
     if (alpha <= 0) return;
     ctx.globalAlpha = alpha;
     if (m instanceof BitmapMember) {
-      const src = this.inked(m, s);
+      let src = this.inked(m, s);
       if (!src) return;
+      // (not Director's: a sprite may be given a colour to wash its picture with)
+      if (s.tint) src = tinted(src, s.tint);
       const w = s.width, h = s.height;
       if (w <= 0 || h <= 0) return;
       const x = s.left, y = s.top;
@@ -232,6 +234,27 @@ export class Renderer {
     }
     return true;
   }
+}
+
+// A picture washed with a colour, where it is not transparent; kept for the next time.
+const tints = new WeakMap();
+function tinted(src, tint) {
+  let byTint = tints.get(src);
+  if (!byTint) tints.set(src, byTint = new Map());
+  let c = byTint.get(tint);
+  if (!c) {
+    c = document.createElement('canvas');
+    c.width = src.width;
+    c.height = src.height;
+    const g = c.getContext('2d');
+    g.drawImage(src, 0, 0);
+    g.globalCompositeOperation = 'source-atop';
+    g.globalAlpha = 0.7;
+    g.fillStyle = tint;
+    g.fillRect(0, 0, c.width, c.height);
+    byTint.set(tint, c);
+  }
+  return c;
 }
 
 // A bitmap stretched by its middle: the corners keep their size, the edges stretch along
