@@ -316,8 +316,9 @@ export class Races {
     const rt = this.rt;
     const r = rt.renderer;
     let hit = null;
+    const z = placed.length ? rt.zoomOf(placed[0].s) : 1;
     for (const g of placed.slice().sort((a, b) => b.s.locZ - a.s.locZ)) {
-      if (r.hit(g.s, rt.mouse.x, rt.mouse.y)) { hit = g; break; }
+      if (r.hit(g.s, rt.mouse.x / z, rt.mouse.y / z)) { hit = g; break; }
     }
     if (!hit) {
       this.tag.hidden = true;
@@ -326,7 +327,7 @@ export class Races {
     const rect = rt.canvas.getBoundingClientRect();
     const box = rt.box || { x: 0, y: 0 };
     const px = (sx, sy) => [rect.left + ((sx + box.x) * r.scale + r.ox) / r.dpr, rect.top + ((sy + box.y) * r.scale + r.oy) / r.dpr];
-    const [x, y] = px(hit.s.locH, hit.s.top);
+    const [x, y] = px(hit.s.locH * z, hit.s.top * z);
     this.tagName.textContent = hit.player.name;
     this.tagDot.style.background = this.colour(hit.player.id);
     this.tag.style.left = Math.round(x) + 'px';

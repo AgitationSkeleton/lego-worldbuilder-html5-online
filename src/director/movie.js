@@ -433,6 +433,12 @@ export class Runtime {
     const l = this.labels.find(x => x.name.toLowerCase() === k);
     return l ? l.frame : 0;
   }
+  // How far a sprite is zoomed beyond the stage's scale: 1, unless a layout zooms some
+  // sprites (World Builder Online's map: src/online/layout.js), which are then drawn, and
+  // tested for the mouse, at that zoom about the stage's corner.
+  zoomOf(s) {
+    return this.layout && this.layout.zoomOf ? this.layout.zoomOf(s) : 1;
+  }
   // The marker a frame is under: the last one at or before it.
   labelAt(f) {
     let name = null;
@@ -688,7 +694,9 @@ export class Runtime {
     for (let i = list.length - 1; i >= 0; i--) {
       const s = list[i];
       if (!any && !this.listensToMouse(s)) continue;
-      if (this.renderer.hit(s, x, y)) return s.channel;
+      // (a sprite the layout zooms is tested where it is drawn: see zoomOf)
+      const z = this.zoomOf(s);
+      if (this.renderer.hit(s, x / z, y / z)) return s.channel;
     }
     return 0;
   }
@@ -1143,6 +1151,9 @@ function makeBuiltins(rt) {
   };
   B.soundbusy = (n) => rt.sound.channel(n).isBusy() ? 1 : 0;
   B.cursor = (spec) => { rt.cursorSpec = spec; rt.cursorDirty = true; };
+  // (not Director's: how far a layout zooms the map, for the scripts that size the map's
+  // view; 1 without one)
+  B.mapzoom = () => (rt.layout && rt.layout.zoom) || 1;
   B.image = (w, h, depth) => LImage.blank(toInt(w), toInt(h), toInt(depth) || 32);
   B.new_ = (x, ...args) => {
     if (x instanceof ScriptRef) return rt.newInstance(x.script, args);

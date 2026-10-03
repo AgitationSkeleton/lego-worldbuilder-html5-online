@@ -94,6 +94,14 @@ PATCHES = {
          '  pDisplayTileTopleft = newTopLeft\n'),
         ('', RELAYOUT),
     ],
+    # The map can be zoomed (src/online/layout.js): the two scripts that read the mouse
+    # against the map's sprites read it on the map, in the map's pixels (mapMouseLoc, in
+    # src/lingo/movie - layout.ls).
+    ('wb2', 'Internal', 'map tile click catcher'): [
+        ('  if the mouseH < (s.locH - ((the mouseV - s.locV) / 2)) then\n',
+         '  m = mapMouseLoc()\n  if m[1] < (s.locH - ((m[2] - s.locV) / 2)) then\n'),
+        ('  if the mouseV < (s.locV - 15) then\n', '  if m[2] < (s.locV - 15) then\n')],
+    ('wb2', 'Internal', 'map bg click catcher'): [('the mouseLoc - s.loc', 'mapMouseLoc() - s.loc')],
     # World Builder 2's world map buttons lead to its worlds as numbered here.
     ('wb2', 'title and levels', 'go to world 2 button behavior'): [
         ('worldCompleteP(1)', 'worldCompleteP(6)'), ('go("world 2")', 'go("world 7")')],

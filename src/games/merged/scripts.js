@@ -709,13 +709,13 @@ const S1_107 = {
       this.$.s = $B.sprite($L.gp(me, "spritenum"));
     },
     mousedown(me) {
-      $L.mc($L.gp($G.glob, "map_display"), "click", $s_mousedown, $L.sub($R.the("mouseloc"), $L.gp(this.$.s, "loc")));
+      $L.mc($L.gp($G.glob, "map_display"), "click", $s_mousedown, $L.sub($R.call(this, S1_107, "mapmouseloc"), $L.gp(this.$.s, "loc")));
     },
     mousewithin(me) {
-      $L.mc($L.gp($G.glob, "map_display"), "click", $s_mousewithin, $L.sub($R.the("mouseloc"), $L.gp(this.$.s, "loc")));
+      $L.mc($L.gp($G.glob, "map_display"), "click", $s_mousewithin, $L.sub($R.call(this, S1_107, "mapmouseloc"), $L.gp(this.$.s, "loc")));
     },
     mouseleave(me) {
-      $L.mc($L.gp($G.glob, "map_display"), "click", $s_mouseleave, $L.sub($R.the("mouseloc"), $L.gp(this.$.s, "loc")));
+      $L.mc($L.gp($G.glob, "map_display"), "click", $s_mouseleave, $L.sub($R.call(this, S1_107, "mapmouseloc"), $L.gp(this.$.s, "loc")));
     },
   },
 };
@@ -2326,12 +2326,13 @@ const S1_94 = {
       $L.mc(me, "report", $s_mouseleave);
     },
     report(me, which) {
-      let compensate;
+      let compensate, m;
       compensate = $B.point(0, 0);
-      if ($L.t($L.lt($R.the("mouseh"), $L.sub($L.gp(this.$.s, "loch"), $L.div($L.sub($R.the("mousev"), $L.gp(this.$.s, "locv")), 2))))) {
+      m = $R.call(this, S1_94, "mapmouseloc");
+      if ($L.t($L.lt($L.gi(m, 1), $L.sub($L.gp(this.$.s, "loch"), $L.div($L.sub($L.gi(m, 2), $L.gp(this.$.s, "locv")), 2))))) {
         $L.si(compensate, 1, (-1));
       }
-      if ($L.t($L.lt($R.the("mousev"), $L.sub($L.gp(this.$.s, "locv"), 15)))) {
+      if ($L.t($L.lt($L.gi(m, 2), $L.sub($L.gp(this.$.s, "locv"), 15)))) {
         $L.si(compensate, 2, (-1));
       }
       $L.mc($L.gp($G.glob, "map_display"), "tileclick", which, $L.add(this.$.rpos, compensate), $s_relative, $s_tile);
@@ -11568,13 +11569,21 @@ const S13_1 = {
   props: [],
   handlers: {
     viewtilesize() {
-      let h, w;
-      w = $L.sub($R.the("stageright"), $R.the("stageleft"));
-      h = $L.sub($R.the("stagebottom"), $R.the("stagetop"));
+      let h, w, z;
+      z = $R.call(this, S13_1, "mapzoom");
+      w = $B.integer($L.div($L.sub($R.the("stageright"), $R.the("stageleft")), z));
+      h = $B.integer($L.div($L.sub($R.the("stagebottom"), $R.the("stagetop")), z));
       return $L.list([$L.add(12, $L.div($L.add($L.sub(w, 610), 49), 50)), $L.add(9, $L.div($L.add($L.sub(h, 440), 49), 50))]);
     },
     viewcenter() {
-      return $B.point($L.div($L.sub($R.the("stageright"), $R.the("stageleft")), 2), $L.div($L.sub($R.the("stagebottom"), $R.the("stagetop")), 2));
+      let z;
+      z = $R.call(this, S13_1, "mapzoom");
+      return $B.point($B.integer($L.div($L.div($L.sub($R.the("stageright"), $R.the("stageleft")), 2), z)), $B.integer($L.div($L.div($L.sub($R.the("stagebottom"), $R.the("stagetop")), 2), z)));
+    },
+    mapmouseloc() {
+      let z;
+      z = $R.call(this, S13_1, "mapzoom");
+      return $B.point($B.integer($L.div($R.the("mouseh"), z)), $B.integer($L.div($R.the("mousev"), z)));
     },
   },
 };

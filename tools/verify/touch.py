@@ -165,21 +165,26 @@ def main():
         page.screenshot(path=os.path.join(a.out, 'menu.png'))
         check('a tap on %s opens the menu' % btn[2], page.evaluate(STATE)['menuShown'], '')
 
-        # two fingers pinch the interface: together, smaller (more map); apart, bigger again
-        size = lambda: page.evaluate('[window.__rt.stage.width, window.__rt.stage.height, window.__rt.renderer.scale / window.__rt.renderer.dpr]')
-        before = size()
+        # two fingers pinch: in a mission whose map is bigger than the view, the map zooms out
+        # (the interface keeps its size) and back in, no further than the game's own scale;
+        # where there is no more map to show, the interface's size changes instead
+        zoom = lambda: page.evaluate('[window.__rt.layout.zoom, window.__rt.layout.minZoom(), window.__rt.renderer.scale / window.__rt.renderer.dpr]')
+        before = zoom()
         # (in the middle of the window, the fingers on it however narrow it is)
         mx, my = w / 2, h / 2
         d0 = min(300, w * 0.7)
         finger.pinch(mx, my, d0, d0 / 2)
         page.evaluate('window.__step(1)')
-        smaller = size()
-        check('pinching in shrinks the interface, showing more map', smaller[2] < before[2] - 0.1 and smaller[0] > before[0],
-              '%s -> %s' % (before, smaller))
+        smaller = zoom()
+        if before[1] < 1:
+            check('pinching in zooms the map out, the interface as it was', smaller[0] < 0.99 and smaller[0] >= before[1] - 1e-6 and smaller[2] == before[2],
+                  '%s -> %s' % (before, smaller))
+        else:
+            check('pinching in shrinks the interface, showing more map', smaller[2] < before[2] - 0.1, '%s -> %s' % (before, smaller))
         finger.pinch(mx, my, d0 / 2, d0)
         page.evaluate('window.__step(1)')
-        bigger = size()
-        check('pinching out grows it again', abs(bigger[2] - min(before[2], smaller[2] * 2)) < 0.05, '%s -> %s' % (smaller, bigger))
+        bigger = zoom()
+        check('pinching out brings it back', abs(bigger[0] - 1) < 1e-6 and abs(bigger[2] - before[2]) < 0.05, '%s -> %s' % (smaller, bigger))
 
         errors = page.evaluate('window.__rt.errors')
         check('no script errors', not errors, json.dumps(errors[:3]))

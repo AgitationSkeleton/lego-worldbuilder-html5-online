@@ -89,7 +89,17 @@ export class Renderer {
       ctx.fillStyle = 'rgb(' + st.color.join(',') + ')';
       ctx.fillRect(0, 0, box.w, box.h);
     }
-    for (const s of list) this.drawSprite(ctx, s);
+    for (const s of list) {
+      const z = rt.zoomOf(s);
+      if (z === 1) {
+        this.drawSprite(ctx, s);
+      } else {
+        ctx.save();
+        ctx.scale(z, z);
+        this.drawSprite(ctx, s);
+        ctx.restore();
+      }
+    }
     ctx.restore();
   }
   drawBackdrop(ctx, s, st) {

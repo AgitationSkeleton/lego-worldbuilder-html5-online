@@ -97,27 +97,24 @@ export function installTouch(rt, canvas, options = {}) {
     if (touch.mode === 'drag') {
       const md = mapDisplay();
       if (md) {
-        // The map's rows are skewed, so scrolling it up or down moves it sideways too, by
-        // half as much, unless it stopped at an edge.  It is scrolled up or down first,
-        // then across by whatever keeps it under the finger.
-        const dx = x - touch.sx, dy = y - touch.sy;
+        // (the finger moves in stage pixels; the map, zoomed, in its own)
+        const z = (rt.layout && rt.layout.zoom) || 1;
+        const dx = Math.round((x - touch.sx) / z), dy = Math.round((y - touch.sy) / z);
         if (dx || dy) {
           try {
-            const where = () => L.mc(md, 'postoloc', new L.LPoint(0, 0));
-            const before = where();
-            // scrollmapManual stops the view following a unit
-            L.mc(md, 'scrollmapmanual', L.list([0, 0]));
-            if (dy) moveMap(md, 0, dy);
-            const across = before.h + dx - where().h;
-            if (across) moveMap(md, across, 0);
+            shiftMap(md, dx, dy);
           } catch (err) {
             rt.reportError(err);
           }
           rt.needsDraw = true;
+          // (what is left over, less than a map pixel, counts towards the next move)
+          touch.sx += dx * z;
+          touch.sy += dy * z;
         }
+      } else {
+        touch.sx = x;
+        touch.sy = y;
       }
-      touch.sx = x;
-      touch.sy = y;
       return;
     }
     if (touch.mode === 'mouse' || touch.mode === 'hover') {
@@ -182,7 +179,22 @@ export function installTouch(rt, canvas, options = {}) {
   window.addEventListener('pointercancel', onCanvas(cancel), true);
 }
 
-// Moves the map's picture by (cx, cy) stage pixels: whole tiles as tiles and the rest as
+// Moves the map's picture by (dx, dy) of its pixels, keeping to the map's edges.  The map's
+// rows are skewed, so scrolling it up or down moves it sideways too, by half as much,
+// unless it stopped at an edge: it is scrolled up or down first, then across by whatever
+// is left to go.
+export function shiftMap(md, dx, dy) {
+  if (!dx && !dy) return;
+  const where = () => L.mc(md, 'postoloc', new L.LPoint(0, 0));
+  const before = where();
+  // scrollmapManual stops the view following a unit
+  L.mc(md, 'scrollmapmanual', L.list([0, 0]));
+  if (dy) moveMap(md, 0, dy);
+  const across = before.h + dx - where().h;
+  if (across) moveMap(md, across, 0);
+}
+
+// Moves the map's picture by (cx, cy) of its pixels: whole tiles as tiles and the rest as
 // pixels, since scrollmap carries its pixel scroll over by at most one tile a call.
 function moveMap(md, cx, cy) {
   const size = md.$.ptilesize.a;
