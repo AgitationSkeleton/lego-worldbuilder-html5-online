@@ -397,17 +397,18 @@ export class Runtime {
     for (const inst of this.frameScript.instances) if (this.sendTo(inst, event, args)) handled = true;
     return handled;
   }
+  // An event for the movie scripts: the first that has a handler for it gets it (Director
+  // runs only that one).
   sendMovie(event, args = []) {
-    let handled = false;
     for (const s of this.movieScripts) {
       const h = s.handlers[event];
       if (h) {
         this.passed = false;
         this.guard(() => h.call(this.scriptSelf(s), ...args));
-        handled = true;
+        return true;
       }
     }
-    return handled;
+    return false;
   }
   // prepareFrame, enterFrame, exitFrame: every sprite, then the frame script.
   frameEvent(event) {
@@ -530,6 +531,7 @@ export class Runtime {
     const spans = this.spanIds[f - 1];
     const begins = [];
     const ends = [];
+    const changes = [];
     const maxCh = Math.max(this.sprites.length - 1, spans.length - 1);
     for (let ch = 1; ch <= maxCh; ch++) {
       const s = this.sprites[ch];
@@ -537,20 +539,10 @@ export class Runtime {
       if (s && s.puppet) continue;
       if (!s && !span) continue;
       const spr = this.sprite(ch);
-      if (spr.spanKey === span) continue;
+      // (a puppet let go on a channel the score leaves empty goes back to the score: blank)
+      if (spr.spanKey === span && !(spr.released && !span)) continue;
       if (spr.scriptInstances.length && spr.fromScore) ends.push(spr);
-      const sp = fr.sprites[ch];
-      spr.endInstances = spr.scriptInstances;
-      spr.loadFromScore(sp);
-      spr.anchor = null;
-      spr.nine = null;
-      if (this.layout && sp) this.layout.anchor(this, this.labelAt(f), ch, spr);
-      spr.spanKey = span;
-      spr.scriptInstances = sp && sp.behaviors ? this.behaviorInstances(sp.behaviors) : [];
-      spr.fromScore = !!(sp && sp.behaviors);
-      for (const inst of spr.scriptInstances) inst.spriteNum = ch;
-      if (spr.scriptInstances.length) begins.push(spr);
-      this.zOrderDirty = true;
+      changes.push(spr);
     }
     // the frame script, a sprite in the script channel
     const fkey = fr.script ? fr.script.join(':') + '@' + spans[0] : null;
@@ -559,12 +551,29 @@ export class Runtime {
     if (!oldFrameScript || oldFrameScript.key !== fkey) {
       newFrameScript = fkey ? { key: fkey, instances: this.behaviorInstances([fr.script]) } : null;
     }
-    // endSprite for what ends, then beginSprite for what begins
+    // endSprite for what ends, while it is still there (Director sends it before the new
+    // frame's sprites come in), then the new frame's sprites, then beginSprite for those
     for (const spr of ends) {
-      for (const inst of spr.endInstances) this.sendTo(inst, 'endsprite', []);
+      for (const inst of spr.scriptInstances.slice()) this.sendTo(inst, 'endsprite', []);
     }
     if (oldFrameScript && oldFrameScript !== newFrameScript) {
       for (const inst of oldFrameScript.instances) this.sendTo(inst, 'endsprite', []);
+    }
+    for (const spr of changes) {
+      const ch = spr.channel;
+      const span = spans[ch] || 0;
+      const sp = fr.sprites[ch];
+      spr.loadFromScore(sp);
+      spr.anchor = null;
+      spr.nine = null;
+      if (this.layout && sp) this.layout.anchor(this, this.labelAt(f), ch, spr);
+      spr.spanKey = span;
+      spr.released = false;
+      spr.scriptInstances = sp && sp.behaviors ? this.behaviorInstances(sp.behaviors) : [];
+      spr.fromScore = !!(sp && sp.behaviors);
+      for (const inst of spr.scriptInstances) inst.spriteNum = ch;
+      if (spr.scriptInstances.length) begins.push(spr);
+      this.zOrderDirty = true;
     }
     this.frame = f;
     this.frameScript = newFrameScript;
@@ -725,21 +734,45 @@ export class Runtime {
       this.mouse.x = x;
       this.mouse.y = y;
     };
-    c.addEventListener('pointermove', (e) => { pos(e); this.rollover(); });
+    // The shiftDown, the controlDown and the rest are the keys held now, in Director: they
+    // are read off every key and pointer event, and let go when the page loses the focus
+    // (a key released elsewhere never comes back; Shift and Control held at a click on a
+    // mission icon change its state instead of starting it).
+    const modifiers = (e) => {
+      this.keyInfo.shift = e.shiftKey;
+      this.keyInfo.control = e.ctrlKey;
+      this.keyInfo.alt = e.altKey;
+      this.keyInfo.meta = e.metaKey;
+    };
+    // A press the page lost (the pointer cancelled, the focus gone) is let go off the stage,
+    // so that it ends without clicking whatever is under the pointer.
+    const release = () => {
+      if (!this.mouse.down) return;
+      this.mouse.x = -10000;
+      this.mouse.y = -10000;
+      this.mouseUp();
+    };
+    c.addEventListener('pointermove', (e) => { modifiers(e); pos(e); this.rollover(); });
     c.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       this.sound.resume();
       c.focus();
       try { c.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      modifiers(e);
       pos(e);
       this.mouseDown();
       e.preventDefault();
     });
     c.addEventListener('pointerup', (e) => {
       if (e.button !== 0) return;
+      modifiers(e);
       pos(e);
       this.mouseUp();
     });
+    c.addEventListener('pointercancel', release);
+    c.addEventListener('lostpointercapture', release);
+    window.addEventListener('blur', () => { modifiers({}); release(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { modifiers({}); release(); } });
     c.addEventListener('contextmenu', (e) => e.preventDefault());
     // (keys typed into the page's own controls, a page around the game may have, are theirs)
     const forPage = (e) => e.target !== c && e.target instanceof Element &&
@@ -813,6 +846,8 @@ export class Runtime {
   keyUp(e) {
     this.keyInfo.shift = e.shiftKey;
     this.keyInfo.control = e.ctrlKey;
+    this.keyInfo.alt = e.altKey;
+    this.keyInfo.meta = e.metaKey;
     if (this.sendFrameScript('keyup', [])) return;
     this.sendMovie('keyup');
   }

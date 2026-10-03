@@ -1,7 +1,7 @@
 // Cast libraries and their members: what Lingo sees through member(...), and what the
 // renderer draws.
 
-import { LPoint, LRect, LList, sym, str, toInt, num, LingoError, onWarning, repr } from './lingo.js';
+import { LPoint, LRect, LList, sym, str, toInt, num, LingoError, onWarning, repr, gp } from './lingo.js';
 import { TextLayout, parseHtml } from './text.js';
 import { LImage } from './image.js';
 import { decodePNG } from './png.js';
@@ -331,10 +331,11 @@ export class TextMember extends Member {
       case 'font': return this.firstStyle().font;
       case 'fontsize': return Math.round(this.firstStyle().size);
       case 'alignment': return sym(this.firstPara().align === 'justify' ? 'full' : this.firstPara().align);
-      case 'line': return this.text;
-      case 'char': return this.text;
-      case 'word': return this.text;
-      case 'item': return this.text;
+      // member(x).line.count and the like: the chunks of its text (the sound scripts count
+      // a music list's lines this way to choose a track)
+      case 'line': case 'char': case 'word': case 'item':
+      case 'lines': case 'chars': case 'words': case 'items':
+        return gp(this.text, name);
       case 'length': return this.text.length;
       case 'boxtype': return sym('adjust');
       case 'wordwrap': return 1;

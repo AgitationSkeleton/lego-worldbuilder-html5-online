@@ -177,7 +177,13 @@ export class Sprite {
       }
       case 'width': this.w = toInt(v); if (this.h === null) this.h = this.height; return;
       case 'height': this.h = toInt(v); if (this.w === null) this.w = this.width; return;
-      case 'puppet': this.puppet = !!toInt(v); return;
+      case 'puppet': {
+        // (let go, the channel goes back to the score at the next frame: see enterScoreFrame)
+        const p = !!toInt(v);
+        if (this.puppet && !p) this.released = true;
+        this.puppet = p;
+        return;
+      }
       case 'scriptinstancelist':
         this.scriptInstances = v instanceof LList ? v.a.slice() : [];
         for (const inst of this.scriptInstances) if (inst instanceof LInstance) inst.spriteNum = this.channel;

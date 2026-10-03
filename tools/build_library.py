@@ -216,10 +216,14 @@ def build(game, movie):
                         # getPixel on an indexed bitmap answers with the palette index
                         rec['indices'] = bitmaps.add(rle_bytes(idx))
                 elif 'ediM' in ch:
-                    img = decode_jpeg(d.chunk(ch['ediM']), d.chunk(ch['ALFA']) if 'ALFA' in ch else None, h)
+                    # A JPEG's alpha chunk counts only with the bitmap's useAlpha flag, as in
+                    # Director: five hero pictures carry an all-zero one without it, and are
+                    # drawn whole, their white backdrop taken out by their ink.
+                    use = bool(h['updateFlags'] & 0x10) and 'ALFA' in ch
+                    img = decode_jpeg(d.chunk(ch['ediM']), d.chunk(ch['ALFA']) if use else None, h)
                 if img is not None:
                     rec['png'] = bitmaps.add(png_bytes(img))
-                    rec['alpha'] = bool(h['updateFlags'] & 0x10) or 'ALFA' in ch
+                    rec['alpha'] = bool(h['updateFlags'] & 0x10)
                 if h['bitDepth'] == 1:
                     rec['mono'] = True
             elif m['type'] == 'palette':

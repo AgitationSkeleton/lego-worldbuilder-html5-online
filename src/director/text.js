@@ -29,14 +29,28 @@ export class TextMeasure {
     this.ctx = c.getContext('2d');
     this.cache = new Map();
   }
+  // A run's width: Director lays text out with each character a whole number of pixels
+  // wide, so the characters' widths are rounded and added up (the browser's own width of
+  // the run, in fractions of a pixel, breaks some lines elsewhere than the original did).
   width(text, style) {
     const font = cssFont(style);
     const key = font + '|' + (style.spacing || 0) + '|' + text;
     let w = this.cache.get(key);
     if (w === undefined) {
       this.ctx.font = font;
-      w = this.ctx.measureText(text).width + (style.spacing || 0) * text.length;
+      w = 0;
+      for (const ch of text) w += this.charWidth(ch, font);
+      w += (style.spacing || 0) * text.length;
       if (this.cache.size > 20000) this.cache.clear();
+      this.cache.set(key, w);
+    }
+    return w;
+  }
+  charWidth(ch, font) {
+    const key = font + '|#|' + ch;
+    let w = this.cache.get(key);
+    if (w === undefined) {
+      w = Math.round(this.ctx.measureText(ch).width);
       this.cache.set(key, w);
     }
     return w;
@@ -103,7 +117,8 @@ export class TextLayout {
         const parts = splitByStyle(m, p);
         const w = parts.reduce((a, q) => a + measure.width(q.text, q.style), 0);
         const trimmed = parts.reduce((a, q, i) => a + measure.width(i === parts.length - 1 ? q.text.replace(/ +$/, '') : q.text, q.style), 0);
-        if (line.pieces.length && line.width + trimmed > width) {
+        // (a line as wide as the box is full, in Director)
+        if (line.pieces.length && line.width + trimmed >= width) {
           line.end = p.at;
           flush(false);
         }

@@ -1,7 +1,7 @@
 // Drawing the stage: the sprites in locZ order, with Director's inks.
 //
-// The stage is drawn straight at the window's resolution (scaled to fit, letterboxed),
-// so text is laid out at the movie's size but drawn sharp.
+// The stage is drawn at a whole number of times its size, then scaled to fit the window
+// (letterboxed): text is laid out at the movie's size but drawn at that larger one, sharp.
 
 import { BitmapMember, TextMember, ShapeMember, ButtonMember } from './members.js';
 
@@ -58,22 +58,43 @@ export class Renderer {
     list.sort((a, b) => (a.locZ - b.locZ) || (a.channel - b.channel));
     return list;
   }
+  // The stage is drawn whole at a whole number of times its size, its pixels square and
+  // not smoothed, as Director draws it: sprites cut out of white (the map's tiles) meet
+  // edge to edge there. Only then is the picture scaled to the window, smoothly; a stage
+  // drawn straight at a fractional scale had each tile's cut edge softened on its own, and
+  // what was under them showed through as lines between the tiles.
   draw() {
     const rt = this.runtime;
-    const ctx = this.ctx;
     const st = rt.stage;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    ctx.setTransform(this.scale, 0, 0, this.scale, this.ox, this.oy);
+    const k = Math.max(1, Math.ceil(this.scale - 1e-6));
+    this.drawScale = k;
+    if (!this.off) this.off = document.createElement('canvas');
+    const off = this.off;
+    if (off.width !== st.width * k || off.height !== st.height * k) {
+      off.width = st.width * k;
+      off.height = st.height * k;
+    }
+    const ctx = off.getContext('2d');
+    ctx.setTransform(k, 0, 0, k, 0, 0);
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, 0, st.width, st.height);
     ctx.clip();
     ctx.fillStyle = 'rgb(' + st.color.join(',') + ')';
     ctx.fillRect(0, 0, st.width, st.height);
-    ctx.imageSmoothingEnabled = this.scale !== Math.round(this.scale);
-    ctx.imageSmoothingQuality = 'high';
+    ctx.imageSmoothingEnabled = false;
+    this.drawStage(ctx, st);
+    ctx.restore();
+    const out = this.ctx;
+    out.setTransform(1, 0, 0, 1, 0, 0);
+    out.fillStyle = '#000';
+    out.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    out.imageSmoothingEnabled = this.scale !== k;
+    out.imageSmoothingQuality = 'high';
+    out.drawImage(off, this.ox, this.oy, st.width * this.scale, st.height * this.scale);
+  }
+  drawStage(ctx, st) {
+    const rt = this.runtime;
     if (rt.layout && rt.layout.beforeDraw) rt.layout.beforeDraw(rt);
     const list = this.sorted();
     this.order = list;
@@ -103,7 +124,6 @@ export class Renderer {
         ctx.restore();
       }
     }
-    ctx.restore();
   }
   drawBackdrop(ctx, s, st) {
     if (!s || !(s.member instanceof BitmapMember)) return;
@@ -111,6 +131,7 @@ export class Renderer {
     const k = Math.max(st.width / src.width, st.height / src.height) * 1.1;
     const w = src.width * k, h = src.height * k;
     ctx.save();
+    ctx.imageSmoothingEnabled = true;
     ctx.filter = 'blur(18px)';
     ctx.drawImage(src, (st.width - w) / 2, (st.height - h) / 2, w, h);
     ctx.restore();
@@ -187,7 +208,8 @@ export class Renderer {
       ctx.fillStyle = 'rgb(' + this.spriteRGB(s, false).join(',') + ')';
       ctx.fillRect(x, y, w, h);
     }
-    const scale = this.scale;
+    // (the text is drawn at the size the stage is drawn at: see draw)
+    const scale = this.drawScale || 1;
     let entry = this.textCache.get(m);
     if (!entry || entry.version !== m.version || entry.scale !== scale) {
       const c = entry && entry.canvas ? entry.canvas : document.createElement('canvas');

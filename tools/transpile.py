@@ -256,6 +256,9 @@ class Gen:
         if t in ('call', 'mcall'):
             if t == 'call' and s[1].lower() == 'return':
                 return ind + 'return %s;' % (self.e(s[2][0]) if s[2] else '')
+            # (pass hands the event on and ends the handler there)
+            if t == 'call' and s[1].lower() == 'pass':
+                return ind + self.e(s) + ';\n' + ind + 'return;'
             return ind + self.e(s) + ';'
         if t == 'return':
             return ind + ('return %s;' % self.e(s[1]) if s[1] is not None else 'return;')
@@ -402,8 +405,10 @@ INFO_TOGGLE = [
     ('property ss, sloc, pObj, pPlan, pSlide\n', 'property ss, sloc, pObj, pPlan, pSlide, pShowing\n'),
     ('on hideAll me\n', 'on hideAll me\n  pShowing = VOID\n'),
     ('on hideInfo me\n', 'on hideInfo me\n  pShowing = VOID\n'),
+    # (the unit's class with its name: the Defender and the Defender Mach 2 share a name)
     ('on showinfo me, uclass, uname\n',
-     'on showinfo me, uclass, uname\n  if pShowing = uname then\n    me.hideInfo()\n    return \n  end if\n  pShowing = uname\n'),
+     'on showinfo me, uclass, uname\n  shown = string(uclass) & "/" & uname\n'
+     '  if pShowing = shown then\n    me.hideInfo()\n    return \n  end if\n  pShowing = shown\n'),
 ]
 FIXES = {
     ('worldbuilder', 'Internal', 'unit info bubble behavior'): INFO_TOGGLE,

@@ -695,6 +695,8 @@ export function gp(o, name) {
   if (typeof o === 'string') {
     if (name === 'length') return o.length;
     if (name === 'char' || name === 'word' || name === 'item' || name === 'line') return new ChunkList(o, name);
+    // (text.lines.count: the plural, as the bytecode has it in a few scripts)
+    if (name === 'chars' || name === 'words' || name === 'items' || name === 'lines') return new ChunkList(o, name.slice(0, -1));
     if (name === 'chartonum') return o.length ? o.charCodeAt(0) : 0;
     if (name === 'string') return o;
     if (name === 'value') return value(o);
