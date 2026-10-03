@@ -22,6 +22,7 @@ const $s_amount1 = $L.sym("amount1");
 const $s_amount2 = $L.sym("amount2");
 const $s_amount3 = $L.sym("amount3");
 const $s_amount4 = $L.sym("amount4");
+const $s_amount5 = $L.sym("amount5");
 const $s_animal = $L.sym("animal");
 const $s_anything = $L.sym("anything");
 const $s_args = $L.sym("args");
@@ -428,6 +429,7 @@ const $s_type1 = $L.sym("type1");
 const $s_type2 = $L.sym("type2");
 const $s_type3 = $L.sym("type3");
 const $s_type4 = $L.sym("type4");
+const $s_type5 = $L.sym("type5");
 const $s_unfulfilled = $L.sym("unfulfilled");
 const $s_unit = $L.sym("unit");
 const $s_unit_icon = $L.sym("unit_icon");
@@ -919,6 +921,10 @@ const S1_113 = {
         $L.si(this.$.sloc, sn, $L.gp($B.sprite(n), "loc"));
         n = $L.add(n, 1);
       }
+      $L.si(this.$.ss, $s_type5, $B.sprite(99));
+      $L.si(this.$.sloc, $s_type5, $L.gp($B.sprite(99), "loc"));
+      $L.si(this.$.ss, $s_amount5, $B.sprite(100));
+      $L.si(this.$.sloc, $s_amount5, $L.gp($B.sprite(100), "loc"));
       this.$.pobj = undefined;
       this.$.pplan = undefined;
       this.$.penergysprite = undefined;
@@ -1024,8 +1030,8 @@ const S1_113 = {
         $L.mc(bricks, "add", $L.list([$L.neg(bricknum), bricktype]));
       }
       n = $L.gp(bricks, "count");
-      if ($L.t($L.or($L.lt(n, 1), $L.gt(n, 4)))) {
-        n = 4;
+      if ($L.t($L.or($L.lt(n, 1), $L.gt(n, $R.call(this, S1_113, "panelrows"))))) {
+        n = $R.call(this, S1_113, "panelrows");
       }
       $L.sp($L.gp(this.$.ss, "separators"), "member", $L.cats("plan separators", n));
       $L.sp($L.gp(this.$.ss, "separators"), "visible", 1);
@@ -1049,7 +1055,7 @@ const S1_113 = {
         $L.sp($L.gi(this.$.ss, snt), "locv", $L.gi($L.gi(this.$.sloc, snt), 2));
         $L.sp($L.gi(this.$.ss, sna), "locv", $L.gi($L.gi(this.$.sloc, sna), 2));
       }
-      for (let $t3 = (i = $L.add(n, 1), 0); $L.le(i, 4); i = $L.add(i, 1)) {
+      for (let $t3 = (i = $L.add(n, 1), 0); $L.le(i, 5); i = $L.add(i, 1)) {
         if (++$t3 > 5e6) $L.stuck();
         $L.sp($L.gi(this.$.ss, $B.symbol($L.cat("type", i))), "visible", 0);
         $L.sp($L.gi(this.$.ss, $B.symbol($L.cat("amount", i))), "visible", 0);

@@ -27,7 +27,7 @@ anchorRange(21, 21, 1, 0.5);
 anchorRange(22, 22, 0.5, 0);
 anchorRange(23, 23, 0.5, 1);
 anchorRange(30, 50, 1, 1);        // plan icons, their counters, the plan name: the bar's slots, at its right end
-anchorRange(72, 98, 1, 0);        // the selected unit's display and its buttons
+anchorRange(72, 100, 1, 0);       // the selected unit's display and its buttons (99, 100: its fifth brick row)
 anchorRange(101, 106, 1, 0.5);    // the unit info bubble, beside the right-hand panel as in the original
 anchorRange(130, 140, 0.5, 0.5);  // the menu
 
@@ -206,7 +206,7 @@ export function makeLayout(rt, options = {}) {
     // panel to the right, the plans bar to the bottom, the scroll arrows to the middles of
     // the edges, the unit info bubble beside the panel; the map's own places are the map's.
     uiAnchor(x, y) {
-      if (x >= 497) return [1, 0];                                  // the right-hand panel
+      if (x >= 497) return [1, 0];                                  // the right-hand panel (see uiShift)
       if (x >= 430 && y >= 150 && y <= 250) return [1, 0.5];        // the right scroll arrow
       if (x < 60 && y >= 150 && y <= 250) return [0, 0.5];          // the left one
       if (y < 45 && x >= 190 && x <= 300) return [0.5, 0];          // the up one
@@ -216,6 +216,9 @@ export function makeLayout(rt, options = {}) {
     },
     uiShift(x, y, a) {
       const [ax, ay] = a || this.uiAnchor(x, y);
+      // (the right-hand panel's lower part is a row lower here: tools/merge.py, five_rows)
+      // (the right-hand panel goes down the stage by its own rule: panelV)
+      if (!a && x >= 497) return [Math.round(ax * (rt.stage.width - BASE_W)), panelV(rt, y, rt.stage.height - BASE_H) - y];
       return [Math.round(ax * (rt.stage.width - BASE_W)), Math.round(ay * (rt.stage.height - BASE_H))];
     },
     // Smoother movement (a setting): the game moves its units and monsters only at its
@@ -362,10 +365,26 @@ export function makeLayout(rt, options = {}) {
       const ex = rt.stage.width - BASE_W, ey = rt.stage.height - BASE_H;
       const a = PLAY_ANCHORS.get(ch);
       if (a) {
-        const dx = Math.round(a[0] * ex), dy = Math.round(a[1] * ey);
+        // (the right-hand panel's own rule down the stage: see panelV)
+        const v0 = spr.locV;
+        const dyOf = PANEL.has(ch) ? (ey2) => panelV(rt, v0, ey2) - v0 : null;
+        const dx = Math.round(a[0] * ex), dy = dyOf ? dyOf(ey) : Math.round(a[1] * ey);
         spr.locH += dx;
         spr.locV += dy;
-        spr.anchor = { ax: a[0], ay: a[1], dx, dy };
+        spr.anchor = { ax: a[0], ay: a[1], dx, dy, dyOf };
+        // (its buttons taller on an upright stage: see buttonH)
+        if (PANEL_BUTTONS.has(ch)) {
+          const w0 = spr.width, h0 = spr.height;
+          spr.anchor.grow = (s2) => {
+            const h = buttonH(rt);
+            s2.w = w0;
+            s2.h = h || h0;
+            s2.nine = h ? { l: 8, t: 6, r: 8, b: 6 } : null;
+            // (pressed, a button shows another picture: it keeps its height)
+            s2.keepSize = !!h;
+          };
+          spr.anchor.grow(spr);
+        }
       }
       const m = spr.member;
       const name = m ? m.name : '';
@@ -408,6 +427,8 @@ export function makeLayout(rt, options = {}) {
   };
   // (for viewTileSizeHeld, in src/lingo/movie - layout.ls)
   rt.builtins.mapzoomleast = () => layout.minZoom();
+  // (panelRows, for the right-hand panel's script: see lowerBy)
+  rt.builtins.panelrows = () => (lowerBy(rt.stage.height - BASE_H) ? 5 : 4);
   // (the map's zoom for the scripts: the tutorial's is the game's own)
   rt.builtins.mapzoom = () => (classic(rt) ? 1 : layout.zoom);
   // (uiLoc and uiRect, in src/lingo/movie - layout.ls; an anchor may be given, as [ax, ay])
@@ -423,6 +444,11 @@ const GROW = {
   // the plans bar runs from the left edge to under the right-hand panel, as it does on the
   // original stage, with its slots and its tab at its right end, by the panel: a plain
   // column after its rounded corner is stretched
+  // the outline round a plan's bricks, a row taller for a fifth (see panelRows)
+  'plan_outline_big': (s, b, ex, ey) => {
+    keepTopLeft(s, b, b.w, b.h + lowerBy(ey));
+    s.nine = { l: 0, t: 30, r: 0, b: 30 };
+  },
   'new_bottom_panel': (s, b, ex) => {
     keepTopLeft(s, b, b.w + ex, b.h);
     s.nine = { l: 11, t: 0, r: 511, b: 0 };
@@ -449,6 +475,44 @@ const GROW = {
 function tilesFor(rt, z) {
   const w = Math.round(rt.stage.width / z), h = Math.round(rt.stage.height / z);
   return [12 + Math.trunc((w - 610 + 49) / 50), 9 + Math.trunc((h - 440 + 49) / 50)];
+}
+
+// The right-hand panel's rows of bricks: five where the stage is a row taller than the
+// original's, four (as in the original) where it is not; the panel's lower part (its rule,
+// the actions, Info, Take Apart) a row lower for the fifth.
+function lowerBy(ey) {
+  return ey >= 24 ? 24 : 0;
+}
+
+// The right-hand panel on an upright stage (a phone held upright: far taller than wide, with
+// room to spare below), its buttons taller to be pressed with a thumb, as wide as before:
+// the Menu button, the two actions, Info and Take Apart. The panel is spaced out to fit them.
+const PANEL = new Set([6, 7, 10, 11, 13, 14]);
+for (let c = 72; c <= 100; c++) PANEL.add(c);
+const PANEL_BUTTONS = new Set([6, 91, 93, 95, 97]);
+function buttonH(rt) {
+  const st = rt.stage;
+  if (st.height - BASE_H < 200 || st.height <= st.width) return 0;
+  return Math.min(56, 16 + Math.floor((st.height - BASE_H) / 10));
+}
+// Where a place on the original panel (its height v) is: a row lower below the bricks for a
+// fifth (lowerBy); on an upright stage, below the taller Menu button, and the lower part's
+// buttons stacked at their height.
+function panelV(rt, v, ey) {
+  const low = lowerBy(ey);
+  const h = buttonH(rt);
+  if (!h) return v + (v >= 320 ? low : 0);
+  const d = h - 16;
+  if (v < 40) return v + Math.round(d / 2);           // the Menu button and its label
+  if (v < 320) return v + d;                          // the minimap, the unit or plan shown
+  // the lower part, in its order: the actions' label, two actions, the rule, Info, Take Apart
+  const label = 328 + low + d;
+  const b1 = label + 12 + h / 2, b2 = b1 + h + 8;
+  const rule = b2 + h / 2 + 12, b3 = rule + 12 + h / 2, b4 = b3 + h + 8;
+  const places = [[328, label], [347, b1], [371, b2], [388, rule], [404, b3], [427, b4]];
+  let best = places[0];
+  for (const p of places) if (Math.abs(p[0] - v) < Math.abs(best[0] - v)) best = p;
+  return Math.round(best[1] + (v - best[0]));
 }
 
 function keepTopLeft(s, b, w, h) {

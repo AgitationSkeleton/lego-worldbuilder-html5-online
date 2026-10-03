@@ -178,6 +178,13 @@ PATCHES = {
          '      return 0\n'),
         ('', RELAYOUT),
     ],
+    # The panel's bricks in five rows (see five_rows): the fifth row's sprites, and up to five
+    ('wb2', 'Internal', 'right side info display behavior'): [
+        ('  pObj = VOID\n  pPlan = VOID\n  pEnergySprite = VOID\n  glob[#menu_display] = me\n',
+         '  ss[#type5] = sprite(99)\n  sloc[#type5] = sprite(99).loc\n  ss[#amount5] = sprite(100)\n  sloc[#amount5] = sprite(100).loc\n'
+         '  pObj = VOID\n  pPlan = VOID\n  pEnergySprite = VOID\n  glob[#menu_display] = me\n'),
+        ('  if (n < 1) or (n > 4) then\n    n = 4\n  end if\n', '  if (n < 1) or (n > panelRows()) then\n    n = panelRows()\n  end if\n'),
+        ('  repeat with i = n + 1 to 4\n', '  repeat with i = n + 1 to 5\n')],
     # The tutorial is played in the online layout, at the game's own scale: what it points
     # at or lets be clicked on the interface is given on the original stage, and is put
     # where the layout has that part of the interface (uiLoc and uiRect, in src/lingo/movie
@@ -456,6 +463,8 @@ def merge():
         fr['sprites'][str(free + 3)] = dict(member=menu_label, ink=36, locH=JUMP_LOC[0], locV=JUMP_LOC[1] - 24, width=92, height=6,
                                             foreColor=255, backColor=0)
 
+    five_rows(out, frames, labels)
+
     out['score'] = frames
     out['labels'] = labels
     online = {}
@@ -463,6 +472,7 @@ def merge():
         online[str(i)] = dict(type='script', name=f[:-3], scriptType='movie' if f.startswith('movie - ') else 'score')
     out['casts'].append(dict(name='online', members=online))
 
+    pack += separators_5(out, pack)
     os.makedirs(os.path.join(ROOT, 'assets', 'merged'), exist_ok=True)
     with open(os.path.join(ROOT, 'data', 'merged.json'), 'w', encoding='utf-8') as fp:
         json.dump(out, fp, separators=(',', ':'), ensure_ascii=False)
@@ -480,6 +490,55 @@ def merge():
         open(os.path.join(ROOT, 'assets', 'merged', 'sounds.bin'), 'wb').write(fp.read())
     print('merged: %d frames, %d casts, bitmaps %.1f MB' % (len(frames), len(out['casts']), len(pack) / 1e6))
     return out
+
+
+# The right-hand panel shows a unit's or a plan's bricks, the most first, in four rows: a fifth
+# kind (the Freezebot's energy brick) was left out. The online panel is taller, so it may have
+# a fifth row (channels 99 and 100: the brick and its count), and the separators for five
+# rows; where the stage has the room, the layout puts the panel's lower part (the actions,
+# Info, Take Apart) a row lower for it (src/online/layout.js, panelRows).
+ROW = 24
+
+
+def member_named(data, name):
+    for c in data['casts']:
+        for m in c['members'].values():
+            if m['name'] == name:
+                return m
+    raise KeyError(name)
+
+
+def five_rows(out, frames, labels):
+    play = frames[next(l['frame'] for l in labels if l['name'] == 'play') - 1]['sprites']
+    assert '99' not in play and '100' not in play, 'channels 99 and 100 taken'
+    count = copy.deepcopy(member_named(out, 'recipe count display text 4'))
+    count['name'] = 'recipe count display text 5'
+    play['99'] = dict(copy.deepcopy(play['85']), locV=play['85']['locV'] + ROW)
+    play['100'] = dict(copy.deepcopy(play['89']), member=add_member(out, 1, count), locV=play['89']['locV'] + ROW + 1)
+
+
+def separators_5(out, pack):
+    """'plan separators 5': 'plan separators 4' with a fifth line, as a new member; answers the
+    PNG's bytes, to go at the end of the pack."""
+    from PIL import Image
+    import io
+    four = member_named(out, 'plan separators 4')
+    off, ln = four['png']
+    im = Image.open(io.BytesIO(bytes(pack[off:off + ln]))).convert('RGBA')
+    w, h = im.size
+    five = Image.new('RGBA', (w, h + ROW), (0, 0, 0, 0))
+    five.paste(im, (0, 0))
+    five.paste(im.crop((0, h - 1, w, h)), (0, h - 1 + ROW))
+    buf = io.BytesIO()
+    five.save(buf, 'PNG')
+    data = buf.getvalue()
+    rec = copy.deepcopy(four)
+    rec['name'] = 'plan separators 5'
+    rec['height'] = h + ROW
+    rec['png'] = [len(pack), len(data)]
+    rec.pop('indices', None)
+    add_member(out, 1, rec)
+    return data
 
 
 def add_member(data, lib, rec):
