@@ -79,12 +79,15 @@ class ScriptRef {
 }
 
 export class Runtime {
-  constructor({ game, data, scripts, canvas, assetBase, options }) {
+  constructor({ game, data, scripts, canvas, assetBase, assetUrl, options }) {
     this.game = game;
     this.data = data;
     this.scriptsModule = scripts;
     this.canvas = canvas;
     this.assetBase = assetBase;
+    // (not Director's: a page may name the movie's files itself, by their contents, so that a
+    // browser never keeps an old one with a new page)
+    this.assetUrl = assetUrl || ((name) => this.assetBase + name);
     this.options = options || {};
     this.stage = { ...data.stage };
     this.baseStage = { width: data.stage.width, height: data.stage.height };
@@ -136,8 +139,8 @@ export class Runtime {
   // ---------- loading ----------
 
   async load(onProgress) {
-    const bin = await fetchBytes(this.assetBase + 'bitmaps.bin');
-    const snd = await fetchBytes(this.assetBase + 'sounds.bin');
+    const bin = await fetchBytes(this.assetUrl('bitmaps.bin'));
+    const snd = await fetchBytes(this.assetUrl('sounds.bin'));
     this.bitmapBytes = bin;
     const winPal = this.findPalette();
     LImage.palette = winPal;
