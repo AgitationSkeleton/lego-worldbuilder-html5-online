@@ -178,6 +178,20 @@ PATCHES = {
          '      return 0\n'),
         ('', RELAYOUT),
     ],
+    # The tutorial is played in the online layout, at the game's own scale: what it points
+    # at or lets be clicked on the interface is given on the original stage, and is put
+    # where the layout has that part of the interface (uiLoc and uiRect, in src/lingo/movie
+    # - layout.ls). Its arrows at the map's tiles go by the map, as they did.
+    ('wb2', 'tutorial', 'tutorial manager'): [
+        ('  sprites.quitbutton.sprite.rect = rect(514, 9, 595, 25)\n',
+         '  sprites.quitbutton.sprite.rect = uiRect(rect(514, 9, 595, 25))\n'),
+        ('        myloc = args\n', '        myloc = uiLoc(args)\n'),
+        ('        myloc = args[1]\n', '        myloc = uiLoc(args[1])\n'),
+        ('        clickrect = pStep.clickrect\n', '        clickrect = uiRect(pStep.clickrect)\n'),
+        ('          clickrect = holelist[clickbutton]\n', '          clickrect = uiRect(holelist[clickbutton])\n'),
+        # (the info bubble's Close: the bubble is beside the right-hand panel)
+        ('          clickrect = rect(289, 333, 417, 349)\n', '          clickrect = uiRect(rect(289, 333, 417, 349), [1, 0.5])\n'),
+        ('                clickrect = planrects[clickbutton]\n', '                clickrect = uiRect(planrects[clickbutton], [1, 1])\n')],
     # A plan picked up flies from where it lay on the map to the plans bar: where it lay is
     # in the map's pixels, which a zoomed map draws smaller, so it is made the stage's.
     ('wb2', 'Internal', 'build plan icon behavior'): [

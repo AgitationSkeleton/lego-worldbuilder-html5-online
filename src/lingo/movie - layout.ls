@@ -30,3 +30,21 @@ on mapMouseLoc
   z = mapZoom()
   return point(integer(the mouseH / z), integer(the mouseV / z))
 end
+
+-- Where a place on the original stage's interface is in the online layout (uiShift, the
+-- layout's): the tutorial's arrows and click holes are given on the original stage. An
+-- anchor ([ax, ay], as the layout anchors the interface) may be given; else the place's
+-- own part of the interface decides.
+on uiLoc p, anchor
+  d = uiShift(p[1], p[2], anchor)
+  return p + point(d[1], d[2])
+end
+
+on uiRect r, anchor
+  if voidp(anchor) then
+    d = uiShift((r.left + r.right) / 2, (r.top + r.bottom) / 2)
+  else
+    d = uiShift(r.left, r.top, anchor)
+  end if
+  return r + rect(d[1], d[2], d[1], d[2])
+end

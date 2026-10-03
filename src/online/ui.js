@@ -143,7 +143,7 @@ export class OnlineUI {
         el('p', { text: 'Each mission is timed to its goal and to its bonus goal. Your best times are kept in this browser; these say whether they go on the tables everyone sees.' }),
         el('div', { class: 'choices' }, ...this.sendButtons),
         el('div', { class: 'choices name' }, this.nameInput)),
-      el('section', null,
+      this.leaveSection = el('section', null,
         el('h3', { text: 'Leave' }),
         el('p', { text: 'Back to the main menu (a mission being played is left).' }),
         el('div', { class: 'choices' },
@@ -392,6 +392,8 @@ export class OnlineUI {
   }
   open() {
     this.render();
+    // (from the main menu, there is nowhere to leave)
+    this.leaveSection.hidden = !!(this.menu && this.menu.shown);
     this.tables.hidden = true;
     this.panel.hidden = false;
     (this.panel.querySelector('button[aria-pressed="true"]') || this.panel.querySelector('button')).focus();

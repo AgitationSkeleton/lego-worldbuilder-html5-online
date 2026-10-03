@@ -59,6 +59,7 @@ async function main() {
     // settings ask for (src/online/ui.js).
     const ui = new OnlineUI(rt, canvas);
     rt.layout = makeLayout(rt, { maxScale: () => ui.maxScale() });
+    rt.layout.install(scripts.scripts);
     // and a finger does what the mouse did (src/online/touch.js); two pinch the map's zoom
     // in a mission, the interface's size elsewhere
     const inMission = () => rt.labelAt(rt.frame) === 'play' && rt.layout.minZoom() < 1;

@@ -20,13 +20,13 @@ const PLAY_ANCHORS = new Map();
 function anchorRange(from, to, ax, ay) { for (let c = from; c <= to; c++) PLAY_ANCHORS.set(c, [ax, ay]); }
 anchorRange(3, 3, 0, 1);          // the plans bar
 anchorRange(4, 7, 1, 0);          // the right-hand panel, its frame, the menu button
-anchorRange(9, 9, 0, 1);          // "plans"
+anchorRange(9, 9, 1, 1);          // "plans", at the plans bar's right end
 anchorRange(10, 14, 1, 0);        // minimap, mission name, (offstage) menu and info text
 anchorRange(20, 20, 0, 0.5);      // scroll arrows: west, east, north, south
 anchorRange(21, 21, 1, 0.5);
 anchorRange(22, 22, 0.5, 0);
 anchorRange(23, 23, 0.5, 1);
-anchorRange(30, 50, 0, 1);        // plan icons, their counters, the plan name
+anchorRange(30, 50, 1, 1);        // plan icons, their counters, the plan name: the bar's slots, at its right end
 anchorRange(72, 98, 1, 0);        // the selected unit's display and its buttons
 anchorRange(101, 106, 1, 0.5);    // the unit info bubble, beside the right-hand panel as in the original
 anchorRange(130, 140, 0.5, 0.5);  // the menu
@@ -60,7 +60,7 @@ export function makeLayout(rt, options = {}) {
     // The map's zoom for a sprite of it (1 for the interface, and in the tutorial, which
     // points at the original layout).
     zoomOf(s) {
-      if (this.zoom === 1 || !(s.channel >= MAP_CHANNELS || MAP_LAYER.has(s.channel))) return 1;
+      if (this.zoom === 1 || classic(rt) || !(s.channel >= MAP_CHANNELS || MAP_LAYER.has(s.channel))) return 1;
       return rt.labelAt(rt.frame) === 'play' ? this.zoom : 1;
     },
     // The most the map zooms out: until its edges would come into the view, as far as the
@@ -82,7 +82,19 @@ export function makeLayout(rt, options = {}) {
       // view (viewTileSize in src/lingo/movie - layout.ls), and room for what is on the map
       const tiles = (k) => { const [w, h] = tilesFor(rt, k); return w * h; };
       while (z < 1 && tiles(z) > MAP_TILE_SPRITES) z = Math.min(1, z + 0.01);
-      return z;
+      return this.snap(z, Math.ceil);
+    },
+    // The zooms the map is drawn at: those at which its tiles' grid (25 pixels: half a tile
+    // across, the skew of a row) is a whole number of the pixels the stage is drawn in.
+    // Each tile is scaled on its own, and at any other zoom two tiles' shared edge could
+    // fall either side of a pixel, and a line of what is under them showed between them.
+    snap(z, round = Math.round) {
+      const k = Math.max(1, Math.ceil(rt.renderer.scale - 1e-6));
+      const q = 1 / (25 * k);
+      return Math.min(1, round(z / q - 1e-9) * q);
+    },
+    zoomStep() {
+      return 1 / (25 * Math.max(1, Math.ceil(rt.renderer.scale - 1e-6)));
     },
     // Zoom the map to z, keeping the map's point under (ux, uy) (stage pixels) where it is.
     // The map display keeps a sprite for every tile the most zoomed-out view shows (see
@@ -91,7 +103,7 @@ export function makeLayout(rt, options = {}) {
     setZoom(z, ux, uy, sizeFor) {
       const md = mapDisplay();
       const z0 = this.zoom;
-      z = Math.max(this.minZoom(), Math.min(1, z));
+      z = Math.max(this.minZoom(), this.snap(Math.min(1, z)));
       if (!md || Math.abs(z - z0) < 1e-4) return;
       if (ux === undefined) { ux = (rt.stage.width - 113) / 2; uy = rt.stage.height / 2; }
       try {
@@ -123,8 +135,11 @@ export function makeLayout(rt, options = {}) {
       if (!md || md === this.heldFor) return;
       this.heldFor = md;
       try {
+        // (a zoom kept from another mission, as far out as this map allows)
+        const z0 = this.zoom;
+        this.zoom = this.snap(Math.max(this.zoom, this.minZoom()));
         const need = tilesFor(rt, this.minZoom()), have = L.gp(md, 'pdisplaytilesize').a;
-        if (need[0] > have[0] || need[1] > have[1]) {
+        if (need[0] > have[0] || need[1] > have[1] || this.zoom !== z0) {
           L.mc(md, 'relayout');
           this.regrow();
         }
@@ -138,14 +153,17 @@ export function makeLayout(rt, options = {}) {
       const md = mapDisplay();
       if (!md) return;
       const lo = this.minZoom();
-      this.zoomTarget = Math.max(lo, Math.min(1, (this.gliding ? this.zoomTarget : this.zoom) * factor));
+      this.zoomTarget = this.snap(Math.max(lo, Math.min(1, (this.gliding ? this.zoomTarget : this.zoom) * factor)));
       this.zoomAt = [ux, uy];
       if (this.gliding) return;
       this.gliding = true;
       const step = () => {
         if (!mapDisplay()) { this.gliding = false; return; }
         const t = this.zoomTarget, z = this.zoom;
-        const next = Math.abs(t - z) < 0.002 ? t : z + (t - z) * 0.3;
+        // (a part of the way, but at least a step of the zooms the map is drawn at)
+        const q = this.zoomStep();
+        let next = Math.abs(t - z) <= q ? t : z + (t - z) * 0.3;
+        if (next !== t && Math.abs(next - z) < q) next = z + Math.sign(t - z) * q;
         this.setZoom(next, this.zoomAt[0], this.zoomAt[1], t);
         if (next === t || Math.abs(this.zoom - z) < 1e-5) {
           this.gliding = false;
@@ -154,6 +172,36 @@ export function makeLayout(rt, options = {}) {
         requestAnimationFrame(step);
       };
       requestAnimationFrame(step);
+    },
+    // A mission starting: the tutorial, which points at the map's tiles, at the game's own
+    // scale.
+    install(scripts) {
+      for (const s of scripts) {
+        if (s.type !== 'movie' || !s.handlers.startlevel) continue;
+        const start = s.handlers.startlevel;
+        s.handlers.startlevel = function (...args) {
+          if (classic(rt)) layout.zoom = 1;
+          return start.apply(this, args);
+        };
+      }
+    },
+    // Where a place on the original stage's interface is in this layout: the tutorial's
+    // arrows and click holes are given there (uiLoc and uiRect in src/lingo/movie -
+    // layout.ls). The interface is anchored by parts (see PLAY_ANCHORS): the right-hand
+    // panel to the right, the plans bar to the bottom, the scroll arrows to the middles of
+    // the edges, the unit info bubble beside the panel; the map's own places are the map's.
+    uiAnchor(x, y) {
+      if (x >= 497) return [1, 0];                                  // the right-hand panel
+      if (x >= 430 && y >= 150 && y <= 250) return [1, 0.5];        // the right scroll arrow
+      if (x < 60 && y >= 150 && y <= 250) return [0, 0.5];          // the left one
+      if (y < 45 && x >= 190 && x <= 300) return [0.5, 0];          // the up one
+      if (y >= 330 && y < 390 && x >= 190 && x <= 300) return [0.5, 1];   // the down one
+      if (y >= 390) return [1, 1];                                  // the plans bar's slots
+      return [0, 0];
+    },
+    uiShift(x, y, a) {
+      const [ax, ay] = a || this.uiAnchor(x, y);
+      return [Math.round(ax * (rt.stage.width - BASE_W)), Math.round(ay * (rt.stage.height - BASE_H))];
     },
     // The games hide a sprite by putting it at (1000, 1000), past the edges of their
     // 610 x 440 stage (once, at (10000, 10000)). The stage here can be bigger, and the map
@@ -197,7 +245,6 @@ export function makeLayout(rt, options = {}) {
     // of the map shows.  The tutorial points at the original layout, so it keeps it.
     stageFor(cssW, cssH) {
       const fit = Math.min(cssW / BASE_W, cssH / BASE_H);
-      if (classic(rt)) return { width: BASE_W, height: BASE_H, scale: fit };
       const scale = Math.max(0.5, Math.min(fit, maxScale()));
       return {
         width: Math.max(BASE_W, Math.floor(cssW / scale)),
@@ -244,7 +291,7 @@ export function makeLayout(rt, options = {}) {
       const md = mapDisplay();
       if (md) {
         try {
-          this.zoom = Math.max(this.zoom, this.minZoom());
+          this.zoom = this.snap(Math.max(this.zoom, this.minZoom()));
           L.mc(md, 'relayout');
           this.regrow();
         } catch (e) { rt.reportError(e); }
@@ -266,6 +313,10 @@ export function makeLayout(rt, options = {}) {
   };
   // (for viewTileSizeHeld, in src/lingo/movie - layout.ls)
   rt.builtins.mapzoomleast = () => layout.minZoom();
+  // (the map's zoom for the scripts: the tutorial's is the game's own)
+  rt.builtins.mapzoom = () => (classic(rt) ? 1 : layout.zoom);
+  // (uiLoc and uiRect, in src/lingo/movie - layout.ls; an anchor may be given, as [ax, ay])
+  rt.builtins.uishift = (x, y, a) => L.list(layout.uiShift(Number(x), Number(y), a && a.a ? a.a.map(Number) : null));
   return layout;
 }
 
@@ -274,11 +325,12 @@ export function makeLayout(rt, options = {}) {
 const GROW = {
   // the frame around the map: as wide and tall as the map view
   'top_and_left_border': (s, b, ex, ey) => keepTopLeft(s, b, b.w + ex, b.h + ey),
-  // the plans bar runs on under the right-hand panel, as it does on the original stage: a
-  // plain column after its tenth slot is stretched, so the slots keep their places
+  // the plans bar runs from the left edge to under the right-hand panel, as it does on the
+  // original stage, with its slots and its tab at its right end, by the panel: a plain
+  // column after its rounded corner is stretched
   'new_bottom_panel': (s, b, ex) => {
     keepTopLeft(s, b, b.w + ex, b.h);
-    s.nine = { l: 488, t: 0, r: 34, b: 0 };
+    s.nine = { l: 11, t: 0, r: 511, b: 0 };
   },
   // the right-hand panel's white and its rule run the stage's height
   'right panel white rect': (s, b, ex, ey) => { s.w = b.w; s.h = b.h + ey; },

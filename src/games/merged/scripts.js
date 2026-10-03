@@ -10334,7 +10334,7 @@ const S6_2 = {
           $L.sp($L.gp(i, "sprite"), "blend", $L.gp(i, "blend"));
         }
       }
-      $L.sp($L.gp($L.gp(this.$.sprites, "quitbutton"), "sprite"), "rect", $B.rect(514, 9, 595, 25));
+      $L.sp($L.gp($L.gp(this.$.sprites, "quitbutton"), "sprite"), "rect", $R.call(this, S6_2, "uirect", $B.rect(514, 9, 595, 25)));
       $L.sp($L.gp($L.gp(this.$.sprites, "qbtext"), "sprite"), "loc", $L.sub($L.gp($L.gp($L.gp(this.$.sprites, "quitbutton"), "sprite"), "loc"), $B.point(114, 3)));
     },
     setupscripts(me) {
@@ -10448,10 +10448,10 @@ const S6_2 = {
           }
           myloc = $L.add($B.point($L.gp(this.$.clickrect, "left"), $L.gp(this.$.clickrect, "top")), $L.gi($L.gi(this.$.arrow_offsets, myshape), this.$.clicktarget));
         } else if ($L.t($L.eq($L.gp(args, "ilk"), $s_point))) {
-          myloc = args;
+          myloc = $R.call(this, S6_2, "uiloc", args);
         } else {
           myshape = $L.gi(args, 2);
-          myloc = $L.gi(args, 1);
+          myloc = $R.call(this, S6_2, "uiloc", $L.gi(args, 1));
         }
       }
       mem = $L.gi(this.$.arrowmems, myshape);
@@ -10545,16 +10545,16 @@ const S6_2 = {
       if ($L.t($L.not($B.voidp(this.$.clicktarget)))) {
         if ($L.t($L.eq(this.$.clicktarget, $s_generic_button))) {
           if ($L.t($L.not($B.voidp($L.gi(this.$.pstep, $s_clickrect))))) {
-            this.$.clickrect = $L.gp(this.$.pstep, "clickrect");
+            this.$.clickrect = $R.call(this, S6_2, "uirect", $L.gp(this.$.pstep, "clickrect"));
           } else if ($L.t($L.not($B.voidp($L.gi(this.$.holelist, this.$.clickbutton))))) {
-            this.$.clickrect = $L.gi(this.$.holelist, this.$.clickbutton);
+            this.$.clickrect = $R.call(this, S6_2, "uirect", $L.gi(this.$.holelist, this.$.clickbutton));
           }
         } else if ($L.t($L.eq(this.$.clicktarget, $s_menu))) {
           this.$.currentobject = $L.gpi($L.gp($G.glob, "menu_display"), "ss", this.$.clickbutton);
           this.$.clickrect = $L.gp(this.$.currentobject, "rect");
         } else if ($L.t($L.eq(this.$.clicktarget, $s_info))) {
           this.$.currentobject = $L.gpi($L.gp($G.glob, "info_bubble"), "ss", this.$.clickbutton);
-          this.$.clickrect = $B.rect(289, 333, 417, 349);
+          this.$.clickrect = $R.call(this, S6_2, "uirect", $B.rect(289, 333, 417, 349), $L.list([1, $f21]));
         } else if ($L.t($L.eq(this.$.clicktarget, $s_goalinfo))) {
           this.$.currentobject = $L.gpi($L.gp($G.glob, "goal_popup_menu"), "ss", this.$.clickbutton);
           if ($L.t($L.eq(this.$.clickbutton, $s_end_button))) {
@@ -10565,7 +10565,7 @@ const S6_2 = {
         } else if ($L.t($L.eq(this.$.clicktarget, $s_plan))) {
           if ($L.t($L.and($L.gt(this.$.clickbutton, 0), $L.lt(this.$.clickbutton, 11)))) {
             this.$.currentobject = $B.sprite($L.add(29, this.$.clickbutton));
-            this.$.clickrect = $L.gi(this.$.planrects, this.$.clickbutton);
+            this.$.clickrect = $R.call(this, S6_2, "uirect", $L.gi(this.$.planrects, this.$.clickbutton), $L.list([1, 1]));
             this.$.currenttile = undefined;
           } else {
             $B.alert("bad clickbutton/plan in tutorial");
@@ -11605,6 +11605,20 @@ const S13_1 = {
       let z;
       z = $R.call(this, S13_1, "mapzoom");
       return $B.point($B.integer($L.div($R.the("mouseh"), z)), $B.integer($L.div($R.the("mousev"), z)));
+    },
+    uiloc(p, anchor) {
+      let d;
+      d = $R.call(this, S13_1, "uishift", $L.gi(p, 1), $L.gi(p, 2), anchor);
+      return $L.add(p, $B.point($L.gi(d, 1), $L.gi(d, 2)));
+    },
+    uirect(r, anchor) {
+      let d;
+      if ($L.t($B.voidp(anchor))) {
+        d = $R.call(this, S13_1, "uishift", $L.div($L.add($L.gp(r, "left"), $L.gp(r, "right")), 2), $L.div($L.add($L.gp(r, "top"), $L.gp(r, "bottom")), 2));
+      } else {
+        d = $R.call(this, S13_1, "uishift", $L.gp(r, "left"), $L.gp(r, "top"), anchor);
+      }
+      return $L.add(r, $B.rect($L.gi(d, 1), $L.gi(d, 2), $L.gi(d, 1), $L.gi(d, 2)));
     },
   },
 };
