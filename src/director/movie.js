@@ -627,10 +627,21 @@ export class Runtime {
     this.enterScoreFrame(next);
     this.stepActors();
     this.frameEvent('prepareframe');
-    this.mouseWithin();
+    // Director draws the stage here, after prepareFrame: what enterFrame, the idle time's
+    // mouseWithin and the timeouts change shows with the next frame, by when stepFrame has
+    // placed everything again (a scroll arrow held moves the map's tiles in mouseWithin,
+    // and the units on them follow at the next stepFrame).
+    this.drawStage();
     this.frameEvent('enterframe');
+    this.mouseWithin();
     this.checkTimeouts();
     this.sound.pump();
+  }
+  drawStage() {
+    if (!this.renderer || !this.drawsInFrames) return;
+    this.renderer.resize();
+    this.renderer.draw();
+    this.needsDraw = false;
   }
   stepActors() {
     const list = this.actorList;
@@ -659,22 +670,23 @@ export class Runtime {
     }
   }
   run() {
+    // (the test mode draws when it is asked to, after the frames it steps)
+    this.drawsInFrames = !this.testMode;
     this.start();
     let next = performance.now();
     const loop = (now) => {
       this.raf = requestAnimationFrame(loop);
       if (this.testMode) return;
       const period = 1000 / this.tempo();
-      let ticked = false;
       if (now >= next) {
+        // (the frame draws the stage itself, part way: see frameCycle)
         this.tick();
-        ticked = true;
         next += period;
         if (next < now) next = now + period;
       }
       this.sound.pump();
       this.updateCursor();
-      if (ticked || this.needsDraw) {
+      if (this.needsDraw) {
         this.renderer.resize();
         this.renderer.draw();
         this.needsDraw = false;
@@ -817,8 +829,10 @@ export class Runtime {
     this.mouse.clickOn = ch;
     this.mouse.downSprite = ch;
     this.mouse.lastClick = this.millis();
+    // (what the click changed is drawn with the next frame, as in Director, which draws the
+    // stage as a frame ends: drawn at once, a scroll arrow's click showed the map's tiles
+    // moved and the units on them not yet)
     this.dispatchMouse('mousedown', ch);
-    this.needsDraw = true;
   }
   mouseUp() {
     this.mouse.down = false;
@@ -831,7 +845,6 @@ export class Runtime {
     }
     this.mouse.downSprite = 0;
     this.rollover();
-    this.needsDraw = true;
   }
   keyDown(e) {
     this.keyInfo.keyCode = KEYCODES[e.code] !== undefined ? KEYCODES[e.code] : 0;
