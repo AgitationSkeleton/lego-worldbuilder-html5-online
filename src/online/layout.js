@@ -80,12 +80,15 @@ export function makeLayout(rt, options = {}) {
       let z = Math.max(0.2, Math.min(0.75, 0.85 * Math.min(viewW / worldW, viewH / worldH)));
       // but no further than the map display's sprites stretch to: a sprite a tile of the
       // view (viewTileSize in src/lingo/movie - layout.ls), and room for what is on the map
-      const tiles = (k) => (12 + Math.floor((rt.stage.width / k - 610 + 49) / 50)) * (9 + Math.floor((rt.stage.height / k - 440 + 49) / 50));
+      const tiles = (k) => { const [w, h] = tilesFor(rt, k); return w * h; };
       while (z < 1 && tiles(z) > MAP_TILE_SPRITES) z = Math.min(1, z + 0.01);
       return z;
     },
     // Zoom the map to z, keeping the map's point under (ux, uy) (stage pixels) where it is.
-    setZoom(z, ux, uy) {
+    // The map display keeps a sprite for every tile the most zoomed-out view shows (see
+    // held), so zooming only moves the map; making the view again (relayout) takes a long
+    // moment, and is only done should the view somehow need more tiles than it has.
+    setZoom(z, ux, uy, sizeFor) {
       const md = mapDisplay();
       const z0 = this.zoom;
       z = Math.max(this.minZoom(), Math.min(1, z));
@@ -95,9 +98,14 @@ export function makeLayout(rt, options = {}) {
         const corner = () => L.mc(md, 'postoloc', L.list([0, 0]));
         const p0 = corner();
         const rel = [ux / z0 - p0.h, uy / z0 - p0.v];
+        const k = Math.max(this.minZoom(), Math.min(z, sizeFor || z));
+        const need = tilesFor(rt, k), have = L.gp(md, 'pdisplaytilesize').a;
         this.carryMap(() => {
+          if (need[0] > have[0] || need[1] > have[1]) {
+            this.zoom = k;
+            L.mc(md, 'relayout');
+          }
           this.zoom = z;
-          L.mc(md, 'relayout');
           const p1 = corner();
           shiftMap(md, Math.round(ux / z - rel[0] - p1.h), Math.round(uy / z - rel[1] - p1.v));
         });
@@ -106,6 +114,46 @@ export function makeLayout(rt, options = {}) {
         rt.reportError(e);
       }
       rt.needsDraw = true;
+    },
+    // A mission's map display is made with the view the game shows at first (the map is not
+    // read yet, so how far it can zoom out is not known); once it is, the view is made again
+    // with every tile the most zoomed-out view shows, before the mission is first drawn.
+    held() {
+      const md = mapDisplay();
+      if (!md || md === this.heldFor) return;
+      this.heldFor = md;
+      try {
+        const need = tilesFor(rt, this.minZoom()), have = L.gp(md, 'pdisplaytilesize').a;
+        if (need[0] > have[0] || need[1] > have[1]) {
+          L.mc(md, 'relayout');
+          this.regrow();
+        }
+      } catch (e) {
+        rt.reportError(e);
+      }
+    },
+    // The mouse wheel: the zoom glides to where the wheel sends it, a part of the way at
+    // every drawing, about the pointer.
+    zoomBy(factor, ux, uy) {
+      const md = mapDisplay();
+      if (!md) return;
+      const lo = this.minZoom();
+      this.zoomTarget = Math.max(lo, Math.min(1, (this.gliding ? this.zoomTarget : this.zoom) * factor));
+      this.zoomAt = [ux, uy];
+      if (this.gliding) return;
+      this.gliding = true;
+      const step = () => {
+        if (!mapDisplay()) { this.gliding = false; return; }
+        const t = this.zoomTarget, z = this.zoom;
+        const next = Math.abs(t - z) < 0.002 ? t : z + (t - z) * 0.3;
+        this.setZoom(next, this.zoomAt[0], this.zoomAt[1], t);
+        if (next === t || Math.abs(this.zoom - z) < 1e-5) {
+          this.gliding = false;
+          return;
+        }
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
     },
     // The games hide a sprite by putting it at (1000, 1000), past the edges of their
     // 610 x 440 stage (once, at (10000, 10000)). The stage here can be bigger, and the map
@@ -205,6 +253,7 @@ export function makeLayout(rt, options = {}) {
     // Every drawing: the sky covers the stage, however the map has moved it.
     beforeDraw() {
       if (rt.labelAt(rt.frame) !== 'play') return;
+      this.held();
       const sky = rt.sprites[1];
       if (sky && sky.member && sky.member.width) {
         const m = sky.member;
@@ -215,6 +264,8 @@ export function makeLayout(rt, options = {}) {
       }
     },
   };
+  // (for viewTileSizeHeld, in src/lingo/movie - layout.ls)
+  rt.builtins.mapzoomleast = () => layout.minZoom();
   return layout;
 }
 
@@ -239,6 +290,13 @@ const GROW = {
     s.locV = Math.round(b.locV / z);
   },
 };
+
+// The map display's view for a zoom, in tiles: as viewTileSize (src/lingo/movie - layout.ls)
+// works it out.
+function tilesFor(rt, z) {
+  const w = Math.round(rt.stage.width / z), h = Math.round(rt.stage.height / z);
+  return [12 + Math.trunc((w - 610 + 49) / 50), 9 + Math.trunc((h - 440 + 49) / 50)];
+}
 
 function keepTopLeft(s, b, w, h) {
   s.w = w;

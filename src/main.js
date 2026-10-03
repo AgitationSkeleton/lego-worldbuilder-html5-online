@@ -71,7 +71,7 @@ async function main() {
       e.preventDefault();
       const px = e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
       const [x, y] = rt.renderer.toStage(e.clientX, e.clientY);
-      rt.layout.setZoom(rt.layout.zoom * Math.exp(-px * 0.0015), x, y);
+      rt.layout.zoomBy(Math.exp(-px * 0.0015), x, y);
     }, { passive: false });
     // generated missions (src/online/missions.js), and missions timed for the score tables
     // (src/online/scores.js), whose hooks go on after the generated missions' own

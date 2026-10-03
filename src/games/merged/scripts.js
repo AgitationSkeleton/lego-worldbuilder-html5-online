@@ -1245,8 +1245,8 @@ const S1_115 = {
           this.$.pslide = undefined;
         } else if ($L.eqb($t2, $s_out)) {
           $L.sp(this.$.pslide, "offset", $L.add($L.gp(this.$.pslide, "offset"), 50));
-          if ($L.t($L.ge($L.gp(this.$.pslide, "offset"), 350))) {
-            this.$.pslide = undefined;
+          if ($L.t($L.ge($L.gp(this.$.pslide, "offset"), $L.add(350, $L.div($L.sub($L.sub($R.the("stageright"), $R.the("stageleft")), 610), 2))))) {
+            $L.mc(me, "hideall");
           }
         }
       }
@@ -2988,7 +2988,7 @@ const S1_129 = {
         $L.mc(this.$.ptilesprites, "add", $B.sprite(i));
       }
       this.$.pdisplaytiletopleft = $L.list([1, 1]);
-      this.$.pdisplaytilesize = $R.call(this, S1_129, "viewtilesize");
+      this.$.pdisplaytilesize = $R.call(this, S1_129, "viewtilesizeheld");
       this.$.ptilesize = $L.list([50, 50]);
       this.$.pdisplaypixeltopleft = $L.sub($B.point(22, 19), $B.point($L.add(80, $L.mul(25, $L.sub($L.gi(this.$.pdisplaytilesize, 2), 9))), 32));
       this.$.pdisplaypixelskew = $B.point(25, 0);
@@ -3032,7 +3032,7 @@ const S1_129 = {
       }
     },
     readmap(me) {
-      let c, cache, contents, cx, cy, entry, goalobjective, goaltype, hq, i, j, omap, orow, resource, row, scriptname, terrain, thingy, whirlpoolid;
+      let c, cache, contents, cx, cy, entry, goalobjective, goaltype, hq, i, j, omap, orow, resource, row, scriptname, terrain, thingy, vis, whirlpoolid;
       omap = $L.list([]);
       this.$.pplantypes = $L.list([]);
       j = 0;
@@ -3176,11 +3176,13 @@ const S1_129 = {
       $L.si(this.$.pmap, $s_terrain, omap);
       $L.mc(me, "preparemapsprites");
       if ($L.t($B.voidp($L.gpi(this.$.pmap, "map", $s_center)))) {
-        $L.mc(me, "scrollmap", $L.list([$B.integer($L.add($L.sub($L.div($L.gi(this.$.pmapsize, 1), 2), $L.div($L.gi(this.$.pdisplaytilesize, 1), 2)), 1)), $B.integer($L.sub($L.sub($L.div($L.gi(this.$.pmapsize, 2), 2), $L.div($L.gi(this.$.pdisplaytilesize, 2), 2)), 0))]));
+        vis = $R.call(this, S1_129, "viewtilesize");
+        $L.mc(me, "scrollmap", $L.list([$B.integer($L.add($L.sub($L.div($L.gi(this.$.pmapsize, 1), 2), $L.div($L.gi(vis, 1), 2)), 1)), $B.integer($L.sub($L.sub($L.div($L.gi(this.$.pmapsize, 2), 2), $L.div($L.gi(vis, 2), 2)), 0))]));
       } else {
         cx = $B.integer($L.gpi($L.gp(this.$.pmap, "map"), "center", 1));
         cy = $B.integer($L.gpi($L.gp(this.$.pmap, "map"), "center", 2));
-        $L.mc(me, "scrollmap", $L.list([$B.integer($L.add($L.sub(cx, $L.div($L.gi(this.$.pdisplaytilesize, 1), 2)), 1)), $B.integer($L.sub($L.sub(cy, $L.div($L.gi(this.$.pdisplaytilesize, 2), 2)), 0))]));
+        vis = $R.call(this, S1_129, "viewtilesize");
+        $L.mc(me, "scrollmap", $L.list([$B.integer($L.add($L.sub(cx, $L.div($L.gi(vis, 1), 2)), 1)), $B.integer($L.sub($L.sub(cy, $L.div($L.gi(vis, 2), 2)), 0))]));
       }
       $L.mc(me, "showminimap");
     },
@@ -3189,7 +3191,7 @@ const S1_129 = {
       return $L.mc(me, "scrollmap", s);
     },
     scrollmap(me, s, p) {
-      let farx, fary, hi, i, lo, nearx, neary, newtopleft, reachededge, slackx, slacky, x;
+      let farx, fary, hi, i, lo, nearx, neary, newtopleft, reachededge, slackx, slacky, vis, x;
       if ($L.t($B.voidp(p))) {
         p = $B.point(0, 0);
       }
@@ -3211,18 +3213,19 @@ const S1_129 = {
         }
       }
       newtopleft = $L.add(this.$.pdisplaytiletopleft, s);
+      vis = $R.call(this, S1_129, "viewtilesize");
       nearx = (-1);
-      if ($L.t($L.gt($L.gi(this.$.pdisplaytilesize, 2), 9))) {
-        nearx = $L.sub((-1), $L.div($L.sub($L.add($L.mul($L.sub($L.gi(this.$.pdisplaytilesize, 2), 9), $L.gi(this.$.pdisplaypixelskew, 1)), $L.gi(this.$.ptilesize, 1)), 1), $L.gi(this.$.ptilesize, 1)));
+      if ($L.t($L.gt($L.gi(vis, 2), 9))) {
+        nearx = $L.sub((-1), $L.div($L.sub($L.add($L.mul($L.sub($L.gi(vis, 2), 9), $L.gi(this.$.pdisplaypixelskew, 1)), $L.gi(this.$.ptilesize, 1)), 1), $L.gi(this.$.ptilesize, 1)));
       }
-      farx = $L.add($L.add($L.sub($L.gi(this.$.pmapsize, 1), $L.gi(this.$.pdisplaytilesize, 1)), 1), 5);
+      farx = $L.add($L.add($L.sub($L.gi(this.$.pmapsize, 1), $L.gi(vis, 1)), 1), 5);
       neary = (-2);
-      fary = $L.add($L.add($L.sub($L.gi(this.$.pmapsize, 2), $L.gi(this.$.pdisplaytilesize, 2)), 1), 3);
+      fary = $L.add($L.add($L.sub($L.gi(this.$.pmapsize, 2), $L.gi(vis, 2)), 1), 3);
       slackx = 0;
       slacky = 0;
       if ($L.t($L.ne($L.gi($G.glob, $s_tutorialmode), 1))) {
-        slackx = $B.max(2, $L.div($L.gi(this.$.pdisplaytilesize, 1), 8));
-        slacky = $B.max(2, $L.div($L.gi(this.$.pdisplaytilesize, 2), 8));
+        slackx = $B.max(2, $L.div($L.gi(vis, 1), 8));
+        slacky = $B.max(2, $L.div($L.gi(vis, 2), 8));
       }
       lo = $L.list([$L.sub($B.min(nearx, farx), slackx), $L.sub($B.min(neary, fary), slacky)]);
       hi = $L.list([$L.add($B.max(nearx, farx), slackx), $L.add($B.max(neary, fary), slacky)]);
@@ -3409,7 +3412,9 @@ const S1_129 = {
       }
     },
     centerpos(me, pos) {
-      this.$.pcentergoal = $B.point($B.integer($L.sub($L.gi(pos, 1), $L.div($L.gi(this.$.pdisplaytilesize, 1), 2))), $B.integer($L.sub($L.gi(pos, 2), $L.div($L.gi(this.$.pdisplaytilesize, 2), 2))));
+      let vis;
+      vis = $R.call(this, S1_129, "viewtilesize");
+      this.$.pcentergoal = $B.point($B.integer($L.sub($L.gi(pos, 1), $L.div($L.gi(vis, 1), 2))), $B.integer($L.sub($L.gi(pos, 2), $L.div($L.gi(vis, 2), 2))));
     },
     centervehicle(me, vehicle) {
       this.$.pcentergoal = vehicle;
@@ -4111,7 +4116,7 @@ const S1_129 = {
           $L.mc(me, "returnasprite", s);
         }
       }
-      this.$.pdisplaytilesize = $R.call(this, S1_129, "viewtilesize");
+      this.$.pdisplaytilesize = $R.call(this, S1_129, "viewtilesizeheld");
       this.$.pdisplaypixeltopleft = $L.sub($B.point(22, 19), $B.point($L.add(80, $L.mul(25, $L.sub($L.gi(this.$.pdisplaytilesize, 2), 9))), 32));
       $L.mc(me, "preparemapsprites");
       $L.mc(me, "scrollmap", $L.list([0, 0]));
@@ -11580,8 +11585,13 @@ const S13_1 = {
   props: [],
   handlers: {
     viewtilesize() {
-      let h, w, z;
-      z = $R.call(this, S13_1, "mapzoom");
+      return $R.call(this, S13_1, "tilesforzoom", $R.call(this, S13_1, "mapzoom"));
+    },
+    viewtilesizeheld() {
+      return $R.call(this, S13_1, "tilesforzoom", $R.call(this, S13_1, "mapzoomleast"));
+    },
+    tilesforzoom(z) {
+      let h, w;
       w = $B.integer($L.div($L.sub($R.the("stageright"), $R.the("stageleft")), z));
       h = $B.integer($L.div($L.sub($R.the("stagebottom"), $R.the("stagetop")), z));
       return $L.list([$L.add(12, $L.div($L.add($L.sub(w, 610), 49), 50)), $L.add(9, $L.div($L.add($L.sub(h, 440), 49), 50))]);

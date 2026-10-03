@@ -43,7 +43,7 @@ on relayout me
       me.returnASprite(s)
     end repeat
   end repeat
-  pDisplayTileSize = viewTileSize()
+  pDisplayTileSize = viewTileSizeHeld()
   pDisplayPixelTopLeft = point(22, 19) - point(80 + (25 * (pDisplayTileSize[2] - 9)), 32)
   me.prepareMapSprites()
   me.scrollmap([0, 0])
@@ -79,18 +79,19 @@ LIMITS_OLD = """  newTopLeft = pDisplayTileTopleft + s
   end if
 """
 LIMITS_NEW = """  newTopLeft = pDisplayTileTopleft + s
+  vis = viewTileSize()
   nearX = -1
-  if pDisplayTileSize[2] > 9 then
-    nearX = -1 - ((((pDisplayTileSize[2] - 9) * pDisplayPixelSkew[1]) + pTileSize[1] - 1) / pTileSize[1])
+  if vis[2] > 9 then
+    nearX = -1 - ((((vis[2] - 9) * pDisplayPixelSkew[1]) + pTileSize[1] - 1) / pTileSize[1])
   end if
-  farX = pMapSize[1] - pDisplayTileSize[1] + 1 + 5
+  farX = pMapSize[1] - vis[1] + 1 + 5
   nearY = -2
-  farY = pMapSize[2] - pDisplayTileSize[2] + 1 + 3
+  farY = pMapSize[2] - vis[2] + 1 + 3
   slackX = 0
   slackY = 0
   if glob[#tutorialMode] <> 1 then
-    slackX = max(2, pDisplayTileSize[1] / 8)
-    slackY = max(2, pDisplayTileSize[2] / 8)
+    slackX = max(2, vis[1] / 8)
+    slackY = max(2, vis[2] / 8)
   end if
   lo = [min(nearX, farX) - slackX, min(nearY, farY) - slackY]
   hi = [max(nearX, farX) + slackX, max(nearY, farY) + slackY]
@@ -136,7 +137,8 @@ PATCHES = {
     # from the stage, the pool of sprites for it is larger, the sky is centred on the stage,
     # and relayout lays the view out again when the window changes.
     ('wb2', 'Internal', 'map display manager'): [
-        ('  pDisplayTileSize = [12, 9]\n', '  pDisplayTileSize = viewTileSize()\n'),
+        # (as many tiles as the most zoomed-out view shows: see viewTileSizeHeld)
+        ('  pDisplayTileSize = [12, 9]\n', '  pDisplayTileSize = viewTileSizeHeld()\n'),
         ('  repeat with i = 200 to 1000\n', '  repeat with i = 200 to 4000\n'),
         # the skewed grid moves right 25 pixels for every row more than the original nine
         ('  pDisplayPixelTopLeft = point(22, 19) - point(80, 32)\n',
@@ -157,6 +159,14 @@ PATCHES = {
         #   the middle (a small map, a phone, zoomed out). The tutorial, which points at the
         #   original layout, keeps the original's limits.
         (LIMITS_OLD, LIMITS_NEW),
+        # The map display keeps more tiles than show (viewTileSizeHeld): centring the view on
+        # the map, or on a place, goes by the tiles that show.
+        ('    me.scrollmap([integer((pMapSize[1] / 2) - (pDisplayTileSize[1] / 2) + 1), integer((pMapSize[2] / 2) - (pDisplayTileSize[2] / 2) - 0)])\n',
+         '    vis = viewTileSize()\n    me.scrollmap([integer((pMapSize[1] / 2) - (vis[1] / 2) + 1), integer((pMapSize[2] / 2) - (vis[2] / 2) - 0)])\n'),
+        ('    me.scrollmap([integer(cx - (pDisplayTileSize[1] / 2) + 1), integer(cy - (pDisplayTileSize[2] / 2) - 0)])\n',
+         '    vis = viewTileSize()\n    me.scrollmap([integer(cx - (vis[1] / 2) + 1), integer(cy - (vis[2] / 2) - 0)])\n'),
+        ('  pCenterGoal = point(integer(pos[1] - (pDisplayTileSize[1] / 2)), integer(pos[2] - (pDisplayTileSize[2] / 2)))\n',
+         '  vis = viewTileSize()\n  pCenterGoal = point(integer(pos[1] - (vis[1] / 2)), integer(pos[2] - (vis[2] / 2)))\n'),
         # A unit's action that waits for a click near it (the dozer's Push) was left waiting
         # when the next click was further away: a later click by the old place pushed from
         # wherever the unit had got to, a tile or several, or failed once it was taken apart.
@@ -168,6 +178,13 @@ PATCHES = {
          '      return 0\n'),
         ('', RELAYOUT),
     ],
+    # The unit info bubble's Close slides it 300 pixels right, which on the original stage
+    # puts it behind the right-hand panel. Here the panel is at the stage's right edge and
+    # the bubble in the middle, so it slides on until it is past the panel, and is put away.
+    ('wb2', 'Internal', 'unit info bubble behavior'): [
+        ('      if pSlide.offset >= 350 then\n        pSlide = VOID\n      end if\n',
+         '      if pSlide.offset >= (350 + (((the stageRight - the stageLeft) - 610) / 2)) then\n'
+         '        me.hideAll()\n      end if\n')],
     # The map can be zoomed (src/online/layout.js): the two scripts that read the mouse
     # against the map's sprites read it on the map, in the map's pixels (mapMouseLoc, in
     # src/lingo/movie - layout.ls).
