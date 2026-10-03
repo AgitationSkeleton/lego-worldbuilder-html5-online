@@ -49,9 +49,12 @@ export class Controls {
   install(scripts) {
     const self = this;
     for (const s of scripts) {
-      // the game's menu, open: the game held still (see menuPauses)
+      // the game's menu, open: the game held still (see menuPauses); and let go when the
+      // menu goes, by Continue (hide) or with the mission, by End Mission (its quitlevel
+      // leaves the menu open as the stage leaves the mission: endSprite), which had left
+      // the world map's clock standing, its question marks still
       if (s.name === 'main menu popup behavior') {
-        for (const [name, on] of [['show', true], ['hide', false]]) {
+        for (const [name, on] of [['show', true], ['hide', false], ['endsprite', false]]) {
           const f = s.handlers[name];
           if (!f) continue;
           s.handlers[name] = function (...args) {

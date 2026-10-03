@@ -230,16 +230,16 @@ export class OnlineUI {
       this.tableBody.replaceChildren(el('p', { text: 'The score server could not be reached.' }));
     }
   }
+  // All missions' table, or a mission's (a result's own, from its line under it)
   openTables(mission) {
     this.panel.hidden = true;
-    let m = mission || (this.scores && this.scores.attempt && this.scores.attempt.mission) || '1.1';
     // (generated missions are not on the tables)
-    if (m.startsWith('R-')) m = '1.1';
-    const w = m.split('.')[0];
-    this.worldSelect.value = WORLD_NAMES[w - 1] ? w : '1';
+    const m = mission && !mission.startsWith('R-') ? mission : null;
+    const w = m ? m.split('.')[0] : 'all';
+    this.worldSelect.value = w === 'all' || WORLD_NAMES[w - 1] ? w : 'all';
     this.fillMissions(m);
     this.tables.hidden = false;
-    this.missionSelect.focus();
+    (this.missionSelect.hidden ? this.worldSelect : this.missionSelect).focus();
     this.showTable();
   }
   closeTables() {
