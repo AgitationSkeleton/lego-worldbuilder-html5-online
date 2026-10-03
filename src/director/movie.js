@@ -589,8 +589,20 @@ export class Runtime {
   // ---------- running ----------
 
   millis() {
-    return this.testMode ? Math.round(this.virtualTime) : Math.round(performance.now() - this.startTime);
+    const now = this.testMode ? this.virtualTime : performance.now() - this.startTime;
+    return Math.round((this.pausedAt === undefined ? now : this.pausedAt) - (this.pausedFor || 0));
   }
+  // (not Director's: a page can hold the game still, its menu open: the actors are not
+  // stepped and the clock stands, so that nothing jumps when it goes on)
+  setPaused(on) {
+    const now = this.testMode ? this.virtualTime : performance.now() - this.startTime;
+    if (on && this.pausedAt === undefined) this.pausedAt = now;
+    if (!on && this.pausedAt !== undefined) {
+      this.pausedFor = (this.pausedFor || 0) + (now - this.pausedAt);
+      this.pausedAt = undefined;
+    }
+  }
+  get paused() { return this.pausedAt !== undefined; }
   tempo() {
     if (this.puppetTempo) return this.puppetTempo;
     const fr = this.framesData[this.frame - 1];
@@ -625,7 +637,7 @@ export class Runtime {
     this.goTarget = null;
     if (next > this.frameCount()) next = 1;   // the end of the score loops, as a projector does
     this.enterScoreFrame(next);
-    this.stepActors();
+    if (!this.paused) this.stepActors();
     this.frameEvent('prepareframe');
     // Director draws the stage here, after prepareFrame: what enterFrame, the idle time's
     // mouseWithin and the timeouts change shows with the next frame, by when stepFrame has

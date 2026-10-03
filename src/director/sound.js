@@ -12,6 +12,12 @@ export class SoundSystem {
     this.channels = [];
     this.master = null;
     this.muted = false;
+    // (not Director's: kinds of sound a page can set the loudness of, music, sound and ui,
+    // each through a gain of its own; what kind a sound is, kindOf says, or kindHint while
+    // the page knows better, as the game asks for one)
+    this.buses = {};
+    this.volumes = {};
+    this.kindHint = null;
     try {
       const AC = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AC();
@@ -21,6 +27,23 @@ export class SoundSystem {
       this.ctx = null;
     }
     for (let i = 0; i <= 8; i++) this.channels.push(new SoundChannel(this, i));
+  }
+  bus(kind) {
+    let b = this.buses[kind];
+    if (!b && this.ctx) {
+      b = this.buses[kind] = this.ctx.createGain();
+      b.gain.value = this.volumes[kind] === undefined ? 1 : this.volumes[kind];
+      b.connect(this.master);
+    }
+    return b;
+  }
+  setVolume(kind, v) {
+    this.volumes[kind] = v;
+    if (this.buses[kind]) this.buses[kind].gain.setValueAtTime(v, this.ctx.currentTime);
+  }
+  // The games' music is in members named m_..., the rest is sound.
+  kindOf(m) {
+    return /^m_/i.test((m && m.name) || '') ? 'music' : 'sound';
   }
   channel(n) {
     n = toInt(n);
@@ -79,8 +102,17 @@ class SoundChannel {
     if (sys.ctx) {
       this.gain = sys.ctx.createGain();
       this.panner = sys.ctx.createStereoPanner ? sys.ctx.createStereoPanner() : null;
-      if (this.panner) { this.gain.connect(this.panner); this.panner.connect(sys.master); } else this.gain.connect(sys.master);
+      if (this.panner) this.gain.connect(this.panner);
+      this.route('sound');
     }
+  }
+  // The channel's sound goes through the gain of its kind (see SoundSystem.bus).
+  route(kind) {
+    if (this.kind === kind || !this.gain) return;
+    const out = this.panner || this.gain;
+    if (this.kind !== undefined) out.disconnect();
+    out.connect(this.sys.bus(kind));
+    this.kind = kind;
   }
   applyVolume() {
     if (this.gain) this.gain.gain.setValueAtTime(Math.max(0, Math.min(255, this.volume)) / 255, this.sys.ctx.currentTime);
@@ -91,7 +123,14 @@ class SoundChannel {
     const m = this.sys.runtime.member(x);
     return m instanceof SoundMember ? m : null;
   }
+  // A sound to play, as play, queue and setPlayList give it, with the kind the page says it
+  // is, if it says (see SoundSystem.kindHint).
   entryOf(x) {
+    const e = this.entryFor(x);
+    if (e && this.sys.kindHint) e.kind = this.sys.kindHint;
+    return e;
+  }
+  entryFor(x) {
     if (x instanceof LPropList) {
       const get = (k) => { const i = x.find(sym(k)); return i < 0 ? undefined : x.v[i]; };
       const m = this.memberOf(get('member'));
@@ -126,6 +165,7 @@ class SoundChannel {
       node.loopStart = from;
       node.loopEnd = to;
     }
+    this.route(entry.kind || sys.kindOf(m));
     node.connect(this.gain);
     node.start(when, from);
     const end = loops === 0 ? Infinity : when + dur * Math.max(1, loops);
