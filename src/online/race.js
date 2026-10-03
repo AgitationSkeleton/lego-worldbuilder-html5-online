@@ -214,7 +214,7 @@ export class Races {
     this.starting = true;
     let problem;
     try {
-      problem = this.ui.random.go(r.mission);
+      problem = this.ui.random.go(r.mission, true);
     } finally {
       this.starting = false;
     }

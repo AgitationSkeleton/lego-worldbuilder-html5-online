@@ -342,16 +342,20 @@ export class OnlineUI {
     this.donePanel.hidden = true;
     if (this.menu) this.menu.show();
   }
-  // A generated mission left by the game itself (its End Mission, its menu's quit): rather
-  // than the world map whose look it had, a new one or the main menu. (Not in a race, which
-  // has its own end.)
+  // A mission played out of the campaign's order (a generated one, a race's) left by the
+  // game itself (its End Mission, its menu's quit): not the world map the game would go to,
+  // which the campaign may not have got to (src/online/missions.js), but the main menu; the
+  // race's panel over it, after a race; a generated mission's goal reached, the choice of
+  // a new one.
   randomLeft(how) {
-    if (this.races && this.races.racing && this.races.racing.started) return;
+    if (how.race || !how.code || !how.goal) {
+      this.showMenu();
+      if (how.race && this.races && this.races.code) this.races.open();
+      return;
+    }
     const code = showCode(how.code);
-    this.doneTitle.textContent = how.goal ? 'Mission complete!' : 'Mission left';
-    this.doneText.textContent = how.goal
-      ? 'You reached the goal of ' + code + (how.bonus ? ', and its bonus goal.' : '.')
-      : 'You left ' + code + '.';
+    this.doneTitle.textContent = 'Mission complete!';
+    this.doneText.textContent = 'You reached the goal of ' + code + (how.bonus ? ', and its bonus goal.' : '.');
     this.donePanel.hidden = false;
     this.doneButtons[0].focus();
   }

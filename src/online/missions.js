@@ -12,11 +12,19 @@ export class RandomMissions {
   constructor(rt) {
     this.rt = rt;
     this.active = null;     // the generated mission being played: { code, world, mission, saved }
-    // Told when the game itself leaves a generated mission (its End Mission, its menu's
-    // quit), with {code, goal, bonus}: the page offers what next, where the game would go
-    // back to the world map whose look the mission had. Leaving it from the page (a race,
-    // the main menu) is done quietly.
+    // A mission played out of the campaign's order (a generated one, or a race's): {mission,
+    // race, locked}. Left, the game goes back to its title rather than to the world map the
+    // game would go to (that mission's, or the one whose look a generated mission has),
+    // where the campaign may not have got to yet; and a race's mission the campaign has not
+    // opened yet is not marked done there by its goal.
+    this.away = null;
+    // Told when the game itself leaves a mission played out of the campaign's order (its
+    // End Mission, its menu's quit), with {code, goal, bonus, race}: the page shows its main
+    // menu, or offers what next. Leaving it from the page (a race starting, the main menu)
+    // is done quietly.
     this.onLeft = null;
+    // Told when a generated mission starts, with the mission (src/online/puzzle.js)
+    this.onStarted = null;
     this.quiet = 0;
   }
 
@@ -30,10 +38,17 @@ export class RandomMissions {
         s.handlers.quitlevel = function (restartp, ...rest) {
           const left = self.active;
           const r = quit.call(this, restartp, ...rest);
-          // (a restart quits and starts again: the generated mission stays)
+          // (a restart quits and starts again: the mission stays)
           if (!L.t(restartp)) {
+            const away = self.away;
+            self.away = null;
             self.restore();
-            if (left && !self.quiet && self.onLeft) self.onLeft({ code: left.code, goal: !!left.goal, bonus: !!left.bonus });
+            if (away) {
+              self.rt.go('splash');
+              if (!self.quiet && self.onLeft) {
+                self.onLeft({ code: left ? left.code : null, goal: !!away.goal, bonus: !!away.bonus, race: away.race });
+              }
+            }
           }
           return r;
         };
@@ -41,11 +56,12 @@ export class RandomMissions {
       if (s.name === 'worlds manager' && s.handlers.reportsuccess) {
         const report = s.handlers.reportsuccess;
         s.handlers.reportsuccess = function (...args) {
-          if (self.active) {
-            const kind = args[1] instanceof L.LSymbol ? args[1].key.toLowerCase() : '';
-            if (kind === 'goal' || kind === 'bonus') self.active[kind] = true;
-            return undefined;
-          }
+          const kind = args[1] instanceof L.LSymbol ? args[1].key.toLowerCase() : '';
+          const away = self.away;
+          if (away && (kind === 'goal' || kind === 'bonus')) away[kind] = true;
+          // (a generated mission counts for nothing in the campaign, nor does a race's that
+          // the campaign has not opened yet)
+          if (self.active || (away && away.locked)) return undefined;
           return report.apply(this, args);
         };
       }
@@ -97,15 +113,17 @@ export class RandomMissions {
     };
     L.sp(member, 'text', g.text);
     L.si(names, mission, 'Random ' + showCode(g.code));
+    if (!this.away) this.away = { mission: 'R-' + g.code, race: false, locked: false };
     const main = rt.movieHandlers.golevel.script;
     rt.call(rt.scriptSelf(main), main, 'golevel', world, mission);
+    if (this.onStarted) this.onStarted(g);
     return null;
   }
 
-  // Starts a mission from wherever the game is (a race starts everyone's at once): a
-  // campaign one, "6.3", or a generated one, "R-6DK2Q9".  The mission being played, if any,
-  // is left first.  Answers what went wrong, or null.
-  go(mission) {
+  // Starts a mission from wherever the game is (a race starts everyone's at once, `race`
+  // true): a campaign one, "6.3", or a generated one, "R-6DK2Q9".  The mission being
+  // played, if any, is left first.  Answers what went wrong, or null.
+  go(mission, race = false) {
     const rt = this.rt;
     const glob = rt.globals.glob;
     const main = rt.movieHandlers.golevel.script;
@@ -115,8 +133,17 @@ export class RandomMissions {
     if (tutorial instanceof L.LInstance && L.t(L.gi(glob, L.sym('tutorialMode')))) L.mc(tutorial, 'settutorialmode', 0);
     if (glob && L.gp(glob, 'map_display') !== undefined) this.quietly(() => call('quitlevel'));
     if (!/^world \d$/.test(rt.labelAt(rt.frame) || '')) rt.go('world 1');
-    if (mission.startsWith('R-')) return this.play(mission.slice(2));
+    if (mission.startsWith('R-')) {
+      this.away = { mission, race, locked: false };
+      const problem = this.play(mission.slice(2));
+      if (problem) this.away = null;
+      return problem;
+    }
     const [w, l] = mission.split('.').map(Number);
+    // (where the campaign has got to: -1, a mission not opened yet)
+    const worlds = glob && L.gp(glob, 'worlds_manager');
+    const state = worlds instanceof L.LInstance ? L.mc(worlds, 'getlevelstate', w, l) : 0;
+    this.away = { mission, race, locked: state === -1 };
     call('golevel', w, l);
     return null;
   }
