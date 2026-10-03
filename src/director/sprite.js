@@ -21,6 +21,7 @@ export class Sprite {
     this.blend = 100;
     this.visible = true;
     this.w = null;         // set when the sprite is stretched from its member's size
+    this.keepSize = false; // (a page's: the size kept when the member changes)
     this.h = null;
     this.flipH = false;
     this.flipV = false;
@@ -89,8 +90,9 @@ export class Sprite {
     if (m && m.number < 0) m = null;
     if (m !== this.member) {
       this.member = m;
-      // The sprite takes on its new member's size, as Director does.
-      if (!(m instanceof ShapeMember)) { this.w = null; this.h = null; }
+      // The sprite takes on its new member's size, as Director does (unless a page has
+      // sized it itself and keeps it so: keepSize, not Director's).
+      if (!(m instanceof ShapeMember) && !this.keepSize) { this.w = null; this.h = null; }
     }
   }
 
