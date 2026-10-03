@@ -45,8 +45,11 @@ then open <http://localhost:8000/>.
   mission is named by a code (like `2C-K2Q9`) that can be shared, from the main menu or
   `?random=2C-K2Q9`.
 - **Races**: two to six players play the same mission, each in their own game, and the
-  fastest to the goal wins; a race is joined by its code or a link (`?race=CODE`). The
-  other players' units show on your map as ghosts in their colours, named when pointed at.
+  fastest to the goal wins. The race page is a lobby: the races open to anyone, listed by
+  the server, to join; a race to host, listed or by invitation (its code, or a link,
+  `?race=CODE`); and in a race, its players, its chat, and the mission the host picks,
+  shown as a small map with its name. The other players' units show on your map as ghosts
+  in their colours, named when pointed at.
 
 ## Checking it
 

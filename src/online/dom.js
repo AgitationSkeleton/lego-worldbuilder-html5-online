@@ -1,15 +1,15 @@
 // Small helpers for the online game's own controls (src/online/ui.js, scores.js, race.js).
 
 // An element: el('button', {type: 'button', text: 'Go', onclick: f}, ...children).
-// (`text` sets its text, `html` its markup, on... a listener; children that are null are
-// left out.)
+// (`text` sets its text, `html` its markup, on... a listener; attributes and children that
+// are null are left out.)
 export function el(tag, attrs, ...kids) {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
     if (k === 'text') e.textContent = v;
     else if (k === 'html') e.innerHTML = v;
     else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
-    else e.setAttribute(k, v);
+    else if (v != null) e.setAttribute(k, v);
   }
   for (const k of kids) if (k != null) e.append(k);
   return e;

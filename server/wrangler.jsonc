@@ -22,6 +22,10 @@
 			{
 				"name": "RACE",
 				"class_name": "Race"
+			},
+			{
+				"name": "LOBBY",
+				"class_name": "Lobby"
 			}
 		]
 	},
@@ -30,6 +34,12 @@
 			"tag": "v1",
 			"new_sqlite_classes": [
 				"Race"
+			]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": [
+				"Lobby"
 			]
 		}
 	],

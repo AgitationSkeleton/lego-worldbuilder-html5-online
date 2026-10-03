@@ -8,6 +8,8 @@
 //   hello {name, token}       first, always; token (the page's secret) lets a player who lost
 //                             their connection come back as themselves
 //   mission {mission}         the host: "6.3", or a generated mission "R-6DK2Q9"
+//   access {access}           the host: public (listed in the lobby) or invite (not)
+//   chat {text}               a line for everyone in the room
 //   ready {ready}             a player is ready (or not)
 //   start {}                  the host: the race starts, for everyone, in a few seconds
 //   again {}                  the host, after a race: back to choosing, times cleared
@@ -17,16 +19,20 @@
 //                             [member, x, y, column, row, flipped] (see src/online/race.js)
 //   ping {t}
 // From the room:
-//   welcome {you, room}  room {room}  start {mission, in}  pong {t}  error {reason}
+//   welcome {you, room, chat}  room {room}  start {mission, in}  pong {t}  error {reason}
 //   units {from, u}           another player's units, passed on as they came
+//   chat {from, name, text, t} (or {system: true, text, t}: someone came or went)
 //
-// The room as the pages see it: {code, host, mission, phase, players: [{id, name, connected,
-// ready, started, goal, bonus, quit}], version}; phase is lobby, racing or done.
+// The room as the pages see it: {code, host, mission, phase, access, players: [{id, name,
+// connected, ready, started, goal, bonus, quit}], version}; phase is lobby, racing or done.
+//
+// A public race tells the lobby (lobby.js) how it stands, so that it is listed there.
 
 import { DurableObject } from 'cloudflare:workers';
 import { json, allowedOrigin, cleanName } from './http.js';
 import { censor } from '../../src/online/profanity.js';
 import { discord, plain, clock } from './discord.js';
+import { lobby } from './lobby.js';
 
 // A race's mission, for the owner's log: "World 6, mission 2", or "random mission 6D-K2Q9".
 function missionText(m) {
@@ -45,6 +51,11 @@ const GRACE_MS = 30000;         // how long a disconnected player's place is kep
 const EMPTY_MS = 60000;         // how long a room with nobody in it lasts
 const UNITS_MS = 100;           // units are passed on at most this often from one player
 const MAX_UNITS = 60;
+const LOBBY_MS = 15000;         // a race tells the lobby it is there this often
+const CHAT_KEPT = 50;           // lines of chat a newcomer is shown
+const CHAT_MAX = 200;           // characters in a line
+const CHAT_BURST = 5;           // lines a player may send ...
+const CHAT_WINDOW_MS = 5000;    // ... in this long
 
 function newCode() {
   const b = new Uint8Array(5);
@@ -66,9 +77,16 @@ export async function handleRaces(request, env, url) {
   const parts = url.pathname.split('/').filter(Boolean);
   if (parts[0] !== 'races') return null;
   if (parts.length === 1 && request.method === 'POST') {
+    let access = 'public';
+    try {
+      const body = await request.json();
+      if (body && body.access === 'invite') access = 'invite';
+    } catch (e) {
+      // (no body: a public race)
+    }
     for (let i = 0; i < 6; i++) {
       const code = newCode();
-      const r = await env.RACE.get(env.RACE.idFromName(code)).init(code);
+      const r = await env.RACE.get(env.RACE.idFromName(code)).init(code, access);
       if (r.ok) return json(env, request, { code });
     }
     return json(env, request, { error: 'busy' }, 503);
@@ -92,11 +110,12 @@ export class Race extends DurableObject {
     this.race = null;
     this.players = new Map();       // id -> {id, token, name, ws, connected, ready, started, goal, bonus, quit, gone}
     this.timers = {};
+    this.chat = [];
   }
 
-  async init(code) {
+  async init(code, access) {
     if (this.race) return { ok: false };
-    this.race = { code, host: null, mission: null, phase: 'lobby', version: 0, created: Date.now() };
+    this.race = { code, host: null, mission: null, phase: 'lobby', access: access === 'invite' ? 'invite' : 'public', version: 0, created: Date.now() };
     this.expireSoon();
     return { ok: true };
   }
@@ -150,7 +169,7 @@ export class Race extends DurableObject {
   view() {
     const r = this.race;
     return {
-      code: r.code, host: r.host, mission: r.mission, phase: r.phase, version: r.version,
+      code: r.code, host: r.host, mission: r.mission, phase: r.phase, access: r.access, version: r.version,
       players: this.present().map((p) => ({
         id: p.id, name: p.name, connected: p.connected, ready: p.ready,
         started: p.started, goal: p.goal, bonus: p.bonus, quit: p.quit,
@@ -161,6 +180,43 @@ export class Race extends DurableObject {
   changed() {
     this.race.version++;
     this.broadcast({ type: 'room', room: this.view() });
+    this.tellLobby();
+  }
+
+  // The lobby told how the race stands (at most once a second, and every LOBBY_MS while
+  // anyone is in it), or that it is no longer open to anyone.
+  tellLobby(now) {
+    if (!now) {
+      if (this.timers.lobby) return;
+      this.timers.lobby = setTimeout(() => { this.timers.lobby = null; this.tellLobby(true); }, 1000);
+      return;
+    }
+    const r = this.race;
+    const people = this.present();
+    const listed = r && r.access === 'public' && people.some((q) => q.connected);
+    const done = (p) => this.ctx.waitUntil(p.catch(() => {}));
+    try {
+      const l = lobby(this.env);
+      if (listed) {
+        const host = this.players.get(r.host);
+        done(l.report({ code: r.code, host: host ? host.name : '', mission: r.mission, phase: r.phase,
+          players: people.length, max: MAX_PLAYERS, created: r.created }));
+      } else if (r) {
+        done(l.remove(r.code));
+      }
+    } catch (e) {
+      // (no lobby: the race goes on unlisted)
+    }
+    clearInterval(this.timers.heartbeat);
+    this.timers.heartbeat = listed ? setInterval(() => this.tellLobby(true), LOBBY_MS) : null;
+  }
+
+  // A line in the room's chat, for everyone, and kept for those who come later.
+  say(line) {
+    const m = Object.assign({ type: 'chat', t: Date.now() }, line);
+    this.chat.push(m);
+    if (this.chat.length > CHAT_KEPT) this.chat.splice(0, this.chat.length - CHAT_KEPT);
+    this.broadcast(m);
   }
 
   // The owner's log (a Discord channel; see discord.js).
@@ -183,6 +239,19 @@ export class Race extends DurableObject {
         r.mission = String(m.mission);
         for (const q of this.players.values()) q.ready = false;
         return this.changed();
+      case 'access':
+        if (!host) return;
+        r.access = m.access === 'invite' ? 'invite' : 'public';
+        return this.changed();
+      case 'chat': {
+        const text = censor(String(m.text || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX));
+        if (!text) return;
+        const now = Date.now();
+        p.chatTimes = (p.chatTimes || []).filter((t) => now - t < CHAT_WINDOW_MS);
+        if (p.chatTimes.length >= CHAT_BURST) return this.send(conn.ws, { type: 'error', reason: 'slow down' });
+        p.chatTimes.push(now);
+        return this.say({ from: p.id, name: p.name, text });
+      }
       case 'ready':
         if (r.phase !== 'lobby') return;
         p.ready = !!m.ready;
@@ -241,12 +310,14 @@ export class Race extends DurableObject {
       p = { id: randomId(), token, ready: false, started: false, goal: null, bonus: null, quit: false, gone: false };
       this.players.set(p.id, p);
       if (this.players.size === 1) this.log(`\u{1F3C1} **Race ${this.race.code}** made by ${plain(name)}`);
+      p.name = name;
+      if (this.players.size > 1) this.say({ system: true, text: name + ' joined' });
     }
     Object.assign(p, { name, ws: conn.ws, connected: true });
     conn.player = p;
     if (!this.race.host || !this.players.get(this.race.host) || this.players.get(this.race.host).gone) this.race.host = p.id;
     clearTimeout(this.timers.empty);
-    this.send(conn.ws, { type: 'welcome', you: p.id, room: this.view() });
+    this.send(conn.ws, { type: 'welcome', you: p.id, room: this.view(), chat: this.chat });
     this.changed();
   }
 
@@ -263,6 +334,7 @@ export class Race extends DurableObject {
   // A player gone for good: their place freed, the host passed on.
   leave(p) {
     p.gone = true;
+    this.say({ system: true, text: p.name + ' left' });
     if (this.race.phase === 'racing' && p.goal === null) p.quit = true;
     if (this.race.host === p.id) {
       const next = this.present().find((q) => q.connected) || this.present()[0];
@@ -290,8 +362,15 @@ export class Race extends DurableObject {
     clearTimeout(this.timers.empty);
     this.timers.empty = setTimeout(() => {
       if (this.present().some((q) => q.connected)) return;
+      try {
+        if (this.race) this.ctx.waitUntil(lobby(this.env).remove(this.race.code).catch(() => {}));
+      } catch (e) {
+        // (no lobby)
+      }
+      clearInterval(this.timers.heartbeat);
       this.race = null;
       this.players.clear();
+      this.chat = [];
     }, EMPTY_MS);
   }
 }
