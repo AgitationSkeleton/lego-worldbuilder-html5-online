@@ -88,6 +88,10 @@ async function main() {
     ui.controls.applyVolumes();
     // (the world maps' Main Menu button, src/lingo/world jump button beh.ls)
     rt.builtins.showmainmenu = () => ui.showMenu();
+    // (a generated mission's goal popups have its own choices: tools/merge.py, random_bubbles;
+    // not in a race, which has its own end)
+    rt.builtins.randommission = () => (ui.random && ui.random.active && !(ui.races && ui.races.racing && ui.races.racing.started) ? 1 : 0);
+    rt.builtins.newrandommission = () => { setTimeout(() => ui.playAnother(), 0); };
     ui.random = new RandomMissions(rt);
     ui.random.install(scripts.scripts);
     ui.random.onLeft = (how) => ui.randomLeft(how);

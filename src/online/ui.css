@@ -266,8 +266,6 @@
   #menu .art { display: none; }
 }
 
-/* What next after a generated mission: its own two choices, no Done. */
-#random-done .actions { display: none; }
 
 /* The random missions' Seed History: each played here, its goal's and bonus goal's flags
    (grey until reached) and best times, and Play. */

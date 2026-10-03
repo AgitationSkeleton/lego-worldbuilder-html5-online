@@ -167,16 +167,8 @@ export class OnlineUI {
       this.randomNote,
       el('section', { class: 'history' }, el('h3', { text: 'Seed History' }), this.seedEmpty, this.seedList));
     this.buildTables();
-    this.doneButtons = [
-      el('button', { type: 'button', class: 'choice', text: 'New random mission', onclick: () => this.playAnother() }),
-      el('button', { type: 'button', class: 'choice', text: 'Main menu', onclick: () => this.showMenu() }),
-    ];
-    this.doneText = el('p');
-    this.donePanel = dialog('random-done', 'Mission complete!', () => this.showMenu(),
-      this.doneText, el('div', { class: 'choices' }, ...this.doneButtons));
-    this.doneTitle = this.donePanel.querySelector('h2');
     document.addEventListener('fullscreenchange', () => this.render());
-    document.body.append(this.gear, this.panel, this.randomPanel, this.tables, this.donePanel);
+    document.body.append(this.gear, this.panel, this.randomPanel, this.tables);
     // the panels' buttons click as the game's own do
     document.addEventListener('click', (e) => {
       if (e.target instanceof Element && e.target.closest('.panel button') && this.controls) this.controls.sfx('sfx_interface_click_button');
@@ -388,28 +380,19 @@ export class OnlineUI {
       const main = rt.movieHandlers.quitlevel.script;
       this.random.quietly(() => rt.call(rt.scriptSelf(main), main, 'quitlevel'));
     }
-    this.donePanel.hidden = true;
     if (this.menu) this.menu.show();
   }
   // A mission played out of the campaign's order (a generated one, a race's) left by the
-  // game itself (its End Mission, its menu's quit): not the world map the game would go to,
-  // which the campaign may not have got to (src/online/missions.js), but the main menu; the
-  // race's panel over it, after a race; a generated mission's goal reached, the choice of
-  // a new one.
+  // game itself (its End Mission, its goal popups' Main Menu, its menu's quit): not the world
+  // map the game would go to, which the campaign may not have got to (src/online/missions.js),
+  // but the main menu; the race's panel over it, after a race. (A generated mission's goal
+  // popups offer a new one as well: newRandomMission, src/main.js.)
   randomLeft(how) {
-    if (how.race || !how.code || !how.goal) {
-      this.showMenu();
-      if (how.race && this.races && this.races.code) this.races.open();
-      return;
-    }
-    const code = showCode(how.code);
-    this.doneTitle.textContent = 'Mission complete!';
-    this.doneText.textContent = 'You reached the goal of ' + code + (how.bonus ? ', and its bonus goal.' : '.');
-    this.donePanel.hidden = false;
-    this.doneButtons[0].focus();
+    this.showMenu();
+    if (how.race && this.races && this.races.code) this.races.open();
   }
+  // A new generated mission, as the random-mission panel is set, the one being played left.
   playAnother() {
-    this.donePanel.hidden = true;
     this.codeInput.value = '';
     this.randomNote.textContent = '';
     this.playCode();

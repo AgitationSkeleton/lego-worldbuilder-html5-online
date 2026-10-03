@@ -34,6 +34,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORK = os.path.join(ROOT, 'work')
 WB1_LIB_OFFSET = 6          # World Builder's cast libraries come after World Builder 2's six
 ONLINE_LIB = 13             # scripts written for the merged game (src/lingo/)
+# a generated mission's New Random Mission in the goal popups (random_bubbles): the channels
+# of its button and label in the goal's bubble, then the bonus's; and a bubble's extra row
+BUBBLE_CHANNELS = (170, 171, 172, 173)
+BUBBLE_ROW = 23
 WB2_WORLD_OFFSET = 5        # World Builder 2's worlds 1 and 2 are the merged game's 6 and 7
 
 RELAYOUT = """
@@ -219,6 +223,44 @@ PATCHES = {
          '  if member(ghostmember).memberNum = -1 then\n'
          '    if member(ghostmember & ".right").memberNum = -1 then\n      ghostmember = ghostmember & ".1"\n'
          '    else\n      ghostmember = ghostmember & ".right"\n    end if\n  end if\n')],
+    # A generated mission's goal and bonus bubbles have its own choices (random_bubbles):
+    # End Mission as Main Menu, New Random Mission under it, Go For Bonus Goal as ever; the
+    # bubble a row taller upwards (randomMission and newRandomMission: src/main.js).
+    ('wb2', 'Internal', 'goal popup menu behavior'): [
+        ('  pObj = VOID\n  pPlan = VOID\n  me.hide()\n',
+         '  ss[#new_button] = sprite(%d)\n  ss[#new_label] = sprite(%d)\n'
+         '  ss[#bonus_new_button] = sprite(%d)\n  ss[#bonus_new_label] = sprite(%d)\n'
+         '  pObj = VOID\n  pPlan = VOID\n  me.hide()\n' % BUBBLE_CHANNELS),
+        ('  pLocZ = glob.map_display.posToLocZ(pPos)\n',
+         '  pLocZ = glob.map_display.posToLocZ(pPos)\n  rnd = randomMission()\n'),
+        ('      ss[sl].loc = pLoc + sloc[sl]\n      ss[sl].locZ = pLocZ + 20\n',
+         '      ss[sl].loc = pLoc + sloc[sl]\n'
+         '      if rnd and ([#goal_bubble, #bonus_bubble, #continue_button, #continue_label].getPos(sl) = 0) then\n'
+         '        ss[sl].loc = ss[sl].loc - point(0, %d)\n      end if\n'
+         '      ss[sl].locZ = pLocZ + 20\n' % BUBBLE_ROW),
+        ('  ss.bonus_end_button.setmsg(#end)\nend\n',
+         '  if rnd then\n'
+         '    if pWhich = #goal then\n'
+         '      ss.new_button.loc = pLoc + sloc[#end_button]\n      ss.new_label.loc = pLoc + sloc[#end_label]\n'
+         '      ss.new_button.locZ = pLocZ + 20\n      ss.new_label.locZ = pLocZ + 20\n'
+         '    else\n'
+         '      ss.bonus_new_button.loc = pLoc + sloc[#bonus_end_button]\n      ss.bonus_new_label.loc = pLoc + sloc[#bonus_end_label]\n'
+         '      ss.bonus_new_button.locZ = pLocZ + 20\n      ss.bonus_new_label.locZ = pLocZ + 20\n'
+         '    end if\n'
+         '    ss.goal_bubble.member = member("goal_complete_bubble tall")\n'
+         '    ss.bonus_bubble.member = member("bonus_goal_complete_bubble tall")\n'
+         '    ss.end_label.member = member("label.bubble_main_menu")\n'
+         '    ss.bonus_end_label.member = member("label.bubble_main_menu")\n'
+         '  else\n'
+         '    ss.goal_bubble.member = member("goal_complete_bubble")\n'
+         '    ss.bonus_bubble.member = member("bonus_goal_complete_bubble")\n'
+         '    ss.end_label.member = member("label.end_mission")\n'
+         '    ss.bonus_end_label.member = member("label.end_mission")\n'
+         '  end if\n'
+         '  ss.bonus_end_button.setmsg(#end)\n'
+         '  ss.new_button.setmsg(#new_random)\n  ss.bonus_new_button.setmsg(#new_random)\nend\n'),
+        ('    #continue:\n      me.hide()\n',
+         '    #continue:\n      me.hide()\n    #new_random:\n      me.hide()\n      newRandomMission()\n')],
     # The unit info bubble's Close slides it 300 pixels right, behind the right-hand panel
     # (the layout keeps it beside the panel, as on the original stage), and leaves it there;
     # here it is put away too, out of sight whatever the panel's size.
@@ -479,6 +521,7 @@ def merge():
                                             foreColor=255, backColor=0)
 
     five_rows(out, frames, labels)
+    random_bubbles(out, frames, labels)
 
     out['score'] = frames
     out['labels'] = labels
@@ -488,6 +531,7 @@ def merge():
     out['casts'].append(dict(name='online', members=online))
 
     pack += separators_5(out, pack)
+    pack += bubbles_tall(out, pack)
     os.makedirs(os.path.join(ROOT, 'assets', 'merged'), exist_ok=True)
     with open(os.path.join(ROOT, 'data', 'merged.json'), 'w', encoding='utf-8') as fp:
         json.dump(out, fp, separators=(',', ':'), ensure_ascii=False)
@@ -553,6 +597,68 @@ def separators_5(out, pack):
     rec['png'] = [len(pack), len(data)]
     rec.pop('indices', None)
     add_member(out, 1, rec)
+    return data
+
+
+# A generated mission's goal and bonus bubbles (src/online/missions.js) have choices of
+# their own: End Mission as Main Menu (leaving one goes to the page's main menu), New Random
+# Mission, and the goal's Go For Bonus Goal. Each bubble is a button's row taller for New
+# Random Mission, upwards, its tail where it was (the goal popup menu behavior's show, in
+# PATCHES): 'goal_complete_bubble tall' and 'bonus_goal_complete_bubble tall' (bubbles_tall).
+# Channels 170 to 173 are New Random Mission's button and label in the goal's bubble, then
+# in the bonus's: the game's own buttons copied, with its button behavior (BUBBLE_CHANNELS).
+
+
+def random_bubbles(out, frames, labels):
+    play = frames[next(l['frame'] for l in labels if l['name'] == 'play') - 1]['sprites']
+    for ch in BUBBLE_CHANNELS:
+        assert str(ch) not in play, 'channel %d taken' % ch
+    refs = {}
+    for name, text in (('label.new_random_mission', 'NEW RANDOM MISSION'), ('label.bubble_main_menu', 'MAIN MENU')):
+        lab = copy.deepcopy(member_named(out, 'label.end_mission'))
+        lab['name'] = name
+        lab['text'] = text
+        # (one style and one paragraph, centred, for the whole of it)
+        lab['runs'] = [lab['runs'][0]]
+        lab['paraRuns'] = [lab['paraRuns'][0]]
+        refs[name] = add_member(out, find_ref(out, 'label.end_mission')[0], lab)
+    new_label = refs['label.new_random_mission']
+    goal_button, goal_label, bonus_button, bonus_label = (str(c) for c in BUBBLE_CHANNELS)
+    play[goal_button] = copy.deepcopy(play['147'])
+    play[goal_label] = dict(copy.deepcopy(play['148']), member=new_label)
+    play[bonus_button] = copy.deepcopy(play['154'])
+    play[bonus_label] = dict(copy.deepcopy(play['155']), member=new_label)
+
+
+def bubbles_tall(out, pack):
+    """The goal's and bonus's bubbles a button's row taller (see random_bubbles), as new
+    members; answers the PNGs' bytes, to go at the end of the pack."""
+    from PIL import Image
+    import io
+    data = b''
+    for name in ('goal_complete_bubble', 'bonus_goal_complete_bubble'):
+        rec0 = member_named(out, name)
+        off, ln = rec0['png']
+        im = Image.open(io.BytesIO(bytes(pack[off:off + ln]))).convert('RGBA')
+        w, h = im.size
+        cut = 50     # a row of the bubble's sides, below its corners and above its tail
+        tall = Image.new('RGBA', (w, h + BUBBLE_ROW), (0, 0, 0, 0))
+        tall.paste(im.crop((0, 0, w, cut)), (0, 0))
+        for i in range(BUBBLE_ROW):
+            tall.paste(im.crop((0, cut, w, cut + 1)), (0, cut + i))
+        tall.paste(im.crop((0, cut, w, h)), (0, cut + BUBBLE_ROW))
+        buf = io.BytesIO()
+        tall.save(buf, 'PNG')
+        png = buf.getvalue()
+        rec = copy.deepcopy(rec0)
+        rec['name'] = name + ' tall'
+        rec['height'] = h + BUBBLE_ROW
+        # (its tail's tip, where the bubble is placed, as low as it was)
+        rec['regY'] = rec0['regY'] + BUBBLE_ROW
+        rec['png'] = [len(pack) + len(data), len(png)]
+        rec.pop('indices', None)
+        add_member(out, find_ref(out, name)[0], rec)
+        data += png
     return data
 
 

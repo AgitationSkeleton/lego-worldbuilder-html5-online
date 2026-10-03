@@ -34,13 +34,14 @@ anchorRange(130, 140, 0.5, 0.5);  // the menu
 // The sprites that belong to the map, which zoom with it: the sky, what the scripts place
 // on the map with posToLoc (the unit highlight, the click spike, the build outline and its
 // plan, the action arrows, the goal and resource popups, the build and take-apart clouds,
-// the region a followed unit is kept inside), and the map's own sprites (channels 200
-// up, and the race ghosts after them).
+// the region a followed unit is kept inside; 170 to 173, a generated mission's New Random
+// Mission in the goal popups: tools/merge.py, random_bubbles), and the map's own sprites
+// (channels 200 up, and the race ghosts after them).
 const MAP_LAYER = new Set([1, 16, 29, 54, 56]);
-for (const [a, b] of [[57, 69], [111, 128], [143, 169]]) for (let c = a; c <= b; c++) MAP_LAYER.add(c);
+for (const [a, b] of [[57, 69], [111, 128], [143, 173]]) for (let c = a; c <= b; c++) MAP_LAYER.add(c);
 const MAP_CHANNELS = 200;
-const CLICK_SPIKE = 16;
-const HIGHLIGHT = 29;          // the arrow over the unit chosen (Highlight arrow behavior)        // the arrow a click on the map shows (click spike behavior)
+const CLICK_SPIKE = 16;        // the arrow a click on the map shows (click spike behavior)
+const HIGHLIGHT = 29;          // the arrow over the unit chosen (Highlight arrow behavior)
 // the map display's pool of sprites runs from channel 200 to 4000 (tools/merge.py): this
 // many may be the view's tiles, the rest kept for the units and piles on it
 const MAP_TILE_SPRITES = 3000;

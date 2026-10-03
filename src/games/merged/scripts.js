@@ -47,6 +47,8 @@ const $s_bonus_end_button = $L.sym("bonus_end_button");
 const $s_bonus_end_label = $L.sym("bonus_end_label");
 const $s_bonus_hed = $L.sym("bonus_hed");
 const $s_bonus_icon = $L.sym("bonus_icon");
+const $s_bonus_new_button = $L.sym("bonus_new_button");
+const $s_bonus_new_label = $L.sym("bonus_new_label");
 const $s_boolean = $L.sym("boolean");
 const $s_boulder = $L.sym("boulder");
 const $s_bounce = $L.sym("bounce");
@@ -265,6 +267,9 @@ const $s_musictrack2 = $L.sym("musicTrack2");
 const $s_mute = $L.sym("mute");
 const $s_mylocz = $L.sym("mylocz");
 const $s_name = $L.sym("name");
+const $s_new_button = $L.sym("new_button");
+const $s_new_label = $L.sym("new_label");
+const $s_new_random = $L.sym("new_random");
 const $s_next = $L.sym("next");
 const $s_nextattacktime = $L.sym("nextAttackTime");
 const $s_nextto = $L.sym("nextto");
@@ -1651,6 +1656,10 @@ const S1_121 = {
         $L.si(this.$.sloc, sn, $L.sub($L.gp($B.sprite(n), "loc"), $L.gp($B.sprite(n0), "loc")));
         n = $L.add(n, 1);
       }
+      $L.si(this.$.ss, $s_new_button, $B.sprite(170));
+      $L.si(this.$.ss, $s_new_label, $B.sprite(171));
+      $L.si(this.$.ss, $s_bonus_new_button, $B.sprite(172));
+      $L.si(this.$.ss, $s_bonus_new_label, $B.sprite(173));
       pobj = undefined;
       pplan = undefined;
       $L.mc(me, "hide");
@@ -1675,7 +1684,7 @@ const S1_121 = {
       }
     },
     show(me, pos, which) {
-      let i, ploc, plocz, sl, sprites;
+      let i, ploc, plocz, rnd, sl, sprites;
       if ($L.t($L.not($B.voidp(pos)))) {
         this.$.ppos = pos;
       }
@@ -1684,6 +1693,7 @@ const S1_121 = {
       }
       ploc = $L.mc($L.gp($G.glob, "map_display"), "postoloc", this.$.ppos);
       plocz = $L.mc($L.gp($G.glob, "map_display"), "postolocz", this.$.ppos);
+      rnd = $R.call(this, S1_121, "randommission");
       if ($L.t($L.eq(this.$.pwhich, $s_goal))) {
         sprites = $L.list([1, 8]);
       } else {
@@ -1694,6 +1704,9 @@ const S1_121 = {
         sl = $L.mc(this.$.ss, "getpropat", i);
         if ($L.t($L.and($L.ge(i, $L.gi(sprites, 1)), $L.le(i, $L.gi(sprites, 2))))) {
           $L.sp($L.gi(this.$.ss, sl), "loc", $L.add(ploc, $L.gi(this.$.sloc, sl)));
+          if ($L.t($L.and(rnd, $L.eq($L.mc($L.list([$s_goal_bubble, $s_bonus_bubble, $s_continue_button, $s_continue_label]), "getpos", sl), 0)))) {
+            $L.sp($L.gi(this.$.ss, sl), "loc", $L.sub($L.gp($L.gi(this.$.ss, sl), "loc"), $B.point(0, 23)));
+          }
           $L.sp($L.gi(this.$.ss, sl), "locz", $L.add(plocz, 20));
           continue;
         }
@@ -1701,7 +1714,31 @@ const S1_121 = {
       }
       $L.mc($L.gp(this.$.ss, "end_button"), "setmsg", $s_end);
       $L.mc($L.gp(this.$.ss, "continue_button"), "setmsg", $s_continue);
+      if ($L.t(rnd)) {
+        if ($L.t($L.eq(this.$.pwhich, $s_goal))) {
+          $L.sp($L.gp(this.$.ss, "new_button"), "loc", $L.add(ploc, $L.gi(this.$.sloc, $s_end_button)));
+          $L.sp($L.gp(this.$.ss, "new_label"), "loc", $L.add(ploc, $L.gi(this.$.sloc, $s_end_label)));
+          $L.sp($L.gp(this.$.ss, "new_button"), "locz", $L.add(plocz, 20));
+          $L.sp($L.gp(this.$.ss, "new_label"), "locz", $L.add(plocz, 20));
+        } else {
+          $L.sp($L.gp(this.$.ss, "bonus_new_button"), "loc", $L.add(ploc, $L.gi(this.$.sloc, $s_bonus_end_button)));
+          $L.sp($L.gp(this.$.ss, "bonus_new_label"), "loc", $L.add(ploc, $L.gi(this.$.sloc, $s_bonus_end_label)));
+          $L.sp($L.gp(this.$.ss, "bonus_new_button"), "locz", $L.add(plocz, 20));
+          $L.sp($L.gp(this.$.ss, "bonus_new_label"), "locz", $L.add(plocz, 20));
+        }
+        $L.sp($L.gp(this.$.ss, "goal_bubble"), "member", $B.member("goal_complete_bubble tall"));
+        $L.sp($L.gp(this.$.ss, "bonus_bubble"), "member", $B.member("bonus_goal_complete_bubble tall"));
+        $L.sp($L.gp(this.$.ss, "end_label"), "member", $B.member("label.bubble_main_menu"));
+        $L.sp($L.gp(this.$.ss, "bonus_end_label"), "member", $B.member("label.bubble_main_menu"));
+      } else {
+        $L.sp($L.gp(this.$.ss, "goal_bubble"), "member", $B.member("goal_complete_bubble"));
+        $L.sp($L.gp(this.$.ss, "bonus_bubble"), "member", $B.member("bonus_goal_complete_bubble"));
+        $L.sp($L.gp(this.$.ss, "end_label"), "member", $B.member("label.end_mission"));
+        $L.sp($L.gp(this.$.ss, "bonus_end_label"), "member", $B.member("label.end_mission"));
+      }
       $L.mc($L.gp(this.$.ss, "bonus_end_button"), "setmsg", $s_end);
+      $L.mc($L.gp(this.$.ss, "new_button"), "setmsg", $s_new_random);
+      $L.mc($L.gp(this.$.ss, "bonus_new_button"), "setmsg", $s_new_random);
     },
     button(me, msg) {
       {
@@ -1710,6 +1747,9 @@ const S1_121 = {
           $R.call(this, S1_121, "quitlevel");
         } else if ($L.eqb($t1, $s_continue)) {
           $L.mc(me, "hide");
+        } else if ($L.eqb($t1, $s_new_random)) {
+          $L.mc(me, "hide");
+          $R.call(this, S1_121, "newrandommission");
         }
       }
     },
