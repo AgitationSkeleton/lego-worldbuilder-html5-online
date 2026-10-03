@@ -178,13 +178,17 @@ PATCHES = {
          '      return 0\n'),
         ('', RELAYOUT),
     ],
-    # The unit info bubble's Close slides it 300 pixels right, which on the original stage
-    # puts it behind the right-hand panel. Here the panel is at the stage's right edge and
-    # the bubble in the middle, so it slides on until it is past the panel, and is put away.
+    # A plan picked up flies from where it lay on the map to the plans bar: where it lay is
+    # in the map's pixels, which a zoomed map draws smaller, so it is made the stage's.
+    ('wb2', 'Internal', 'build plan icon behavior'): [
+        ('  pSwoop = [#from: opt, #to: s.loc, #start: the milliSeconds, #class: class]\n',
+         '  pSwoop = [#from: opt * mapZoom(), #to: s.loc, #start: the milliSeconds, #class: class]\n')],
+    # The unit info bubble's Close slides it 300 pixels right, behind the right-hand panel
+    # (the layout keeps it beside the panel, as on the original stage), and leaves it there;
+    # here it is put away too, out of sight whatever the panel's size.
     ('wb2', 'Internal', 'unit info bubble behavior'): [
         ('      if pSlide.offset >= 350 then\n        pSlide = VOID\n      end if\n',
-         '      if pSlide.offset >= (350 + (((the stageRight - the stageLeft) - 610) / 2)) then\n'
-         '        me.hideAll()\n      end if\n')],
+         '      if pSlide.offset >= 350 then\n        me.hideAll()\n      end if\n')],
     # The map can be zoomed (src/online/layout.js): the two scripts that read the mouse
     # against the map's sprites read it on the map, in the map's pixels (mapMouseLoc, in
     # src/lingo/movie - layout.ls).
@@ -407,6 +411,11 @@ def merge():
 
     # The buttons between the two games' world maps
     jump_script = [ONLINE_LIB, sorted(os.listdir(os.path.join(ROOT, 'src', 'lingo'))).index('world jump button beh.ls') + 1]
+    if not member(out, 'label.main_menu'):
+        lab = copy.deepcopy(member(wb2, 'label.next'))
+        lab['name'] = 'label.main_menu'
+        lab['text'] = 'MAIN MENU'
+        add_member(out, 2, lab)
     for w in range(1, 8):
         game = 'wb1' if w <= 5 else 'wb2'
         text, target = JUMP_BUTTONS[game]
@@ -424,6 +433,13 @@ def merge():
                                         foreColor=255, backColor=0,
                                         behaviors=[jump_script + ['[#pTarget: "%s"]' % target]])
         fr['sprites'][str(free + 1)] = dict(member=label, ink=36, locH=JUMP_LOC[0], locV=JUMP_LOC[1] - 2, width=92, height=6,
+                                            foreColor=255, backColor=0)
+        # and above it, back to the page's main menu
+        menu_label = find_ref(out, 'label.main_menu')
+        fr['sprites'][str(free + 2)] = dict(member=button, ink=0, locH=JUMP_LOC[0], locV=JUMP_LOC[1] - 22, width=128, height=16,
+                                            foreColor=255, backColor=0,
+                                            behaviors=[jump_script + ['[#pTarget: "main menu"]']])
+        fr['sprites'][str(free + 3)] = dict(member=menu_label, ink=36, locH=JUMP_LOC[0], locV=JUMP_LOC[1] - 24, width=92, height=6,
                                             foreColor=255, backColor=0)
 
     out['score'] = frames

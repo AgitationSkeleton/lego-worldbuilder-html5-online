@@ -23,6 +23,7 @@
   inset: 0;
   z-index: 10;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   padding: 16px;
   box-sizing: border-box;
@@ -263,4 +264,26 @@
   #menu .body { flex-direction: column; }
   #menu nav { flex: none; width: 100%; }
   #menu .art { display: none; }
+}
+
+/* What next after a generated mission: its own two choices, no Done. */
+#random-done .actions { display: none; }
+
+/* The settings: each category on one row, its label beside its buttons or slider. */
+#settings .bubble { width: min(600px, 100%); }
+.panel .choices > button.choice { white-space: nowrap; }
+#settings section > .choices { flex-wrap: nowrap; }
+#settings .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 34px; }
+#settings .row .label { flex: 1 1 auto; min-width: 0; }
+#settings .row .choices { flex: none; flex-wrap: nowrap; }
+#settings .row .choices button.choice { min-width: 52px; }
+#settings input[type=range] { flex: 0 1 240px; min-width: 120px; accent-color: #33bb22; }
+@media (max-width: 520px) {
+  #settings .bubble { padding-left: 12px; padding-right: 12px; }
+  #settings .choices { gap: 4px; }
+  #settings button.choice { padding: 4px 6px; font-size: 11px; }
+  #settings .row .choices button.choice { min-width: 40px; }
+  /* (a row of choices shares the width out, a long name taking two lines) */
+  #settings section > .choices > button.choice { flex: 1 1 0; min-width: 0; white-space: normal; line-height: 1.15; padding: 4px 3px; }
+  #settings input[type=range] { flex-basis: 150px; min-width: 100px; }
 }

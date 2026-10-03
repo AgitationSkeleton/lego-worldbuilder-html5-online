@@ -28,7 +28,7 @@ anchorRange(22, 22, 0.5, 0);
 anchorRange(23, 23, 0.5, 1);
 anchorRange(30, 50, 0, 1);        // plan icons, their counters, the plan name
 anchorRange(72, 98, 1, 0);        // the selected unit's display and its buttons
-anchorRange(101, 106, 0.5, 0.5);  // the unit info bubble
+anchorRange(101, 106, 1, 0.5);    // the unit info bubble, beside the right-hand panel as in the original
 anchorRange(130, 140, 0.5, 0.5);  // the menu
 
 // The sprites that belong to the map, which zoom with it: the sky, what the scripts place
@@ -274,6 +274,12 @@ export function makeLayout(rt, options = {}) {
 const GROW = {
   // the frame around the map: as wide and tall as the map view
   'top_and_left_border': (s, b, ex, ey) => keepTopLeft(s, b, b.w + ex, b.h + ey),
+  // the plans bar runs on under the right-hand panel, as it does on the original stage: a
+  // plain column after its tenth slot is stretched, so the slots keep their places
+  'new_bottom_panel': (s, b, ex) => {
+    keepTopLeft(s, b, b.w + ex, b.h);
+    s.nine = { l: 488, t: 0, r: 34, b: 0 };
+  },
   // the right-hand panel's white and its rule run the stage's height
   'right panel white rect': (s, b, ex, ey) => { s.w = b.w; s.h = b.h + ey; },
   'right panel framing': (s, b, ex, ey) => {

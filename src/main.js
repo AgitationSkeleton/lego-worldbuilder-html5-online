@@ -9,6 +9,7 @@ import { Scores } from './online/scores.js';
 import { RandomMissions } from './online/missions.js';
 import { Races } from './online/race.js';
 import { MainMenu } from './online/menu.js';
+import { Controls } from './online/controls.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -76,8 +77,18 @@ async function main() {
     // generated missions (src/online/missions.js), and missions timed for the score tables
     // (src/online/scores.js), whose hooks go on after the generated missions' own
     window.__online = ui;
+    // the mouse's other buttons, smooth arrow keys, the menu's pause and the sounds'
+    // loudness (src/online/controls.js)
+    ui.controls = new Controls(rt, ui);
+    ui.controls.install(scripts.scripts);
+    ui.controls.installMouse(canvas);
+    ui.controls.installKeys();
+    ui.controls.applyVolumes();
+    // (the world maps' Main Menu button, src/lingo/world jump button beh.ls)
+    rt.builtins.showmainmenu = () => ui.showMenu();
     ui.random = new RandomMissions(rt);
     ui.random.install(scripts.scripts);
+    ui.random.onLeft = (how) => ui.randomLeft(how);
     ui.scores = new Scores(rt, ui, params);
     ui.scores.random = ui.random;
     ui.scores.install(scripts.scripts);

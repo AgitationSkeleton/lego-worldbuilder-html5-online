@@ -16,7 +16,20 @@ export const DEFAULTS = {
   size: 'medium',
   name: '',                 // the name on the score tables
   scores: 'ask',            // one of SEND_CHOICES
+  // loudness, 0 to 1, of the music, the game's sounds and the interface's (src/online/controls.js)
+  music: 0.8,
+  sound: 1,
+  ui: 1,
+  // controls (src/online/controls.js)
+  menuPauses: true,         // the game's Menu button holds the game still while its menu is open
+  panRight: true,           // the right mouse button drags the map
+  panMiddle: true,          // the middle one too
+  deselectRight: true,      // a right click puts down the unit chosen
+  smoothKeys: true,         // held arrow keys move the map smoothly
 };
+
+const VOLUMES = ['music', 'sound', 'ui'];
+const SWITCHES = ['menuPauses', 'panRight', 'panMiddle', 'deselectRight', 'smoothKeys'];
 
 export function loadSettings() {
   let saved = null;
@@ -30,6 +43,11 @@ export function loadSettings() {
   if (typeof s.name !== 'string') s.name = DEFAULTS.name;
   s.name = s.name.slice(0, 15);
   if (!SEND_CHOICES.includes(s.scores)) s.scores = DEFAULTS.scores;
+  for (const k of VOLUMES) {
+    const v = Number(s[k]);
+    s[k] = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : DEFAULTS[k];
+  }
+  for (const k of SWITCHES) if (typeof s[k] !== 'boolean') s[k] = DEFAULTS[k];
   return s;
 }
 

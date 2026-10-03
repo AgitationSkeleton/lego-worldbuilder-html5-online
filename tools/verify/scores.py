@@ -99,26 +99,21 @@ def main():
         check('and the overall table', name in mine, mine)
         page.screenshot(path=os.path.join(a.out, 'overall.png'))
 
-        # a generated mission has a table of its own
+        # a generated mission is not timed for the tables: no question, nothing sent
         page.keyboard.press('Escape')
         page.evaluate("""() => { const rt = window.__rt; const s = rt.movieHandlers.quitlevel.script;
             rt.call(rt.scriptSelf(s), s, 'quitlevel'); }""")
         page.evaluate('window.__step(5)')
+        page.evaluate("document.getElementById('scores-toast').hidden = true")
         problem = page.evaluate("window.__online.random.play('2C-K2Q9')")
         check('a generated mission starts from the world map', problem is None, str(problem))
         page.evaluate('window.__step(300)')
         page.evaluate(REPORT, 'goal')
-        page.wait_for_function("document.querySelector('#scores-toast .line') && /#\\d+ of \\d+|could not/.test(document.querySelector('#scores-toast .line').textContent)", timeout=10000)
-        check('its time is sent to its own table', page.inner_text('#scores-toast .line').startswith('#'), page.inner_text('#scores-toast'))
-        page.click('#scores-toast button.link')
-        page.wait_for_selector('#scores table', timeout=10000)
-        shown = page.eval_on_selector('#scores select', 'e => e.selectedOptions[0].textContent')
-        check('the tables show it', shown == 'Random 2C-K2Q9' and name in page.inner_text('#scores tr.me'), shown)
-        done = page.evaluate("window.__online.scores.bests['6.12']")
-        check('and it does not count as the template played', done is None, str(done))
-        page.keyboard.press('Escape')
+        page.evaluate('window.__step(5)')
+        check('its goal is not put to the tables', page.evaluate("document.getElementById('scores-toast').hidden"))
+        check('nor kept as a best', page.evaluate("Object.keys(window.__online.scores.bests).every(k => !k.startsWith('R-'))"))
         page.evaluate("""() => { const rt = window.__rt; const s = rt.movieHandlers.quitlevel.script;
-            rt.call(rt.scriptSelf(s), s, 'quitlevel'); }""")
+            window.__online.random.quietly(() => rt.call(rt.scriptSelf(s), s, 'quitlevel')); }""")
         page.evaluate('window.__step(5)')
 
         # the tutorial is not timed

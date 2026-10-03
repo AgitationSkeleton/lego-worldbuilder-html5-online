@@ -128,6 +128,8 @@ export class Scores {
     const ms = Math.round(this.rt.millis() - a.start);
     a[kind] = ms;
     for (const f of this.listeners) f(kind, ms, a.mission);
+    // a generated mission is timed for a race on it, but not kept, asked about or tabled
+    if (a.mission.startsWith('R-')) return;
     const mine = this.bests[a.mission] || (this.bests[a.mission] = {});
     const prev = mine[kind];
     if (prev === undefined || ms < prev) mine[kind] = ms;

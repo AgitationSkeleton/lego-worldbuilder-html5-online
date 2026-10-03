@@ -12,6 +12,12 @@ export class RandomMissions {
   constructor(rt) {
     this.rt = rt;
     this.active = null;     // the generated mission being played: { code, world, mission, saved }
+    // Told when the game itself leaves a generated mission (its End Mission, its menu's
+    // quit), with {code, goal, bonus}: the page offers what next, where the game would go
+    // back to the world map whose look the mission had. Leaving it from the page (a race,
+    // the main menu) is done quietly.
+    this.onLeft = null;
+    this.quiet = 0;
   }
 
   // Hooks into the game's scripts, before the runtime binds them (and before the scores'
@@ -22,16 +28,24 @@ export class RandomMissions {
       if (s.handlers.quitlevel && s.type === 'movie') {
         const quit = s.handlers.quitlevel;
         s.handlers.quitlevel = function (restartp, ...rest) {
+          const left = self.active;
           const r = quit.call(this, restartp, ...rest);
           // (a restart quits and starts again: the generated mission stays)
-          if (!L.t(restartp)) self.restore();
+          if (!L.t(restartp)) {
+            self.restore();
+            if (left && !self.quiet && self.onLeft) self.onLeft({ code: left.code, goal: !!left.goal, bonus: !!left.bonus });
+          }
           return r;
         };
       }
       if (s.name === 'worlds manager' && s.handlers.reportsuccess) {
         const report = s.handlers.reportsuccess;
         s.handlers.reportsuccess = function (...args) {
-          if (self.active) return undefined;
+          if (self.active) {
+            const kind = args[1] instanceof L.LSymbol ? args[1].key.toLowerCase() : '';
+            if (kind === 'goal' || kind === 'bonus') self.active[kind] = true;
+            return undefined;
+          }
           return report.apply(this, args);
         };
       }
@@ -99,12 +113,18 @@ export class RandomMissions {
     // (a tutorial under way is ended, so that the race is not played in its layout)
     const tutorial = glob && L.gp(glob, 'tutorial_manager');
     if (tutorial instanceof L.LInstance && L.t(L.gi(glob, L.sym('tutorialMode')))) L.mc(tutorial, 'settutorialmode', 0);
-    if (glob && L.gp(glob, 'map_display') !== undefined) call('quitlevel');
+    if (glob && L.gp(glob, 'map_display') !== undefined) this.quietly(() => call('quitlevel'));
     if (!/^world \d$/.test(rt.labelAt(rt.frame) || '')) rt.go('world 1');
     if (mission.startsWith('R-')) return this.play(mission.slice(2));
     const [w, l] = mission.split('.').map(Number);
     call('golevel', w, l);
     return null;
+  }
+
+  // Leaves the mission being played without telling onLeft (the page is leaving it).
+  quietly(f) {
+    this.quiet++;
+    try { return f(); } finally { this.quiet--; }
   }
 
   // The template's own text and name back.

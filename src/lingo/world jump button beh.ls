@@ -24,8 +24,13 @@ on mouseDown me
   end if
 end
 
+-- (the target "main menu" is the page's main menu, showMainMenu(), src/main.js)
 on mouseUp me
   pSprite.member = pMember
   SndSFX("sfx_interface_click_button")
-  go(pTarget)
+  if pTarget = "main menu" then
+    showMainMenu()
+  else
+    go(pTarget)
+  end if
 end

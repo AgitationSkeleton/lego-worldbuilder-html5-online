@@ -18,7 +18,14 @@ export class MainMenu {
   }
 
   build() {
-    const button = (text, cls, f) => el('button', { type: 'button', class: 'btn ' + cls, text, disabled: '', onclick: () => this.choose(f) });
+    // (the game's own interface sounds: the rollover's as the mouse comes onto a button or
+    // the keys move to one, the click's as one is pressed)
+    const button = (text, cls, f) => {
+      const b = el('button', { type: 'button', class: 'btn ' + cls, text, disabled: '', onclick: () => this.choose(f) });
+      b.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse' && !b.disabled) this.sfx('sfx_interface_rollover'); });
+      b.addEventListener('focus', () => { if (!this.quiet && b.matches(':focus-visible')) this.sfx('sfx_interface_rollover'); });
+      return b;
+    };
     this.buttons = [
       button('Campaign', 'primary', () => this.ui.enterGame()),
       button('Random mission', '', () => this.ui.openRandom()),
@@ -50,19 +57,31 @@ export class MainMenu {
     this.ready = true;
     this.status.textContent = '';
     for (const b of this.buttons) b.removeAttribute('disabled');
+    this.focusFirst();
+  }
+
+  // (focused without a sound: the menu shown, not the keys moving)
+  focusFirst() {
+    this.quiet = true;
     this.buttons[0].focus();
+    this.quiet = false;
+  }
+
+  sfx(name) {
+    if (this.ui.controls) this.ui.controls.sfx(name);
   }
 
   choose(f) {
     // (the first click: sound may start now)
     this.ui.rt.sound.resume();
+    this.sfx('sfx_interface_click_button');
     f();
   }
 
   get shown() { return !this.root.hidden; }
   show() {
     this.root.hidden = false;
-    if (this.ready) this.buttons[0].focus();
+    if (this.ready) this.focusFirst();
   }
   hide() { this.root.hidden = true; }
 }

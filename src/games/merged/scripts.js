@@ -1245,7 +1245,7 @@ const S1_115 = {
           this.$.pslide = undefined;
         } else if ($L.eqb($t2, $s_out)) {
           $L.sp(this.$.pslide, "offset", $L.add($L.gp(this.$.pslide, "offset"), 50));
-          if ($L.t($L.ge($L.gp(this.$.pslide, "offset"), $L.add(350, $L.div($L.sub($L.sub($R.the("stageright"), $R.the("stageleft")), 610), 2))))) {
+          if ($L.t($L.ge($L.gp(this.$.pslide, "offset"), 350))) {
             $L.mc(me, "hideall");
           }
         }
@@ -2042,7 +2042,7 @@ const S1_142 = {
       }
     },
     setplanlater(me, class_, opt) {
-      this.$.pswoop = $L.plist([$s_from, opt, $s_to, $L.gp(this.$.s, "loc"), $s_start, $R.the("milliseconds"), $s_class, class_]);
+      this.$.pswoop = $L.plist([$s_from, $L.mul(opt, $R.call(this, S1_142, "mapzoom")), $s_to, $L.gp(this.$.s, "loc"), $s_start, $R.the("milliseconds"), $s_class, class_]);
       $L.sp(this.$.s, "loc", $L.gp(this.$.pswoop, "from"));
       $L.sp(this.$.s, "member", "icon.plan_noshadow");
     },
@@ -11638,7 +11638,11 @@ const S13_2 = {
     mouseup(me) {
       $L.sp(this.$.psprite, "member", this.$.pmember);
       $R.call(this, S13_2, "sndsfx", "sfx_interface_click_button");
-      $B.go(this.$.ptarget);
+      if ($L.t($L.eq(this.$.ptarget, "main menu"))) {
+        $R.call(this, S13_2, "showmainmenu");
+      } else {
+        $B.go(this.$.ptarget);
+      }
     },
   },
 };

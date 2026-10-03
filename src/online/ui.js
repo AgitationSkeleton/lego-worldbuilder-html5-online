@@ -80,6 +80,30 @@ export class OnlineUI {
       this.settings.name = n;
       this.save();
     });
+    // Sound: a slider for each kind's loudness (src/online/controls.js); the sounds' sliders
+    // play one as they are let go.
+    const slider = (key, sample) => {
+      const input = el('input', { type: 'range', min: '0', max: '100', step: '1', 'aria-label': key });
+      input.addEventListener('input', () => { this.settings[key] = Number(input.value) / 100; this.save(); this.applySound(); });
+      if (sample) input.addEventListener('change', () => this.controls && this.controls.sfx(sample));
+      return input;
+    };
+    this.sliders = {
+      music: slider('music'),
+      sound: slider('sound', 'sfx_game_assembly'),
+      ui: slider('ui', 'sfx_interface_click_button'),
+    };
+    // Controls: an On and an Off for each switch.
+    this.switches = {};
+    const toggle = (key) => {
+      const b = [true, false].map((on) => el('button', {
+        type: 'button', class: 'choice', text: on ? 'On' : 'Off', 'data-on': String(on),
+        onclick: () => { this.settings[key] = on; this.save(); },
+      }));
+      this.switches[key] = b;
+      return el('div', { class: 'choices' }, ...b);
+    };
+    const row = (label, control) => el('div', { class: 'row' }, el('span', { class: 'label', text: label }), control);
     this.randomDifficulty = el('select', { 'aria-label': 'Difficulty' },
       el('option', { value: '', text: 'Any difficulty' }),
       el('option', { value: '1', text: 'Easy: one gate' }),
@@ -103,6 +127,18 @@ export class OnlineUI {
         el('div', { class: 'choices' }, ...this.sizeButtons)),
       fullRow,
       el('section', null,
+        el('h3', { text: 'Sound' }),
+        row('Music', this.sliders.music),
+        row('Sounds', this.sliders.sound),
+        row('Interface sounds', this.sliders.ui)),
+      el('section', null,
+        el('h3', { text: 'Controls' }),
+        row('Menu Button Pauses Game', toggle('menuPauses')),
+        row('Mouse 2 Camera Pan', toggle('panRight')),
+        row('Mouse 3 Camera Pan', toggle('panMiddle')),
+        row('Mouse 2 Deselect', toggle('deselectRight')),
+        row('Smooth Arrow-Key Camera', toggle('smoothKeys'))),
+      el('section', null,
         el('h3', { text: 'Score tables' }),
         el('p', { text: 'Each mission is timed to its goal and to its bonus goal. Your best times are kept in this browser; these say whether they go on the tables everyone sees.' }),
         el('div', { class: 'choices' }, ...this.sendButtons),
@@ -122,16 +158,26 @@ export class OnlineUI {
         el('button', { type: 'button', class: 'choice', text: 'Copy link', onclick: () => this.copyLink() })),
       this.randomNote);
     this.buildTables();
+    this.doneButtons = [
+      el('button', { type: 'button', class: 'choice', text: 'New random mission', onclick: () => this.playAnother() }),
+      el('button', { type: 'button', class: 'choice', text: 'Main menu', onclick: () => this.showMenu() }),
+    ];
+    this.doneText = el('p');
+    this.donePanel = dialog('random-done', 'Mission complete!', () => this.showMenu(),
+      this.doneText, el('div', { class: 'choices' }, ...this.doneButtons));
+    this.doneTitle = this.donePanel.querySelector('h2');
     document.addEventListener('fullscreenchange', () => this.render());
-    document.body.append(this.gear, this.panel, this.randomPanel, this.tables);
+    document.body.append(this.gear, this.panel, this.randomPanel, this.tables, this.donePanel);
+    // the panels' buttons click as the game's own do
+    document.addEventListener('click', (e) => {
+      if (e.target instanceof Element && e.target.closest('.panel button') && this.controls) this.controls.sfx('sfx_interface_click_button');
+    }, true);
     this.render();
   }
   buildTables() {
     this.worldSelect = el('select', { 'aria-label': 'World' },
       ...WORLD_NAMES.map((n, i) => el('option', { value: String(i + 1), text: n })),
       el('option', { value: 'all', text: 'All missions' }));
-    this.randomOption = el('option', { value: '', text: '', hidden: '' });
-    this.worldSelect.append(this.randomOption);
     this.missionSelect = el('select', { 'aria-label': 'Mission' });
     this.worldSelect.addEventListener('change', () => { this.fillMissions(); this.showTable(); });
     this.missionSelect.addEventListener('change', () => this.showTable());
@@ -142,7 +188,7 @@ export class OnlineUI {
   }
   fillMissions(selected) {
     const w = this.worldSelect.value;
-    this.missionSelect.hidden = w === 'all' || w.startsWith('R-');
+    this.missionSelect.hidden = w === 'all';
     if (this.missionSelect.hidden) return;
     this.missionSelect.replaceChildren(...Array.from({ length: 12 }, (_, i) => {
       const mission = w + '.' + (i + 1);
@@ -171,7 +217,7 @@ export class OnlineUI {
           : el('p', { text: 'No one is on the tables yet.' }));
         return;
       }
-      const mission = w.startsWith('R-') ? w : this.missionSelect.value;
+      const mission = this.missionSelect.value;
       const t = await scores.table(mission);
       if (ask !== this.asked) return;
       const mine = scores.bests[mission] || {};
@@ -186,17 +232,11 @@ export class OnlineUI {
   }
   openTables(mission) {
     this.panel.hidden = true;
-    const m = mission || (this.scores && this.scores.attempt && this.scores.attempt.mission) || '1.1';
+    let m = mission || (this.scores && this.scores.attempt && this.scores.attempt.mission) || '1.1';
+    // (generated missions are not on the tables)
+    if (m.startsWith('R-')) m = '1.1';
     const w = m.split('.')[0];
-    if (m.startsWith('R-')) {
-      // a generated mission's tables: an entry of its own in the list
-      this.randomOption.value = m;
-      this.randomOption.textContent = 'Random ' + showCode(m.slice(2));
-      this.randomOption.hidden = false;
-      this.worldSelect.value = m;
-    } else {
-      this.worldSelect.value = WORLD_NAMES[w - 1] ? w : '1';
-    }
+    this.worldSelect.value = WORLD_NAMES[w - 1] ? w : '1';
     this.fillMissions(m);
     this.tables.hidden = false;
     this.missionSelect.focus();
@@ -210,12 +250,17 @@ export class OnlineUI {
     const size = this.forcedScale ? null : this.settings.size;
     for (const b of this.sizeButtons) b.setAttribute('aria-pressed', String(b.dataset.key === size));
     for (const b of this.sendButtons) b.setAttribute('aria-pressed', String(b.dataset.key === this.settings.scores));
+    for (const [key, input] of Object.entries(this.sliders)) {
+      if (document.activeElement !== input) input.value = String(Math.round(this.settings[key] * 100));
+    }
+    for (const [key, buttons] of Object.entries(this.switches)) {
+      for (const b of buttons) b.setAttribute('aria-pressed', String((b.dataset.on === 'true') === !!this.settings[key]));
+    }
     this.fullButton.setAttribute('aria-pressed', String(!!document.fullscreenElement));
     if (document.activeElement !== this.nameInput) this.nameInput.value = this.settings.name;
     if (this.random) {
       const a = this.random.active;
       if (a) {
-        this.codeInput.value = showCode(a.code);
         this.randomNote.textContent = 'Playing ' + showCode(a.code) + '.';
       } else if (!this.random.canPlay()) {
         this.randomNote.textContent = 'A random mission starts from a world map.';
@@ -223,6 +268,9 @@ export class OnlineUI {
         this.randomNote.textContent = '';
       }
     }
+  }
+  applySound() {
+    if (this.controls) this.controls.applyVolumes();
   }
   save() {
     saveSettings(this.settings);
@@ -254,9 +302,10 @@ export class OnlineUI {
     }
     this.closeRandom();
   }
+  // (blank unless a code is given: Play with no code makes a new mission and starts it)
   openRandom(code) {
     this.panel.hidden = true;
-    if (code) this.codeInput.value = code;
+    this.codeInput.value = code || '';
     this.render();
     this.randomPanel.hidden = false;
     this.codeInput.focus();
@@ -288,9 +337,31 @@ export class OnlineUI {
     const glob = rt.started && rt.globals.glob;
     if (glob && this.random && rt.labelAt(rt.frame) === 'play') {
       const main = rt.movieHandlers.quitlevel.script;
-      rt.call(rt.scriptSelf(main), main, 'quitlevel');
+      this.random.quietly(() => rt.call(rt.scriptSelf(main), main, 'quitlevel'));
     }
+    this.donePanel.hidden = true;
     if (this.menu) this.menu.show();
+  }
+  // A generated mission left by the game itself (its End Mission, its menu's quit): rather
+  // than the world map whose look it had, a new one or the main menu. (Not in a race, which
+  // has its own end.)
+  randomLeft(how) {
+    if (this.races && this.races.racing && this.races.racing.started) return;
+    const code = showCode(how.code);
+    this.doneTitle.textContent = how.goal ? 'Mission complete!' : 'Mission left';
+    this.doneText.textContent = how.goal
+      ? 'You reached the goal of ' + code + (how.bonus ? ', and its bonus goal.' : '.')
+      : 'You left ' + code + '.';
+    this.donePanel.hidden = false;
+    this.doneButtons[0].focus();
+  }
+  playAnother() {
+    this.donePanel.hidden = true;
+    this.codeInput.value = '';
+    this.randomNote.textContent = '';
+    this.playCode();
+    // (if it could not start, the random-mission panel says why)
+    if (this.randomNote.textContent) this.openRandom();
   }
   // Focus back where it belongs: the menu if it is up, else the game.
   focusGame() {
