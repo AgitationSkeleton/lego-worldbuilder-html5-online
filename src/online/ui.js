@@ -105,10 +105,10 @@ export class OnlineUI {
     };
     const row = (label, control) => el('div', { class: 'row' }, el('span', { class: 'label', text: label }), control);
     this.randomDifficulty = el('select', { 'aria-label': 'Difficulty' },
-      el('option', { value: '', text: 'Any difficulty' }),
-      el('option', { value: '1', text: 'Easy: one gate' }),
-      el('option', { value: '2', text: 'Harder: two gates' }),
-      el('option', { value: '3', text: 'Hardest: two gates, more to haul' }));
+      el('option', { value: '1', text: 'Easy' }),
+      el('option', { value: '2', text: 'Medium' }),
+      el('option', { value: '3', text: 'Hard' }),
+      el('option', { value: '', text: 'Random', selected: '' }));
     this.randomLook = el('select', { 'aria-label': 'Look' },
       el('option', { value: '', text: 'Any look' }),
       el('option', { value: 'A', text: 'Grassland' }),
@@ -137,7 +137,8 @@ export class OnlineUI {
         row('Mouse 2 Camera Pan', toggle('panRight')),
         row('Mouse 3 Camera Pan', toggle('panMiddle')),
         row('Mouse 2 Deselect', toggle('deselectRight')),
-        row('Smooth Arrow-Key Camera', toggle('smoothKeys'))),
+        row('Smooth Arrow-Key Camera', toggle('smoothKeys')),
+        row('Smooth Unit Movement', toggle('smoothUnits'))),
       el('section', null,
         el('h3', { text: 'Score tables' }),
         el('p', { text: 'Each mission is timed to its goal and to its bonus goal. Your best times are kept in this browser; these say whether they go on the tables everyone sees.' }),
@@ -149,7 +150,6 @@ export class OnlineUI {
         el('div', { class: 'choices' },
           el('button', { type: 'button', class: 'choice', text: 'Main menu', onclick: () => this.showMenu() }))));
     this.randomPanel = dialog('random', 'Random mission', () => this.closeRandom(),
-      el('p', { text: 'A new mission, made to be solved: regions joined by gates of rocky ground, water or trees, each passed only by the right unit, built from bricks you haul to it. Every mission is played through before you get it. The same code makes the same mission, so a code can be shared.' }),
       el('div', { class: 'choices pick' }, this.randomDifficulty, this.randomLook),
       el('div', { class: 'choices pick' }, this.codeInput),
       el('div', { class: 'choices' },

@@ -39,7 +39,8 @@ anchorRange(130, 140, 0.5, 0.5);  // the menu
 const MAP_LAYER = new Set([1, 16, 29, 54, 56]);
 for (const [a, b] of [[57, 69], [111, 128], [143, 169]]) for (let c = a; c <= b; c++) MAP_LAYER.add(c);
 const MAP_CHANNELS = 200;
-const CLICK_SPIKE = 16;        // the arrow a click on the map shows (click spike behavior)
+const CLICK_SPIKE = 16;
+const HIGHLIGHT = 29;          // the arrow over the unit chosen (Highlight arrow behavior)        // the arrow a click on the map shows (click spike behavior)
 // the map display's pool of sprites runs from channel 200 to 4000 (tools/merge.py): this
 // many may be the view's tiles, the rest kept for the units and piles on it
 const MAP_TILE_SPRITES = 3000;
@@ -55,8 +56,10 @@ export function makeLayout(rt, options = {}) {
     const md = L.gp(glob, 'map_display');
     return md instanceof L.LInstance ? md : null;
   };
+  const smooth = options.smooth || (() => false);
   const layout = {
     zoom: 1,
+    glides: new Map(),      // sprite -> {prev, cur}: see glideFrame
     // The map's zoom for a sprite of it (1 for the interface, and in the tutorial, which
     // points at the original layout).
     zoomOf(s) {
@@ -177,6 +180,17 @@ export function makeLayout(rt, options = {}) {
     // scale.
     install(scripts) {
       for (const s of scripts) {
+        // the game's own scrolling (its arrows, keys, following a unit) carries what is on
+        // the map along with it at once, as a drag does (carryMap): the page draws between
+        // the game's frames, and the units would otherwise wait for the next to follow
+        if (s.name === 'map display manager' && s.handlers.scrollmap) {
+          const scroll = s.handlers.scrollmap;
+          s.handlers.scrollmap = function (...args) {
+            let r;
+            layout.carryMap(() => { r = scroll.apply(this, args); });
+            return r;
+          };
+        }
         if (s.type !== 'movie' || !s.handlers.startlevel) continue;
         const start = s.handlers.startlevel;
         s.handlers.startlevel = function (...args) {
@@ -203,6 +217,62 @@ export function makeLayout(rt, options = {}) {
       const [ax, ay] = a || this.uiAnchor(x, y);
       return [Math.round(ax * (rt.stage.width - BASE_W)), Math.round(ay * (rt.stage.height - BASE_H))];
     },
+    // Smoother movement (a setting): the game moves its units and monsters only at its
+    // frames, fifteen a second, a step at a time; drawn between the frames as well, each
+    // glides from where it was at the frame before to where it is (a frame behind, so as
+    // to know where it is going). Where they are is taken from the map's corner, so that
+    // the map moving (scrolled, dragged) is not taken for them moving; a jump further than
+    // a tile is not glided.
+    glideFrame() {
+      if (rt.ticks === this.glideTick) return;
+      this.glideTick = rt.ticks;
+      const md = mapDisplay();
+      if (!md || !smooth() || !layout.drawsBetween()) { this.glides.clear(); return; }
+      const corner = L.mc(md, 'postoloc', L.list([0, 0]));
+      const seen = new Set();
+      for (const s of this.gliders()) {
+        seen.add(s);
+        const at = [s.locH - corner.h, s.locV - corner.v];
+        const g = this.glides.get(s);
+        const prev = g ? g.cur : at;
+        const far = Math.abs(prev[0] - at[0]) > 60 || Math.abs(prev[1] - at[1]) > 60 || this.parked(s);
+        this.glides.set(s, { prev: far ? at : prev, cur: at });
+      }
+      for (const s of this.glides.keys()) if (!seen.has(s)) this.glides.delete(s);
+    },
+    // (the sprites of the units, monsters and what else is on the map, and the arrow over
+    // the unit chosen, which follows it)
+    gliders() {
+      const glob = rt.globals.glob;
+      const out = [];
+      const objects = glob && L.gp(glob, 'objects');
+      if (objects && objects.a) {
+        for (const o of objects.a) {
+          const ps = o instanceof L.LInstance ? L.gp(o, 'psprites') : null;
+          if (ps && ps.v) for (const s of ps.v) if (s && s.channel) out.push(s);
+        }
+      }
+      if (rt.sprites[HIGHLIGHT]) out.push(rt.sprites[HIGHLIGHT]);
+      return out;
+    },
+    drawsBetween() {
+      return !rt.testMode;
+    },
+    glidePart() {
+      return Math.min(1, (performance.now() - (rt.tickAt || 0)) * rt.tempo() / 1000);
+    },
+    drawOffset(s) {
+      if (!this.glides.size) return null;
+      const g = this.glides.get(s);
+      if (!g || (g.prev[0] === g.cur[0] && g.prev[1] === g.cur[1])) return null;
+      const k = 1 - this.glidePart();
+      return k > 0 ? [(g.prev[0] - g.cur[0]) * k, (g.prev[1] - g.cur[1]) * k] : null;
+    },
+    wantsDraw() {
+      if (!this.glides.size || this.glidePart() >= 1) return false;
+      for (const g of this.glides.values()) if (g.prev[0] !== g.cur[0] || g.prev[1] !== g.cur[1]) return true;
+      return false;
+    },
     // The games hide a sprite by putting it at (1000, 1000), past the edges of their
     // 610 x 440 stage (once, at (10000, 10000)). The stage here can be bigger, and the map
     // zoomed out brings that point into view: such a sprite is left undrawn.
@@ -215,7 +285,16 @@ export function makeLayout(rt, options = {}) {
     // units, piles and popups keep to the terrain while the map moves.
     carryMap(move) {
       const md = mapDisplay();
-      if (!md) { move(); return; }
+      // (once: a move inside another, scrollmap inside a drag, is carried by the outer one)
+      if (!md || this.carrying) { move(); return; }
+      this.carrying = true;
+      try {
+        this.carryMapOnce(md, move);
+      } finally {
+        this.carrying = false;
+      }
+    },
+    carryMapOnce(md, move) {
       const corner = () => L.mc(md, 'postoloc', L.list([0, 0]));
       const before = corner();
       move();
@@ -301,6 +380,7 @@ export function makeLayout(rt, options = {}) {
     beforeDraw() {
       if (rt.labelAt(rt.frame) !== 'play') return;
       this.held();
+      this.glideFrame();
       const sky = rt.sprites[1];
       if (sky && sky.member && sky.member.width) {
         const m = sky.member;

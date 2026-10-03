@@ -58,7 +58,7 @@ async function main() {
     // The online game fills the window (src/online/layout.js), at the interface size its
     // settings ask for (src/online/ui.js).
     const ui = new OnlineUI(rt, canvas);
-    rt.layout = makeLayout(rt, { maxScale: () => ui.maxScale() });
+    rt.layout = makeLayout(rt, { maxScale: () => ui.maxScale(), smooth: () => ui.settings.smoothUnits });
     rt.layout.install(scripts.scripts);
     // and a finger does what the mouse did (src/online/touch.js); two pinch the map's zoom
     // in a mission, the interface's size elsewhere

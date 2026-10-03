@@ -26,10 +26,11 @@ export const DEFAULTS = {
   panMiddle: true,          // the middle one too
   deselectRight: true,      // a right click puts down the unit chosen
   smoothKeys: true,         // held arrow keys move the map smoothly
+  smoothUnits: true,        // units and monsters glide between the game's frames (layout.js)
 };
 
 const VOLUMES = ['music', 'sound', 'ui'];
-const SWITCHES = ['menuPauses', 'panRight', 'panMiddle', 'deselectRight', 'smoothKeys'];
+const SWITCHES = ['menuPauses', 'panRight', 'panMiddle', 'deselectRight', 'smoothKeys', 'smoothUnits'];
 
 export function loadSettings() {
   let saved = null;
