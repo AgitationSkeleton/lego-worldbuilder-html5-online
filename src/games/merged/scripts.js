@@ -2150,7 +2150,11 @@ const S1_142 = {
       }
       ghostmember = $L.cat($L.cat($L.gi(this.$.pclass, 1), "."), $L.gi(this.$.pclass, 2));
       if ($L.t($L.eq($L.gp($B.member(ghostmember), "membernum"), (-1)))) {
-        ghostmember = $L.cat(ghostmember, ".right");
+        if ($L.t($L.eq($L.gp($B.member($L.cat(ghostmember, ".right")), "membernum"), (-1)))) {
+          ghostmember = $L.cat(ghostmember, ".1");
+        } else {
+          ghostmember = $L.cat(ghostmember, ".right");
+        }
       }
       if ($L.t($L.and(res, ter))) {
         t = $L.cat($L.cats($L.cats("You can build", $L.gi(this.$.pclass, 2)), "here."), "\r");

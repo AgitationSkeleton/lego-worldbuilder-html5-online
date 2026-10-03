@@ -210,7 +210,15 @@ PATCHES = {
     # in the map's pixels, which a zoomed map draws smaller, so it is made the stage's.
     ('wb2', 'Internal', 'build plan icon behavior'): [
         ('  pSwoop = [#from: opt, #to: s.loc, #start: the milliSeconds, #class: class]\n',
-         '  pSwoop = [#from: opt * mapZoom(), #to: s.loc, #start: the milliSeconds, #class: class]\n')],
+         '  pSwoop = [#from: opt * mapZoom(), #to: s.loc, #start: the milliSeconds, #class: class]\n'),
+        # A plan being placed shows a ghost of what it builds: the kind's own picture, or
+        # its picture facing right; the windmill has neither, only its sails' four turns
+        # (building.windmill.1 to 4), and showed none. No mission of the games' own has a
+        # windmill's plan; a generated one may. The first turn is shown.
+        ('  if member(ghostmember).memberNum = -1 then\n    ghostmember = ghostmember & ".right"\n  end if\n',
+         '  if member(ghostmember).memberNum = -1 then\n'
+         '    if member(ghostmember & ".right").memberNum = -1 then\n      ghostmember = ghostmember & ".1"\n'
+         '    else\n      ghostmember = ghostmember & ".right"\n    end if\n  end if\n')],
     # The unit info bubble's Close slides it 300 pixels right, behind the right-hand panel
     # (the layout keeps it beside the panel, as on the original stage), and leaves it there;
     # here it is put away too, out of sight whatever the panel's size.
