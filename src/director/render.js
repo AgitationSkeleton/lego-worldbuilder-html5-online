@@ -115,11 +115,15 @@ export class Renderer {
       // put out of sight past the edges of its own stage)
       if (rt.layout && rt.layout.parked && rt.layout.parked(s)) continue;
       const z = rt.zoomOf(s);
-      if (z === 1) {
+      // (not Director's: a page may draw a sprite a little off where it is, gliding it
+      // between the frames; see layout.drawOffset)
+      const off = rt.layout && rt.layout.drawOffset ? rt.layout.drawOffset(s) : null;
+      if (z === 1 && !off) {
         this.drawSprite(ctx, s);
       } else {
         ctx.save();
-        ctx.scale(z, z);
+        if (z !== 1) ctx.scale(z, z);
+        if (off) ctx.translate(off[0], off[1]);
         this.drawSprite(ctx, s);
         ctx.restore();
       }

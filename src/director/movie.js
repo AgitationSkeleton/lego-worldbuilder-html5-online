@@ -637,6 +637,10 @@ export class Runtime {
     this.goTarget = null;
     if (next > this.frameCount()) next = 1;   // the end of the score loops, as a projector does
     this.enterScoreFrame(next);
+    // (how many frames have been played, and when the last began: a page drawing between
+    // frames goes by these)
+    this.ticks = (this.ticks || 0) + 1;
+    this.tickAt = performance.now();
     if (!this.paused) this.stepActors();
     this.frameEvent('prepareframe');
     // Director draws the stage here, after prepareFrame: what enterFrame, the idle time's
@@ -698,7 +702,9 @@ export class Runtime {
       }
       this.sound.pump();
       this.updateCursor();
-      if (this.needsDraw) {
+      // (a page may want every refresh of the screen drawn, between the frames: see
+      // layout.wantsDraw)
+      if (this.needsDraw || (this.layout && this.layout.wantsDraw && this.layout.wantsDraw())) {
         this.renderer.resize();
         this.renderer.draw();
         this.needsDraw = false;
