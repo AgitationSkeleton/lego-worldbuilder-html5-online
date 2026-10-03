@@ -176,6 +176,13 @@ PATCHES = {
          '    if manhattan(tilepos, pMapclickOverride.options[#pos]) > pMapclickOverride.options[#distance] then\n'
          '      if not pMapclickOverride.options[#forever] then\n        pMapclickOverride = VOID\n      end if\n'
          '      return 0\n'),
+        # The minimap draws a map three pixels a tile: the game's own maps are at most 35
+        # tiles across and 22 down (105 by 66 pixels, between the Menu button and the
+        # mission's name), a generated one may be bigger and spill over them. A map bigger
+        # than that is drawn two pixels a tile, or one, to fit (its clicks go by the same size).
+        ('  me.showminimap()\nend\n\non scrollmapManual',
+         '  k = max(1, min(3, min(105 / pMapSize[1], 66 / pMapSize[2])))\n  pMiniMapTileSize = point(k, k)\n'
+         '  me.showminimap()\nend\n\non scrollmapManual'),
         ('', RELAYOUT),
     ],
     # The panel's bricks in five rows (see five_rows): the fifth row's sprites, and up to five

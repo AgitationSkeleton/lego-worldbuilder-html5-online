@@ -3038,7 +3038,7 @@ const S1_129 = {
       }
     },
     readmap(me) {
-      let c, cache, contents, cx, cy, entry, goalobjective, goaltype, hq, i, j, omap, orow, resource, row, scriptname, terrain, thingy, vis, whirlpoolid;
+      let c, cache, contents, cx, cy, entry, goalobjective, goaltype, hq, i, j, k, omap, orow, resource, row, scriptname, terrain, thingy, vis, whirlpoolid;
       omap = $L.list([]);
       this.$.pplantypes = $L.list([]);
       j = 0;
@@ -3190,6 +3190,8 @@ const S1_129 = {
         vis = $R.call(this, S1_129, "viewtilesize");
         $L.mc(me, "scrollmap", $L.list([$B.integer($L.add($L.sub(cx, $L.div($L.gi(vis, 1), 2)), 1)), $B.integer($L.sub($L.sub(cy, $L.div($L.gi(vis, 2), 2)), 0))]));
       }
+      k = $B.max(1, $B.min(3, $B.min($L.div(105, $L.gi(this.$.pmapsize, 1)), $L.div(66, $L.gi(this.$.pmapsize, 2)))));
+      this.$.pminimaptilesize = $B.point(k, k);
       $L.mc(me, "showminimap");
     },
     scrollmapmanual(me, s) {
