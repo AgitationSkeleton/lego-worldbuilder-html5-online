@@ -90,6 +90,9 @@ export class Renderer {
       ctx.fillRect(0, 0, box.w, box.h);
     }
     for (const s of list) {
+      // (a page that draws a bigger stage, or zooms out, says which sprites the movie has
+      // put out of sight past the edges of its own stage)
+      if (rt.layout && rt.layout.parked && rt.layout.parked(s)) continue;
       const z = rt.zoomOf(s);
       if (z === 1) {
         this.drawSprite(ctx, s);

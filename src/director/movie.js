@@ -694,6 +694,8 @@ export class Runtime {
     for (let i = list.length - 1; i >= 0; i--) {
       const s = list[i];
       if (!any && !this.listensToMouse(s)) continue;
+      // (nor is one the page doesn't draw, put out of sight: see the renderer)
+      if (this.layout && this.layout.parked && this.layout.parked(s)) continue;
       // (a sprite the layout zooms is tested where it is drawn: see zoomOf)
       const z = this.zoomOf(s);
       if (this.renderer.hit(s, x / z, y / z)) return s.channel;
