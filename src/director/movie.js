@@ -459,8 +459,12 @@ export class Runtime {
       if (!a) continue;
       // (or as far down as a page's own rule for it says: a.dyOf)
       const dx = Math.round(a.ax * ex), dy = a.dyOf ? a.dyOf(ey) : Math.round(a.ay * ey);
-      s.locH += dx - a.dx;
-      s.locV += dy - a.dy;
+      // (a sprite the movie has put out of sight, where it puts what it hides, stays there:
+      // moved, it could come into sight on a bigger stage)
+      if (!(this.layout && this.layout.parked && this.layout.parked(s))) {
+        s.locH += dx - a.dx;
+        s.locV += dy - a.dy;
+      }
       a.dx = dx;
       a.dy = dy;
       if (a.grow) a.grow(s, ex, ey);
