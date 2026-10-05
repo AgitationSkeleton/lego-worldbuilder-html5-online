@@ -5,7 +5,8 @@ global glob
 
 -- The tiles the map shows at its zoom now. (The tutorial's, the original's twelve by nine:
 -- it points at the map where the original's view puts it, by scrolling as the original
--- does; a bigger stage shows more round that.)
+-- does; a bigger stage shows more round that, and on a taller one the map is lower, in
+-- its middle: src/online/layout.js, tutorialDrop.)
 on viewTileSize
   if glob[#tutorialMode] = 1 then
     return [12, 9]

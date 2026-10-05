@@ -328,6 +328,8 @@ export function makeLayout(rt, options = {}) {
       const after = corner();
       const dx = after.h - before.h, dy = after.v - before.v;
       if (!dx && !dy) return;
+      // (the tutorial's step about a place on the map keeps its hole and arrow on it)
+      if (this.tutorial()) this.placeStepAfterMove = true;
       // (the terrain's own sprites, which scrollmap has placed, and the pool's spare ones;
       // and the tutorial's, which it takes from the pool but places on the stage: the
       // original's scrolling leaves them be)
@@ -406,6 +408,18 @@ export function makeLayout(rt, options = {}) {
         mask.locH = Math.round(m.regX * w / m.width);
         mask.locV = Math.round(m.regY * h / m.height);
       }
+      // (on a touch screen, the step's hole as big as a finger: the original's for the goal
+      // is 20 pixels wide, for a plan 20 by 25; what is touched in it goes to the step's own
+      // thing all the same)
+      const cc = tut.get('click_catcher'), hole = L.gp(tut.tm, 'clickrect');
+      if (cc && cc.member && cc.member.width && hole instanceof L.LRect && L.num(hole.l) > -900 && touchScreen()) {
+        const l = L.num(hole.l), t = L.num(hole.t), r = L.num(hole.r), b = L.num(hole.b);
+        const w = Math.max(r - l, FINGER), h = Math.max(b - t, FINGER), m = cc.member;
+        cc.w = w;
+        cc.h = h;
+        cc.locH = Math.round((l + r - w) / 2) + Math.round(m.regX * w / m.width);
+        cc.locV = Math.round((t + b - h) / 2) + Math.round(m.regY * h / m.height);
+      }
       const d = this.tutorialShift(tut.tm);
       for (const n of ['dialogbox', 'dialogtext', 'button1', 'button2', 'button1text', 'button2text']) {
         const s = tut.get(n);
@@ -444,12 +458,18 @@ export function makeLayout(rt, options = {}) {
       const at = arrow instanceof L.LPoint ? arrow : arrow instanceof L.LList && arrow.a[0] instanceof L.LPoint ? arrow.a[0] : null;
       return at ? this.uiShift(L.num(at.h), L.num(at.v)) : [0, this.tutorialDrop()];
     },
-    // The tutorial's map on a stage taller than the original's: the original's place in
-    // its middle, as far down as half the height more (the map display's pixel top left:
-    // tools/merge.py), so that the tutorial's small map and its bubble are not at the top
-    // of a phone held upright with the sky below them. 0 outside the tutorial.
+    // How much lower the tutorial's map is than on the original stage: on a taller stage,
+    // the original's place in its middle (the map display's pixel top left: tools/merge.py),
+    // so that the tutorial's small map, and its bubble with it, are not at the top of a phone
+    // held upright with the sky below them. The region a followed unit is kept in goes as
+    // far down. 0 outside the tutorial.
     tutorialDrop() {
       return classic(rt) ? Math.max(0, Math.floor((rt.stage.height - BASE_H) / 2)) : 0;
+    },
+    // (the map display's sprites' rows begin as many higher, to run from the stage's top:
+    // mapRowsAbove, tools/merge.py)
+    mapRowsAbove() {
+      return Math.ceil(this.tutorialDrop() / 50);
     },
     // The sprites sized from the view, sized again (the zoom changed the view).
     regrow() {
@@ -575,11 +595,16 @@ export function makeLayout(rt, options = {}) {
     beforeDraw() {
       if (rt.labelAt(rt.frame) !== 'play') return;
       this.held();
-      this.placeTutorial();
+      // (the tutorial's step placed again for where the map is, then placed for this layout)
+      if (this.placeStepAfterMove) {
+        this.placeStepAfterMove = false;
+        try { this.placeStep(); } catch (e) { rt.reportError(e); }
+      }
       if (this.placeStepAt !== undefined && rt.ticks > this.placeStepAt) {
         this.placeStepAt = undefined;
         try { this.placeStep(); } catch (e) { rt.reportError(e); }
       }
+      this.placeTutorial();
       this.glideFrame();
       const sky = rt.sprites[1];
       if (sky && sky.member && sky.member.width) {
@@ -593,8 +618,9 @@ export function makeLayout(rt, options = {}) {
   };
   // (for viewTileSizeHeld, in src/lingo/movie - layout.ls)
   rt.builtins.mapzoomleast = () => layout.minZoom();
-  // (tutorialDrop, for the map display's pixel top left: tools/merge.py)
+  // (tutorialDrop and mapRowsAbove, for the map display: tools/merge.py)
   rt.builtins.tutorialdrop = () => layout.tutorialDrop();
+  rt.builtins.maprowsabove = () => layout.mapRowsAbove();
   // (panelRows, for the right-hand panel's script: see lowerBy)
   rt.builtins.panelrows = () => (lowerBy(rt.stage.height - BASE_H) ? 5 : 4);
   // (the map's zoom for the scripts: the tutorial's is the game's own)
@@ -700,6 +726,12 @@ function keepTopLeft(s, b, w, h) {
   const m = s.member;
   s.locH = b.left + Math.round(m.regX * w / m.width);
   s.locV = b.top + Math.round(m.regY * h / m.height);
+}
+
+// A touch screen's finger, in stage pixels, at the least (the tutorial's holes: placeTutorial)
+const FINGER = 44;
+function touchScreen() {
+  return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 }
 
 function classic(rt) {

@@ -210,10 +210,19 @@ PATCHES = {
         ('  pDisplayTileSize = [12, 9]\n', '  pDisplayTileSize = viewTileSizeHeld()\n'),
         ('  repeat with i = 200 to 1000\n', '  repeat with i = 200 to 4000\n'),
         # the skewed grid moves right 25 pixels for every row more than the original nine;
-        # the tutorial's map (the original's view: viewTileSize) is put in the middle of a
-        # stage taller than the original's (tutorialDrop, src/online/layout.js)
+        # the tutorial's map is put lower on a stage taller than the original's, where the
+        # original's view has it in the middle of the stage (tutorialDrop, src/online/
+        # layout.js), its sprites' rows as many higher (mapRowsAbove), so that they still
+        # run from the stage's top to its bottom
         ('  pDisplayPixelTopLeft = point(22, 19) - point(80, 32)\n',
          '  pDisplayPixelTopLeft = point(22, 19) - point(80 + (25 * (pDisplayTileSize[2] - 9)), 32 - tutorialDrop())\n'),
+        ('    repeat with i = 1 to pDisplayTileSize[1]\n      s = me.getASprite()\n',
+         '    kk = mapRowsAbove()\n    repeat with i = 1 to pDisplayTileSize[1]\n      s = me.getASprite()\n'),
+        ('point(i - 4 + integer(j / 2), j - 1)', 'point(i - 4 + integer((j - kk) / 2), j - 1 - kk)'),
+        ('on showmap me\n  repeat with j = 1 to pDisplayTileSize[2]\n    jj = pDisplayTileTopleft[2] + j - 2\n'
+         '    repeat with i = 1 to pDisplayTileSize[1]\n      ii = pDisplayTileTopleft[1] + i - 5 + integer(j / 2)\n',
+         'on showmap me\n  kk = mapRowsAbove()\n  repeat with j = 1 to pDisplayTileSize[2]\n    jj = pDisplayTileTopleft[2] + j - 2 - kk\n'
+         '    repeat with i = 1 to pDisplayTileSize[1]\n      ii = pDisplayTileTopleft[1] + i - 5 + integer((j - kk) / 2)\n'),
         ('  sprite(1).loc = point(305, 220) - (pDisplayTileTopleft * x)\n',
          '  sprite(1).loc = viewCenter() - (pDisplayTileTopleft * x)\n'),
         # scrollmap's limits. The original's, for its fixed view of 12 x 9 tiles, are a

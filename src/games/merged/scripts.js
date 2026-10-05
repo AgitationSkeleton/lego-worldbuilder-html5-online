@@ -3301,12 +3301,13 @@ const S1_129 = {
       return $L.gt(reachededge, 0);
     },
     preparemapsprites(me) {
-      let i, j, row, s, tmem;
+      let i, j, kk, row, s, tmem;
       this.$.pmapsprites = $L.list([]);
       for (let $t1 = (j = 1, 0); $L.le(j, $L.gi(this.$.pdisplaytilesize, 2)); j = $L.add(j, 1)) {
         if (++$t1 > 5e6) $L.stuck();
         row = $L.list([]);
         $L.mc(this.$.pmapsprites, "add", row);
+        kk = $R.call(this, S1_129, "maprowsabove");
         for (let $t2 = (i = 1, 0); $L.le(i, $L.gi(this.$.pdisplaytilesize, 1)); i = $L.add(i, 1)) {
           if (++$t2 > 5e6) $L.stuck();
           s = $L.mc(me, "getasprite");
@@ -3314,18 +3315,19 @@ const S1_129 = {
           tmem = $B.member("terrain.normal");
           $L.sp(s, "member", $B.member("terrain.normal"));
           $L.sp(s, "ink", 36);
-          $L.sp(s, "scriptinstancelist", $L.list([$R.call(this, S1_129, "new", $B.script("map tile click catcher"), s, $B.point($L.add($L.sub(i, 4), $B.integer($L.div(j, 2))), $L.sub(j, 1)))]));
+          $L.sp(s, "scriptinstancelist", $L.list([$R.call(this, S1_129, "new", $B.script("map tile click catcher"), s, $B.point($L.add($L.sub(i, 4), $B.integer($L.div($L.sub(j, kk), 2))), $L.sub($L.sub(j, 1), kk)))]));
         }
       }
     },
     showmap(me) {
-      let i, ii, j, jj, tile, tmem, vis;
+      let i, ii, j, jj, kk, tile, tmem, vis;
+      kk = $R.call(this, S1_129, "maprowsabove");
       for (let $t1 = (j = 1, 0); $L.le(j, $L.gi(this.$.pdisplaytilesize, 2)); j = $L.add(j, 1)) {
         if (++$t1 > 5e6) $L.stuck();
-        jj = $L.sub($L.add($L.gi(this.$.pdisplaytiletopleft, 2), j), 2);
+        jj = $L.sub($L.sub($L.add($L.gi(this.$.pdisplaytiletopleft, 2), j), 2), kk);
         for (let $t2 = (i = 1, 0); $L.le(i, $L.gi(this.$.pdisplaytilesize, 1)); i = $L.add(i, 1)) {
           if (++$t2 > 5e6) $L.stuck();
-          ii = $L.add($L.sub($L.add($L.gi(this.$.pdisplaytiletopleft, 1), i), 5), $B.integer($L.div(j, 2)));
+          ii = $L.add($L.sub($L.add($L.gi(this.$.pdisplaytiletopleft, 1), i), 5), $B.integer($L.div($L.sub(j, kk), 2)));
           tile = $L.mc(me, "gettileat", $B.point(ii, jj));
           if ($L.t($B.voidp(tile))) {
             vis = 0;
