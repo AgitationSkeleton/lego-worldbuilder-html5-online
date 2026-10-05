@@ -108,6 +108,7 @@ const $s_damagesize = $L.sym("damageSize");
 const $s_damagetime = $L.sym("damageTime");
 const $s_default = $L.sym("default");
 const $s_defender = $L.sym("defender");
+const $s_defender2 = $L.sym("defender2");
 const $s_delay = $L.sym("delay");
 const $s_description = $L.sym("description");
 const $s_dialogbox = $L.sym("dialogbox");
@@ -1065,7 +1066,7 @@ const S1_113 = {
         $L.sp($L.gi(this.$.ss, $B.symbol($L.cat("type", i))), "visible", 0);
         $L.sp($L.gi(this.$.ss, $B.symbol($L.cat("amount", i))), "visible", 0);
       }
-      $L.sp($L.gp($L.gp(this.$.ss, "unit_name"), "member"), "text", $L.gpi(this.$.pobj, "pbuild", $s_name));
+      $L.sp($L.gp($L.gp(this.$.ss, "unit_name"), "member"), "text", $R.call(this, S1_113, "unitname", $L.gp(this.$.pobj, "pclass"), $L.gpi(this.$.pobj, "pbuild", $s_name)));
       $L.sp($L.gp(this.$.ss, "unit_name"), "visible", 1);
       $L.sp($L.gp(this.$.ss, "unit_icon"), "member", $L.cat($L.cat($L.cat($L.gpi(this.$.pobj, "pclass", 1), "."), $L.gpi(this.$.pobj, "pclass", 2)), ".plan"));
       $L.sp($L.gp(this.$.ss, "unit_icon"), "visible", 1);
@@ -1132,7 +1133,7 @@ const S1_113 = {
     button(me, msg) {
       if ($L.t($L.eq(msg, $s_info))) {
         if ($L.t($L.not($B.voidp(this.$.pobj)))) {
-          $L.mc($L.gp($G.glob, "info_bubble"), "showinfo", $L.gp(this.$.pobj, "pclass"), $L.gpi(this.$.pobj, "pbuild", $s_name));
+          $L.mc($L.gp($G.glob, "info_bubble"), "showinfo", $L.gp(this.$.pobj, "pclass"), $R.call(this, S1_113, "unitname", $L.gp(this.$.pobj, "pclass"), $L.gpi(this.$.pobj, "pbuild", $s_name)));
         }
       } else {
         $L.mc(this.$.pobj, "menuclick", $B.string(msg));
@@ -2129,7 +2130,7 @@ const S1_142 = {
       if ($L.t($L.not($B.voidp(this.$.pswoop)))) {
         return;
       }
-      $L.sp($L.gp($L.gp($G.glob, "plan_name_display"), "member"), "text", $L.gi(this.$.pbuild, $s_name));
+      $L.sp($L.gp($L.gp($G.glob, "plan_name_display"), "member"), "text", $R.call(this, S1_142, "unitname", this.$.pclass, $L.gi(this.$.pbuild, $s_name)));
       $L.sp($L.gp($G.glob, "plan_name_display"), "locv", $L.sub($L.gp(this.$.s, "locv"), 27));
       $L.sp($L.gp($G.glob, "plan_name_display"), "loch", $L.sub($L.gp(this.$.s, "loch"), $L.div($L.gp($L.gp($G.glob, "plan_name_display"), "width"), 2)));
     },
@@ -11725,9 +11726,23 @@ const S13_1 = {
   },
 };
 
-// online 2: world jump button beh (score)
+// online 2: movie - units (movie)
 const S13_2 = {
-  castLib: 13, member: 2, name: "world jump button beh", type: "score",
+  castLib: 13, member: 2, name: "movie - units", type: "movie",
+  props: [],
+  handlers: {
+    unitname(uclass, uname) {
+      if ($L.t($L.eq($L.gi(uclass, 2), $s_defender2))) {
+        return "Defender 2";
+      }
+      return uname;
+    },
+  },
+};
+
+// online 3: world jump button beh (score)
+const S13_3 = {
+  castLib: 13, member: 3, name: "world jump button beh", type: "score",
   props: ["ptarget", "psprite", "pmember"],
   handlers: {
     beginsprite(me) {
@@ -11753,9 +11768,9 @@ const S13_2 = {
     },
     mouseup(me) {
       $L.sp(this.$.psprite, "member", this.$.pmember);
-      $R.call(this, S13_2, "sndsfx", "sfx_interface_click_button");
+      $R.call(this, S13_3, "sndsfx", "sfx_interface_click_button");
       if ($L.t($L.eq(this.$.ptarget, "main menu"))) {
-        $R.call(this, S13_2, "showmainmenu");
+        $R.call(this, S13_3, "showmainmenu");
       } else {
         $B.go(this.$.ptarget);
       }
@@ -11763,7 +11778,7 @@ const S13_2 = {
   },
 };
 
-export const scripts = [S1_100, S1_101, S1_102, S1_103, S1_104, S1_105, S1_106, S1_107, S1_108, S1_109, S1_110, S1_111, S1_112, S1_113, S1_114, S1_115, S1_116, S1_117, S1_118, S1_119, S1_120, S1_121, S1_122, S1_123, S1_124, S1_125, S1_126, S1_142, S1_92, S1_93, S1_94, S1_95, S1_96, S1_97, S1_98, S1_99, S1_5, S1_89, S1_90, S1_91, S1_129, S1_130, S1_131, S1_137, S1_138, S1_139, S1_140, S1_141, S1_143, S1_145, S1_146, S1_147, S1_148, S1_149, S1_150, S1_151, S1_152, S1_153, S1_154, S1_155, S1_169, S1_170, S1_171, S1_172, S1_173, S1_174, S1_175, S1_177, S1_178, S1_179, S1_180, S1_181, S1_182, S1_183, S1_184, S1_185, S1_186, S1_187, S1_188, S1_189, S1_190, S1_191, S1_193, S1_194, S1_195, S1_196, S1_197, S1_198, S1_199, S1_200, S1_201, S3_45, S3_1, S3_6, S4_269, S4_384, S2_1, S2_10, S2_11, S2_12, S2_14, S2_15, S2_16, S2_17, S2_19, S2_2, S2_21, S2_22, S2_23, S2_24, S2_25, S2_26, S2_27, S2_28, S2_29, S2_33, S2_6, S2_7, S2_9, S2_8, S6_19, S6_20, S6_21, S6_27, S6_9, S6_16, S6_2, S6_8, S8_1, S8_10, S8_11, S8_12, S8_14, S8_15, S8_16, S8_17, S8_19, S8_2, S8_21, S8_22, S8_23, S8_24, S8_25, S8_26, S8_27, S8_28, S8_29, S8_33, S8_6, S8_7, S8_9, S8_8, S13_1, S13_2];
+export const scripts = [S1_100, S1_101, S1_102, S1_103, S1_104, S1_105, S1_106, S1_107, S1_108, S1_109, S1_110, S1_111, S1_112, S1_113, S1_114, S1_115, S1_116, S1_117, S1_118, S1_119, S1_120, S1_121, S1_122, S1_123, S1_124, S1_125, S1_126, S1_142, S1_92, S1_93, S1_94, S1_95, S1_96, S1_97, S1_98, S1_99, S1_5, S1_89, S1_90, S1_91, S1_129, S1_130, S1_131, S1_137, S1_138, S1_139, S1_140, S1_141, S1_143, S1_145, S1_146, S1_147, S1_148, S1_149, S1_150, S1_151, S1_152, S1_153, S1_154, S1_155, S1_169, S1_170, S1_171, S1_172, S1_173, S1_174, S1_175, S1_177, S1_178, S1_179, S1_180, S1_181, S1_182, S1_183, S1_184, S1_185, S1_186, S1_187, S1_188, S1_189, S1_190, S1_191, S1_193, S1_194, S1_195, S1_196, S1_197, S1_198, S1_199, S1_200, S1_201, S3_45, S3_1, S3_6, S4_269, S4_384, S2_1, S2_10, S2_11, S2_12, S2_14, S2_15, S2_16, S2_17, S2_19, S2_2, S2_21, S2_22, S2_23, S2_24, S2_25, S2_26, S2_27, S2_28, S2_29, S2_33, S2_6, S2_7, S2_9, S2_8, S6_19, S6_20, S6_21, S6_27, S6_9, S6_16, S6_2, S6_8, S8_1, S8_10, S8_11, S8_12, S8_14, S8_15, S8_16, S8_17, S8_19, S8_2, S8_21, S8_22, S8_23, S8_24, S8_25, S8_26, S8_27, S8_28, S8_29, S8_33, S8_6, S8_7, S8_9, S8_8, S13_1, S13_2, S13_3];
 
 export function bind(runtime) {
   $R = runtime;

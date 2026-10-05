@@ -271,7 +271,13 @@ PATCHES = {
          '  ss[#type5] = sprite(99)\n  sloc[#type5] = sprite(99).loc\n  ss[#amount5] = sprite(100)\n  sloc[#amount5] = sprite(100).loc\n'
          '  pObj = VOID\n  pPlan = VOID\n  pEnergySprite = VOID\n  glob[#menu_display] = me\n'),
         ('  if (n < 1) or (n > 4) then\n    n = 4\n  end if\n', '  if (n < 1) or (n > panelRows()) then\n    n = panelRows()\n  end if\n'),
-        ('  repeat with i = n + 1 to 4\n', '  repeat with i = n + 1 to 5\n')],
+        ('  repeat with i = n + 1 to 4\n', '  repeat with i = n + 1 to 5\n'),
+        # The unit's name here and in its info bubble by unitName (src/lingo/movie - units.ls):
+        # the second Defender is named "Defender 2".
+        ('  ss.unit_name.member.text = pObj.pBuild[#name]\n',
+         '  ss.unit_name.member.text = unitName(pObj.pClass, pObj.pBuild[#name])\n'),
+        ('      glob.info_bubble.showinfo(pObj.pClass, pObj.pBuild[#name])\n',
+         '      glob.info_bubble.showinfo(pObj.pClass, unitName(pObj.pClass, pObj.pBuild[#name]))\n')],
     # The tutorial is played in the online layout, at the game's own scale: what it points
     # at or lets be clicked on the interface is given on the original stage, and is put
     # where the layout has that part of the interface (uiLoc and uiRect, in src/lingo/movie
@@ -302,7 +308,10 @@ PATCHES = {
         ('  if member(ghostmember).memberNum = -1 then\n    ghostmember = ghostmember & ".right"\n  end if\n',
          '  if member(ghostmember).memberNum = -1 then\n'
          '    if member(ghostmember & ".right").memberNum = -1 then\n      ghostmember = ghostmember & ".1"\n'
-         '    else\n      ghostmember = ghostmember & ".right"\n    end if\n  end if\n')],
+         '    else\n      ghostmember = ghostmember & ".right"\n    end if\n  end if\n'),
+        # (the plan's name over it as the right-hand panel names it: unitName)
+        ('  glob.plan_name_display.member.text = pBuild[#name]\n',
+         '  glob.plan_name_display.member.text = unitName(pClass, pBuild[#name])\n')],
     # A generated mission's goal and bonus bubbles have its own choices (random_bubbles):
     # End Mission as Main Menu, New Random Mission under it, Go For Bonus Goal as ever; the
     # bubble a row taller upwards (randomMission and newRandomMission: src/main.js).
@@ -602,6 +611,7 @@ def merge():
 
     five_rows(out, frames, labels)
     random_bubbles(out, frames, labels)
+    repairbot_rocky(out)
 
     out['score'] = frames
     out['labels'] = labels
@@ -740,6 +750,21 @@ def bubbles_tall(out, pack):
         add_member(out, find_ref(out, name)[0], rec)
         data += png
     return data
+
+
+# The Repairbot goes on rocky ground (#normal_undiggable in its #terrain, as the Dirtbuggy's
+# and the Dumptruck's have it, in both games), but its description says Normal only; the
+# Dirtbuggy's says "Terrain: Normal,\rRocky", Rocky beginning the next paragraph. The
+# Repairbot's says so too.
+def repairbot_rocky(out):
+    m = member_named(out, 'vehicle.repairbot.description')
+    at = m['text'].index('Terrain: Normal\r') + len('Terrain: Normal')
+    add = ',\rRocky'
+    m['text'] = m['text'][:at] + add + m['text'][at:]
+    # (the styles' runs as they were, the words after moved on; the paragraph that began
+    # after Normal begins at Rocky)
+    m['runs'] = [[o + len(add) if o > at else o, st] for o, st in m['runs']]
+    m['paraRuns'] = [[at + 2 if o == at + 1 else o + len(add) if o > at else o, p] for o, p in m['paraRuns']]
 
 
 def add_member(data, lib, rec):
