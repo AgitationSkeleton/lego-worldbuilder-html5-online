@@ -3,8 +3,13 @@ global glob
 -- The map's own size, in its pixels: the stage's, divided by how far the map is zoomed
 -- (mapZoom(), the online layout's; 1 at the game's own scale, less when zoomed out).
 
--- The tiles the map shows at its zoom now.
+-- The tiles the map shows at its zoom now. (The tutorial's, the original's twelve by nine:
+-- it points at the map where the original's view puts it, by scrolling as the original
+-- does; a bigger stage shows more round that.)
 on viewTileSize
+  if glob[#tutorialMode] = 1 then
+    return [12, 9]
+  end if
   return tilesForZoom(mapZoom())
 end
 

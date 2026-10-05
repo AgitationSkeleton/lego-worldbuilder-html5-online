@@ -193,6 +193,15 @@ export function makeLayout(rt, options = {}) {
             return r;
           };
         }
+        // (the tutorial's step shown: placed for this layout at once, see placeTutorial)
+        if (s.name === 'tutorial manager' && s.handlers.showstep) {
+          const show = s.handlers.showstep;
+          s.handlers.showstep = function (...args) {
+            const r = show.apply(this, args);
+            layout.placeTutorial();
+            return r;
+          };
+        }
         if (s.type !== 'movie' || !s.handlers.startlevel) continue;
         const start = s.handlers.startlevel;
         s.handlers.startlevel = function (...args) {
@@ -319,10 +328,14 @@ export function makeLayout(rt, options = {}) {
       const after = corner();
       const dx = after.h - before.h, dy = after.v - before.v;
       if (!dx && !dy) return;
-      // (the terrain's own sprites, which scrollmap has placed, and the pool's spare ones)
+      // (the terrain's own sprites, which scrollmap has placed, and the pool's spare ones;
+      // and the tutorial's, which it takes from the pool but places on the stage: the
+      // original's scrolling leaves them be)
       const own = new Set();
       for (const row of L.gp(md, 'pmapsprites').a) for (const s of row.a) own.add(s.channel);
       for (const s of L.gp(md, 'ptilesprites').a) own.add(s.channel);
+      const tut = this.tutorial();
+      if (tut) for (const s of tut.all) own.add(s.channel);
       for (const s of rt.sprites) {
         if (!s || own.has(s.channel) || s.channel === 1 || (s.anchor && s.anchor.grow)) continue;
         if (s.channel === HIGHLIGHT && this.highlightOnUI()) continue;
@@ -332,6 +345,111 @@ export function makeLayout(rt, options = {}) {
         s.locH += dx;
         s.locV += dy;
       }
+    },
+    // The tutorial (its manager, tutorial manager in the tutorial cast), while it runs: its
+    // sprites (from the map display's pool, placed on the stage) by name, and all of them.
+    tutorial() {
+      if (!classic(rt)) return null;
+      const glob = rt.globals.glob;
+      const tm = glob && L.gp(glob, 'tutorial_manager');
+      const sp = tm instanceof L.LInstance ? L.gp(tm, 'sprites') : null;
+      if (!(sp instanceof L.LPropList)) return null;
+      const of = (e) => (e instanceof L.LPropList ? L.gp(e, 'sprite') : null);
+      return { tm, get: (n) => of(L.gp(sp, n)), all: sp.v.map(of).filter((s) => s && s.channel) };
+    },
+    // The tutorial in this layout. Its arrows and click holes on the interface are given on
+    // the original stage and put where the layout has that part (uiLoc, uiRect); here, on
+    // every drawing (the window may change size during a step):
+    // - its Skip button over the Menu button, as the original has it (two pixels right, one
+    //   up), as tall as the Menu button is here, with its label in the middle;
+    // - its mask, which keeps clicks from the game but through its holes, over the stage;
+    // - its bubble, with its text and buttons, where the original has it for a step about
+    //   the map (the map is where the original's view has it: viewTileSize, in src/lingo/
+    //   movie - layout.ls); for a step about a part of the interface, moved as far as the
+    //   layout moved that part, so that it is as near it as on the original stage.
+    placeTutorial() {
+      const tut = this.tutorial();
+      if (!tut) {
+        // (its sprites back to the pool as they were)
+        if (this.tutorialTouched) {
+          for (const s of this.tutorialTouched) { s.nine = null; s.keepSize = false; s.tut = null; }
+          // (and the map, lowered for it on a tall stage, laid out for the game's own view)
+          const md = mapDisplay();
+          if (md) {
+            try { L.mc(md, 'relayout'); this.regrow(); } catch (e) { rt.reportError(e); }
+          }
+        }
+        this.tutorialTouched = null;
+        return;
+      }
+      const touched = this.tutorialTouched || (this.tutorialTouched = new Set());
+      const menu = rt.sprites[6], quit = tut.get('quitbutton'), label = tut.get('qbtext');
+      if (quit && quit.member && menu && menu.member && quit.locH > -900) {
+        const m = quit.member, w = menu.width, h = menu.height;
+        quit.keepSize = true;
+        quit.w = w;
+        quit.h = h;
+        quit.nine = h !== m.height || w !== m.width ? { l: 8, t: 6, r: 8, b: 6 } : null;
+        quit.locH = menu.left + 2 + Math.round(m.regX * w / m.width);
+        quit.locV = menu.top - 1 + Math.round(m.regY * h / m.height);
+        touched.add(quit);
+        if (label) {
+          label.locH = quit.locH - 114;
+          label.locV = quit.locV - 3 + Math.round((h - m.height) / 2) - Math.round(m.regY * (h - m.height) / m.height);
+        }
+      }
+      const mask = tut.get('mousemask');
+      if (mask && mask.member && mask.member.width) {
+        const m = mask.member, w = rt.stage.width, h = rt.stage.height;
+        mask.w = w;
+        mask.h = h;
+        mask.locH = Math.round(m.regX * w / m.width);
+        mask.locV = Math.round(m.regY * h / m.height);
+      }
+      const d = this.tutorialShift(tut.tm);
+      for (const n of ['dialogbox', 'dialogtext', 'button1', 'button2', 'button1text', 'button2text']) {
+        const s = tut.get(n);
+        if (!s) continue;
+        if (s.locH <= -900) { s.tut = null; continue; }
+        const t = s.tut;
+        // (still where it was put here: moved by the change; put back by the tutorial: by all)
+        const was = t && s.locH === t.h && s.locV === t.v ? [t.dx, t.dy] : [0, 0];
+        s.locH += d[0] - was[0];
+        s.locV += d[1] - was[1];
+        s.tut = { h: s.locH, v: s.locV, dx: d[0], dy: d[1] };
+        touched.add(s);
+      }
+    },
+    // How far the layout moved what the tutorial's step is about, if that is a part of the
+    // interface: the thing it lets be clicked (a scroll arrow, a button of the right-hand
+    // panel, the info bubble's Close, a plan in the plans bar), or the place on the
+    // interface its arrow points at; else it is about the map, which is lowered on a tall
+    // stage (tutorialDrop).
+    tutorialShift(tm) {
+      const glob = rt.globals.glob;
+      const key = (v) => (v instanceof L.LSymbol ? v.key.toLowerCase() : v);
+      const target = key(L.gp(tm, 'clicktarget')), button = key(L.gp(tm, 'clickbutton'));
+      let s = null;
+      try {
+        if (target === 'generic_button') s = rt.sprites[{ arrow_left: 20, arrow_right: 21, arrow_up: 22, arrow_down: 23 }[button]];
+        else if (target === 'menu') s = L.gp(L.gp(L.gp(glob, 'menu_display'), 'ss'), button);
+        else if (target === 'info') s = L.gp(L.gp(L.gp(glob, 'info_bubble'), 'ss'), button);
+        else if (target === 'plan') s = rt.sprites[29 + button];
+      } catch (e) {
+        s = null;
+      }
+      if (s && s.anchor) return [s.anchor.dx, s.anchor.dy];
+      const step = L.gp(tm, 'pstep');
+      const arrow = step instanceof L.LPropList ? L.gp(step, 'arrow') : null;
+      const at = arrow instanceof L.LPoint ? arrow : arrow instanceof L.LList && arrow.a[0] instanceof L.LPoint ? arrow.a[0] : null;
+      return at ? this.uiShift(L.num(at.h), L.num(at.v)) : [0, this.tutorialDrop()];
+    },
+    // The tutorial's map on a stage taller than the original's: the original's place in
+    // its middle, as far down as half the height more (the map display's pixel top left:
+    // tools/merge.py), so that the tutorial's small map and its bubble are not at the top
+    // of a phone held upright with the sky below them. 0 outside the tutorial.
+    tutorialDrop() {
+      return classic(rt) ? Math.max(0, Math.floor((rt.stage.height - BASE_H) / 2)) : 0;
     },
     // The sprites sized from the view, sized again (the zoom changed the view).
     regrow() {
@@ -373,6 +491,8 @@ export function makeLayout(rt, options = {}) {
         spr.locH += dx;
         spr.locV += dy;
         spr.anchor = { ax: a[0], ay: a[1], dx, dy, dyOf };
+        // (where it is as the game's behaviors see it when they begin: see syncSlocs)
+        spr.slocAt = [dx, dy];
         // (its buttons taller on an upright stage: see buttonH)
         if (PANEL_BUTTONS.has(ch)) {
           const w0 = spr.width, h0 = spr.height;
@@ -400,7 +520,7 @@ export function makeLayout(rt, options = {}) {
         spr.anchor.grow = (s, ex2, ey2) => {
           const a = s.anchor;
           const at = Object.assign({}, base, { left: base.left + a.dx - dx0, top: base.top + a.dy - dy0 });
-          grow(s, at, ex2, ey2, layout.zoomOf(s));
+          grow(s, at, ex2, ey2, layout.zoomOf(s), layout.tutorialDrop(), classic(rt));
         };
         spr.anchor.grow(spr, ex, ey);
         if (name === 'top_and_left_border') spr.nine = { l: 40, t: 40, r: 30, b: 12 };
@@ -415,13 +535,51 @@ export function makeLayout(rt, options = {}) {
           this.zoom = this.snap(Math.max(this.zoom, this.minZoom()));
           L.mc(md, 'relayout');
           this.regrow();
+          this.syncSlocs();
+          this.placeStep();
+          this.placeStepAt = rt.ticks;
         } catch (e) { rt.reportError(e); }
       }
+    },
+    // The game's right-hand panel display, unit info bubble and Menu popup keep where their
+    // sprites were when they began (their sloc), and put them back there to show them: the
+    // stage changed size since (a phone turned), those places are moved as far as the
+    // layout has moved the sprites.
+    syncSlocs() {
+      const glob = rt.globals.glob;
+      if (!glob || rt.labelAt(rt.frame) !== 'play') return;
+      for (const name of ['menu_display', 'info_bubble', 'main_menu_popup']) {
+        const inst = L.gp(glob, name);
+        const ss = inst instanceof L.LInstance ? L.gp(inst, 'ss') : null;
+        const sloc = inst instanceof L.LInstance ? L.gp(inst, 'sloc') : null;
+        if (!(ss instanceof L.LPropList) || !(sloc instanceof L.LPropList)) continue;
+        for (let i = 0; i < ss.k.length; i++) {
+          const sp = ss.v[i];
+          if (!sp || !sp.anchor || !sp.slocAt) continue;
+          const dx = sp.anchor.dx - sp.slocAt[0], dy = sp.anchor.dy - sp.slocAt[1];
+          sp.slocAt = [sp.anchor.dx, sp.anchor.dy];
+          const key = ss.k[i];
+          const j = sloc.k.findIndex((k) => k === key || (k instanceof L.LSymbol && key instanceof L.LSymbol && k.key === key.key));
+          const at = j >= 0 ? sloc.v[j] : null;
+          if (!(at instanceof L.LPoint) || (!dx && !dy)) continue;
+          sloc.v[j] = new L.LPoint(L.num(at.h) + dx, L.num(at.v) + dy);
+        }
+      }
+    },
+    // (the tutorial's step for the stage as it is: placeStep, tools/merge.py)
+    placeStep() {
+      const tut = this.tutorial();
+      if (tut) L.mc(tut.tm, 'placestep');
     },
     // Every drawing: the sky covers the stage, however the map has moved it.
     beforeDraw() {
       if (rt.labelAt(rt.frame) !== 'play') return;
       this.held();
+      this.placeTutorial();
+      if (this.placeStepAt !== undefined && rt.ticks > this.placeStepAt) {
+        this.placeStepAt = undefined;
+        try { this.placeStep(); } catch (e) { rt.reportError(e); }
+      }
       this.glideFrame();
       const sky = rt.sprites[1];
       if (sky && sky.member && sky.member.width) {
@@ -435,12 +593,15 @@ export function makeLayout(rt, options = {}) {
   };
   // (for viewTileSizeHeld, in src/lingo/movie - layout.ls)
   rt.builtins.mapzoomleast = () => layout.minZoom();
+  // (tutorialDrop, for the map display's pixel top left: tools/merge.py)
+  rt.builtins.tutorialdrop = () => layout.tutorialDrop();
   // (panelRows, for the right-hand panel's script: see lowerBy)
   rt.builtins.panelrows = () => (lowerBy(rt.stage.height - BASE_H) ? 5 : 4);
   // (the map's zoom for the scripts: the tutorial's is the game's own)
   rt.builtins.mapzoom = () => (classic(rt) ? 1 : layout.zoom);
   // (uiLoc and uiRect, in src/lingo/movie - layout.ls; an anchor may be given, as [ax, ay])
-  rt.builtins.uishift = (x, y, a) => L.list(layout.uiShift(Number(x), Number(y), a && a.a ? a.a.map(Number) : null));
+  // (Lingo's numbers: a float, such as an anchor's 0.5, is an LFloat: L.num)
+  rt.builtins.uishift = (x, y, a) => L.list(layout.uiShift(L.num(x), L.num(y), a && a.a ? a.a.map(L.num) : null));
   return layout;
 }
 
@@ -470,7 +631,17 @@ const GROW = {
   },
   // the region a followed unit is kept inside, before the map scrolls: the view's, inset
   // as the original has it (in the map's pixels, so as big as the zoomed-out view)
-  'AUTOSCROLL BORDER': (s, b, ex, ey, z = 1) => {
+  // (the tutorial's is the original's, on its map, lowered on a tall stage: it scrolls the
+  // map as the original's does when a unit it follows comes near its edge, and its steps
+  // point at the map where that leaves it)
+  'AUTOSCROLL BORDER': (s, b, ex, ey, z = 1, drop = 0, tutorial = false) => {
+    if (tutorial) {
+      s.w = b.w;
+      s.h = b.h;
+      s.locH = b.locH;
+      s.locV = b.locV + drop;
+      return;
+    }
     s.w = Math.round((b.w + ex) / z);
     s.h = Math.round((b.h + ey) / z);
     s.locH = Math.round(b.locH / z);

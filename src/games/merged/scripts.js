@@ -3040,7 +3040,7 @@ const S1_129 = {
       this.$.pdisplaytiletopleft = $L.list([1, 1]);
       this.$.pdisplaytilesize = $R.call(this, S1_129, "viewtilesizeheld");
       this.$.ptilesize = $L.list([50, 50]);
-      this.$.pdisplaypixeltopleft = $L.sub($B.point(22, 19), $B.point($L.add(80, $L.mul(25, $L.sub($L.gi(this.$.pdisplaytilesize, 2), 9))), 32));
+      this.$.pdisplaypixeltopleft = $L.sub($B.point(22, 19), $B.point($L.add(80, $L.mul(25, $L.sub($L.gi(this.$.pdisplaytilesize, 2), 9))), $L.sub(32, $R.call(this, S1_129, "tutorialdrop"))));
       this.$.pdisplaypixelskew = $B.point(25, 0);
       this.$.pdisplaypixelscroll = $B.point(0, 0);
       this.$.pminimaptilesize = $B.point(3, 3);
@@ -4169,7 +4169,7 @@ const S1_129 = {
         }
       }
       this.$.pdisplaytilesize = $R.call(this, S1_129, "viewtilesizeheld");
-      this.$.pdisplaypixeltopleft = $L.sub($B.point(22, 19), $B.point($L.add(80, $L.mul(25, $L.sub($L.gi(this.$.pdisplaytilesize, 2), 9))), 32));
+      this.$.pdisplaypixeltopleft = $L.sub($B.point(22, 19), $B.point($L.add(80, $L.mul(25, $L.sub($L.gi(this.$.pdisplaytilesize, 2), 9))), $L.sub(32, $R.call(this, S1_129, "tutorialdrop"))));
       $L.mc(me, "preparemapsprites");
       $L.mc(me, "scrollmap", $L.list([0, 0]));
       $L.mc(me, "showmap");
@@ -10782,6 +10782,51 @@ const S6_2 = {
         }
       }
     },
+    placestep(me) {
+      let pt, r, temp_rect;
+      if ($L.t($B.voidp(this.$.pstep))) {
+        return;
+      }
+      if ($L.t($L.and($L.not($B.voidp(this.$.clicktarget)), $L.not($L.eq(this.$.clickrect, this.$.offscreenrect))))) {
+        r = this.$.clickrect;
+        if ($L.t($L.eq(this.$.clicktarget, $s_generic_button))) {
+          if ($L.t($L.not($B.voidp($L.gi(this.$.pstep, $s_clickrect))))) {
+            r = $R.call(this, S6_2, "uirect", $L.gp(this.$.pstep, "clickrect"));
+          } else if ($L.t($L.not($B.voidp($L.gi(this.$.holelist, this.$.clickbutton))))) {
+            r = $R.call(this, S6_2, "uirect", $L.gi(this.$.holelist, this.$.clickbutton));
+          }
+        } else if ($L.t($L.or($L.eq(this.$.clicktarget, $s_menu), $L.eq(this.$.clicktarget, $s_goalinfo)))) {
+          if ($L.t($L.not($B.voidp(this.$.currentobject)))) {
+            r = $L.gp(this.$.currentobject, "rect");
+          }
+        } else if ($L.t($L.eq(this.$.clicktarget, $s_info))) {
+          r = $R.call(this, S6_2, "uirect", $B.rect(289, 333, 417, 349), $L.list([1, $f21]));
+        } else if ($L.t($L.eq(this.$.clicktarget, $s_plan))) {
+          r = $R.call(this, S6_2, "uirect", $L.gi(this.$.planrects, this.$.clickbutton), $L.list([1, 1]));
+        } else if ($L.t($L.not($B.voidp(this.$.currenttile)))) {
+          if ($L.t($L.eq($L.gp(this.$.currenttile, "ilk"), $s_point))) {
+            pt = $L.mc($L.gp($G.glob, "map_display"), "postoloc", this.$.currenttile);
+            temp_rect = $B.rect(pt, pt);
+            if ($L.t($L.eq(this.$.clicktarget, $s_tile))) {
+              r = $L.add(this.$.tilerect, temp_rect);
+            } else if ($L.t($L.eq(this.$.clicktarget, $s_goal))) {
+              r = $L.add(this.$.goalrect, temp_rect);
+            } else if ($L.t($L.eq(this.$.clicktarget, $s_occupant))) {
+              if ($L.t($L.not($B.voidp(this.$.currentobject)))) {
+                r = $L.add($L.gp($L.gp($L.gp(this.$.currentobject, "psprites"), "main"), "rect"), $B.rect((-2), (-2), 2, 2));
+              }
+            } else if ($L.t($L.eq(this.$.clicktarget, $s_resource))) {
+              r = $L.add(this.$.objrect, temp_rect);
+            }
+          }
+        }
+        this.$.clickrect = r;
+        $L.sp(this.$.click_catcher, "rect", this.$.clickrect);
+      }
+      if ($L.t($L.not($B.voidp($L.gi(this.$.pstep, $s_arrow))))) {
+        $L.mc(me, "showarrow", $L.gi(this.$.pstep, $s_arrow));
+      }
+    },
   },
 };
 
@@ -11637,6 +11682,9 @@ const S13_1 = {
   props: [],
   handlers: {
     viewtilesize() {
+      if ($L.t($L.eq($L.gi($G.glob, $s_tutorialmode), 1))) {
+        return $L.list([12, 9]);
+      }
       return $R.call(this, S13_1, "tilesforzoom", $R.call(this, S13_1, "mapzoom"));
     },
     viewtilesizeheld() {

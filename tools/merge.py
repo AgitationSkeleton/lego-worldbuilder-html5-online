@@ -48,11 +48,76 @@ on relayout me
     end repeat
   end repeat
   pDisplayTileSize = viewTileSizeHeld()
-  pDisplayPixelTopLeft = point(22, 19) - point(80 + (25 * (pDisplayTileSize[2] - 9)), 32)
+  pDisplayPixelTopLeft = point(22, 19) - point(80 + (25 * (pDisplayTileSize[2] - 9)), 32 - tutorialDrop())
   me.prepareMapSprites()
   me.scrollmap([0, 0])
   me.showmap()
   sprite(1).loc = viewCenter() - (pDisplayTileTopleft * 4)
+end
+"""
+
+# The tutorial's step placed again (see the tutorial manager's patches): its click hole as
+# showStep works it out, and its arrow.
+TUTORIAL_PLACE_STEP = """
+on placeStep me
+  if voidp(pStep) then
+    return
+  end if
+  if not voidp(clicktarget) and not (clickrect = offscreenrect) then
+    r = clickrect
+    if clicktarget = #generic_button then
+      if not voidp(pStep[#clickrect]) then
+        r = uiRect(pStep.clickrect)
+      else
+        if not voidp(holelist[clickbutton]) then
+          r = uiRect(holelist[clickbutton])
+        end if
+      end if
+    else
+      if (clicktarget = #menu) or (clicktarget = #goalinfo) then
+        if not voidp(currentObject) then
+          r = currentObject.rect
+        end if
+      else
+        if clicktarget = #info then
+          r = uiRect(rect(289, 333, 417, 349), [1, 0.5])
+        else
+          if clicktarget = #plan then
+            r = uiRect(planrects[clickbutton], [1, 1])
+          else
+            if not voidp(currentTile) then
+              if currentTile.ilk = #point then
+                pt = glob.map_display.posToLoc(currentTile)
+                temp_rect = rect(pt, pt)
+                if clicktarget = #tile then
+                  r = tileRect + temp_rect
+                else
+                  if clicktarget = #goal then
+                    r = goalRect + temp_rect
+                  else
+                    if clicktarget = #occupant then
+                      if not voidp(currentObject) then
+                        r = currentObject.pSprites.main.rect + rect(-2, -2, 2, 2)
+                      end if
+                    else
+                      if clicktarget = #resource then
+                        r = objRect + temp_rect
+                      end if
+                    end if
+                  end if
+                end if
+              end if
+            end if
+          end if
+        end if
+      end if
+    end if
+    clickrect = r
+    click_catcher.rect = clickrect
+  end if
+  if not voidp(pStep[#arrow]) then
+    me.showArrow(pStep[#arrow])
+  end if
 end
 """
 
@@ -144,9 +209,11 @@ PATCHES = {
         # (as many tiles as the most zoomed-out view shows: see viewTileSizeHeld)
         ('  pDisplayTileSize = [12, 9]\n', '  pDisplayTileSize = viewTileSizeHeld()\n'),
         ('  repeat with i = 200 to 1000\n', '  repeat with i = 200 to 4000\n'),
-        # the skewed grid moves right 25 pixels for every row more than the original nine
+        # the skewed grid moves right 25 pixels for every row more than the original nine;
+        # the tutorial's map (the original's view: viewTileSize) is put in the middle of a
+        # stage taller than the original's (tutorialDrop, src/online/layout.js)
         ('  pDisplayPixelTopLeft = point(22, 19) - point(80, 32)\n',
-         '  pDisplayPixelTopLeft = point(22, 19) - point(80 + (25 * (pDisplayTileSize[2] - 9)), 32)\n'),
+         '  pDisplayPixelTopLeft = point(22, 19) - point(80 + (25 * (pDisplayTileSize[2] - 9)), 32 - tutorialDrop())\n'),
         ('  sprite(1).loc = point(305, 220) - (pDisplayTileTopleft * x)\n',
          '  sprite(1).loc = viewCenter() - (pDisplayTileTopleft * x)\n'),
         # scrollmap's limits. The original's, for its fixed view of 12 x 9 tiles, are a
@@ -209,7 +276,11 @@ PATCHES = {
         ('          clickrect = holelist[clickbutton]\n', '          clickrect = uiRect(holelist[clickbutton])\n'),
         # (the info bubble's Close: the bubble is beside the right-hand panel)
         ('          clickrect = rect(289, 333, 417, 349)\n', '          clickrect = uiRect(rect(289, 333, 417, 349), [1, 0.5])\n'),
-        ('                clickrect = planrects[clickbutton]\n', '                clickrect = uiRect(planrects[clickbutton], [1, 1])\n')],
+        ('                clickrect = planrects[clickbutton]\n', '                clickrect = uiRect(planrects[clickbutton], [1, 1])\n'),
+        # The window may change size during a step (a phone turned): the step's click hole
+        # and arrow are placed again for the stage as it is (src/online/layout.js asks), as
+        # showStep places them, without its other work (the step's events and timings).
+        ('', TUTORIAL_PLACE_STEP)],
     # A plan picked up flies from where it lay on the map to the plans bar: where it lay is
     # in the map's pixels, which a zoomed map draws smaller, so it is made the stage's.
     ('wb2', 'Internal', 'build plan icon behavior'): [
