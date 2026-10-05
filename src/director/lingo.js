@@ -923,7 +923,20 @@ export function value(s) {
 
 class LiteralParser {
   constructor(s) { this.s = s; this.i = 0; }
-  ws() { while (this.i < this.s.length && isSpace(this.s[this.i])) this.i++; }
+  ws() {
+    while (this.i < this.s.length) {
+      if (isSpace(this.s[this.i])) { this.i++; continue; }
+      // "--" begins a comment anywhere in Lingo, to the end of the line, value()'s string
+      // too: the tutorial's "#arrow = #auto--point(192,132)" is #auto, its "#trigger = #null
+      // --avoid ..." #null
+      if (this.s[this.i] === '-' && this.s[this.i + 1] === '-') {
+        const nl = this.s.slice(this.i).search(/[\r\n]/);
+        this.i = nl < 0 ? this.s.length : this.i + nl;
+        continue;
+      }
+      break;
+    }
+  }
   expr() {
     let v = this.term();
     for (;;) {
