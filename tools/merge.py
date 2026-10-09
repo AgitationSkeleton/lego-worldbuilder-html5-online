@@ -356,6 +356,16 @@ PATCHES = {
     ('wb2', 'Internal', 'unit info bubble behavior'): [
         ('      if pSlide.offset >= 350 then\n        pSlide = VOID\n      end if\n',
          '      if pSlide.offset >= 350 then\n        me.hideAll()\n      end if\n')],
+    # A pile's bricks shown under the mouse: a pile given bricks or taken from updates the
+    # display with its own (the resource parent's giveBricks and takeBricks), and the game
+    # rewrote the counts and the bricks' pictures whatever pile the display was over, so
+    # the pile under the mouse showed another's (a load dropped on one pile, or taken from
+    # one, with the mouse on another). Only the pile shown is updated.
+    ('wb2', 'Internal', 'resource popup display behavior'): [
+        ('property ss, sloc\n', 'property ss, sloc, pShownPos\n'),
+        ('on hide me\n  repeat with s in ss\n', 'on hide me\n  pShownPos = VOID\n  repeat with s in ss\n'),
+        ('on show me, pos, contents, opt\n', 'on show me, pos, contents, opt\n  pShownPos = pos\n'),
+        ('on update me, pos, contents\n', 'on update me, pos, contents\n  if pos <> pShownPos then\n    return \n  end if\n')],
     # The map can be zoomed (src/online/layout.js): the two scripts that read the mouse
     # against the map's sprites read it on the map, in the map's pixels (mapMouseLoc, in
     # src/lingo/movie - layout.ls).

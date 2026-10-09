@@ -1391,7 +1391,7 @@ const S1_117 = {
 // Internal 118: resource popup display behavior (score)
 const S1_118 = {
   castLib: 1, member: 118, name: "resource popup display behavior", type: "score",
-  props: ["ss", "sloc"],
+  props: ["ss", "sloc", "pshownpos"],
   handlers: {
     beginsprite(me) {
       let i, n;
@@ -1413,6 +1413,7 @@ const S1_118 = {
     },
     hide(me) {
       let s;
+      this.$.pshownpos = undefined;
       for (let $t1 = this.$.ss, $t2 = $L.count($t1), $t3 = 1; $t3 <= $t2; $t3++) {
         s = $L.gi($t1, $t3);
         $L.sp(s, "loc", $B.point(1000, 1000));
@@ -1420,6 +1421,7 @@ const S1_118 = {
     },
     show(me, pos, contents, opt) {
       let bricknum, bricks, bricktype, e, ed, ef, el, i, ploc, sorted;
+      this.$.pshownpos = pos;
       ploc = $L.add($L.mc($L.gp($G.glob, "map_display"), "postoloc", pos), $B.point(20, (-5)));
       if ($L.t($L.eq(contents, $s_plan))) {
         $L.sp($L.gi(this.$.ss, 1), "member", "plan_on_map_rollover");
@@ -1498,6 +1500,9 @@ const S1_118 = {
       }
     },
     update(me, pos, contents) {
+      if ($L.t($L.ne(pos, this.$.pshownpos))) {
+        return;
+      }
       $L.mc(me, "show", pos, contents, $s_update);
     },
   },
