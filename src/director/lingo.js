@@ -36,6 +36,14 @@ export class LPropList {
       for (let i = 0; i < k.length; i++) if (k[i] === key) return i;
       return -1;
     }
+    // A string property matches a string only exactly, case and all, unlike "=": the games'
+    // maps have item letters that are terrain letters in the other case ("m" a pile of
+    // bricks, "M" a mountain), looked up in a list by strings (the map display manager's
+    // pTerrainLookup).
+    if (typeof key === 'string') {
+      for (let i = 0; i < k.length; i++) if (typeof k[i] === 'string' ? k[i] === key : eqv(k[i], key)) return i;
+      return -1;
+    }
     for (let i = 0; i < k.length; i++) if (eqv(k[i], key)) return i;
     return -1;
   }
