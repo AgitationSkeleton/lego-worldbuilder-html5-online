@@ -1,3 +1,6 @@
+// Rando v1, kept as it was when Rando v2 took over (src/online/puzzle.js), so that a v1
+// code makes the mission it always made: not to be changed.
+
 // The map a generated mission is built on: its layout (areas on a coarse grid, joined by
 // strips of ground that need something done to them), its terrain and its items, as the
 // game's map text has them.
@@ -46,15 +49,10 @@ export const LOOKS = {
     name: 'city', slot: [7, 12], trees: ['!', "'"], rocks: ['M', '>'], walls: ['@', '@', '@', '-'],
     monsters: ['crab', 'lion', 'shark', 'water_crab', 'gator'], swamp: false, city: true,
   },
-  // (World Builder's Ocean World: islands in the sea, reefs, whirlpools, sharks)
-  E: {
-    name: 'ocean', slot: [4, 12], trees: ['T'], rocks: ['M'], walls: ['r', 'r', '@'],
-    monsters: ['shark', 'water_crab', 'gator', 'crab'], swamp: false, ocean: true,
-  },
 };
 
 // Characters impassable to every unit and monster.
-export const SOLID = new Set(['@', 'M', '^', '%', '&', '$', '*', '>', '-', '~', 'r']);
+export const SOLID = new Set(['@', 'M', '^', '%', '&', '$', '*', '>', '-', '~']);
 
 // Item keys: lower-case letters (not w, x, r, t, m, which the terrain or its upper case
 // uses) and digits.

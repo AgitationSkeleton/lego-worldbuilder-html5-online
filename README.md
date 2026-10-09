@@ -39,12 +39,15 @@ then open <http://localhost:8000/>.
 - **Scores**: each mission is timed to its goal and its bonus goal. Best times are kept in
   the browser and, if the player chooses, sent to score tables on a small server
   ([server/](server/), at wbserver.viosarcade.xyz).
-- **Random missions**: puzzles made from the game's rules, two to five areas joined by
-  the game's own obstacles (rocky ground, water to fill, trees, boulders to push, rivers
-  and whirlpools for boats, swamp, monsters held by a freezebot), with any of its units,
-  buildings and monsters, a goal and a bonus goal. Every mission's own solution, goal and
-  bonus, is played through before it is given. A mission is named by a code (like
-  `2C-K2Q9`) that can be shared, from the main menu or `?random=2C-K2Q9`.
+- **Random missions**: puzzles made from the game's rules, laid out like the games' own
+  missions (islands of all shapes and sizes over the sky, coasts, mazes, the ocean's reefs)
+  and joined by the game's own obstacles (rocky ground, water to fill, trees, boulders to
+  push, rivers and whirlpools for boats, swamp, monsters held by a freezebot), with any of
+  its units, buildings and monsters, a goal and a bonus goal. Every mission's own solution,
+  goal and bonus, is played through before it is given. A mission is named by a code (like
+  `2C-K2Q9X`) that can be shared, from the main menu or `?random=2C-K2Q9X`; the first
+  generator (Rando v1, four-character seeds like `2C-K2Q9`) is kept, so that its codes make
+  the missions they always made.
 - **Races**: two to six players play the same mission, each in their own game, and the
   fastest to the goal wins. The race page is a lobby: the races open to anyone, listed by
   the server, to join; a race to host, listed or by invitation (its code, or a link,

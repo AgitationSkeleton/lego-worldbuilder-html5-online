@@ -1,3 +1,6 @@
+// Rando v1, kept as it was when Rando v2 took over (src/online/puzzle.js), so that a v1
+// code makes the mission it always made: not to be changed.
+
 // A model of World Builder 2's rules, for generated missions (src/online/puzzle.js): the
 // map as a mission's solution changes it, step by step, as the game's own handlers would
 // (the map display manager, vehicle.generic, object.generic, resource.generic, the plan
@@ -33,7 +36,6 @@ const RESERVE = 12;          // energy no unit is planned to go below
 const SLACK = 1.12;          // the game's routes, at times longer than the shortest
 const FREEZE = 25000;       // how long a freeze lasts (the freezebot's freeze_duration)
 const FREEZE_SAFE = 4000;   // of a freeze, what a plan does not count on at its end
-const PEN_MAX = 40;         // the most ground a monster may roam and still be shut in
 const key = (x, y) => x + ',' + y;
 const man = (ax, ay, bx, by) => Math.abs(ax - bx) + Math.abs(ay - by);
 
@@ -161,7 +163,7 @@ export class Model {
   // ---------- monsters ----------
 
   // Where a monster can wander to from where it is (its ground, less swamp, round
-  // everything standing): a set of tiles, or null if that is more than a pen (PEN_MAX).
+  // everything standing): a set of tiles, or null if that is more than a small pen.
   penOf(m) {
     const c = this.cfg[m.kind];
     const ground = new Set(c.terrain.filter((t) => t !== 'swamp'));
@@ -178,7 +180,7 @@ export class Model {
         if (o && o !== m) continue;
         seen.add(k);
         stack.push([nx, ny]);
-        if (seen.size > PEN_MAX) return null;
+        if (seen.size > 8) return null;
       }
     }
     return seen;
@@ -832,49 +834,6 @@ export class Model {
         u.energy = u.energy.map(() => 100);
         u.dist = 0;
         this.clock += 3000;
-        break;
-      }
-      case 'regate': {
-        // a treebot takes up the tree that shuts a monster's den off from more ground, steps
-        // straight back and plants it on the tile it stood on: the den takes in the ground
-        // beyond, and the way the treebot came is shut again (the player does it as three
-        // steps, in two or three seconds)
-        const [x, y] = s.at, [sx, sy] = s.stand, [bx, by] = s.back;
-        if (!c.transplant) fail('only a treebot moves trees');
-        this.goTo(u, s.stand);
-        if (man(u.x, u.y, x, y) !== 1 || this.occ[y][x] || !TREES.has(this.ter(x, y)) || Object.keys(u.cargo.bricks).length) fail('cannot take up the gate at ' + s.at);
-        const tree = this.ter(x, y);
-        this.setChar(x, y, '.');
-        this.useEnergy(u, c.energy.uproot);
-        if (man(bx, by, sx, sy) !== 1 || !this.passable(u, bx, by, {}, null, null)) fail('no way back from the gate');
-        // (the step back and the planting as one: the den is not open meanwhile, as far as
-        // the plan goes)
-        this.occ[u.y][u.x] = null;
-        u.x = bx; u.y = by;
-        this.occ[by][bx] = u.name;
-        this.trail.add(key(bx, by));
-        this.useEnergy(u, c.energy.move || 0);
-        u.dist++;
-        this.clock += this.tileMs(u);
-        if (this.occ[sy][sx] || this.res.has(key(sx, sy)) || this.grid[sy][sx] !== '.') fail('cannot plant behind it');
-        this.setChar(sx, sy, TREE_CHAR[tree]);
-        this.useEnergy(u, c.energy.plant);
-        this.clock += 2400;
-        this.afterTerrain();
-        this.checkEnergy(u);
-        break;
-      }
-      case 'wander': {
-        // a monster left to roam until it comes to a tile it can get to (the player waits, or
-        // lures it there with a unit for bait)
-        if (!u || u.cls !== 'monster' || u.kind === 'boulder') fail('only a monster wanders');
-        if (u.loose || this.held(u)) fail('it is not free to wander');
-        const [tx, ty] = s.to;
-        if (!u.pen.has(key(tx, ty)) || this.occ[ty][tx]) fail('it cannot get to ' + s.to);
-        this.occ[u.y][u.x] = null;
-        u.x = tx; u.y = ty;
-        this.occ[ty][tx] = u.name;
-        this.clock += 30000;
         break;
       }
       case 'attack': {

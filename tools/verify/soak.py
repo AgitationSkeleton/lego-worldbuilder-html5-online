@@ -63,7 +63,9 @@ def main():
         chars = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
         missions = []
         while len(missions) < a.random:
-            missions.append(('R', '%d%s%s' % (rnd.randint(1, 3), rnd.choice('ABCD'), ''.join(rnd.choice(chars) for _ in range(4)))))
+            # (Rando v2's codes and Rando v1's in turn)
+            v1 = len(missions) % 2 == 1
+            missions.append(('R', '%d%s%s' % (rnd.randint(1, 3), rnd.choice('ABCD' if v1 else 'ABCDE'), ''.join(rnd.choice(chars) for _ in range(4 if v1 else 5)))))
     total = 0
     seen = {}
     with sync_playwright() as p:

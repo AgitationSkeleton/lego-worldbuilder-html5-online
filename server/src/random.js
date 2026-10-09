@@ -16,12 +16,13 @@ import { json, sha256Hex, clientIp, cleanName, decentName } from './http.js';
 import { censor } from '../../src/online/profanity.js';
 import { discordFile, plain } from './discord.js';
 
-const CODE = /^([1-3])([A-D])([0-9A-HJKMNP-TV-Z]{4})$/;
+// (Rando v1's codes have a seed of four characters, Rando v2's of five: src/online/puzzle.js)
+const CODE = /^([1-3])([A-E])([0-9A-HJKMNP-TV-Z]{4,5})$/;
 const WORD = /^[a-z0-9_ ]{1,32}$/;
 const MAX_IMAGE = 3 * 1024 * 1024;
 const PER_HOUR = 20;
 const DIFFICULTY = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };
-const LOOK = { A: 'Grassland', B: 'Prehistoric', C: 'Jungle', D: 'City' };
+const LOOK = { A: 'Grassland', B: 'Prehistoric', C: 'Jungle', D: 'City', E: 'Ocean' };
 const GAME = 'https://wbonline.viosarcade.xyz/';
 
 function word(v) {
@@ -77,7 +78,7 @@ async function post(request, env, ctx) {
   const goal = word(info.goal), bonus = word(info.bonus);
   const units = words(info.units, 12), monsters = words(info.monsters, 8), links = words(info.links, 8);
   const lines = [
-    `\u{1F3B2} **${name ? plain(name) : 'Someone'}** generated random mission **${shown}** (${DIFFICULTY[m[1]]}, ${LOOK[m[2]]}${size ? ', ' + size[0] + '×' + size[1] : ''})`,
+    `\u{1F3B2} **${name ? plain(name) : 'Someone'}** generated random mission **${shown}** (${DIFFICULTY[m[1]]}, ${LOOK[m[2]]}${m[3].length === 4 ? ', Rando v1' : ''}${size ? ', ' + size[0] + '×' + size[1] : ''})`,
   ];
   if (goal || bonus) lines.push([goal ? 'Goal: ' + goal : '', bonus ? 'Bonus: ' + bonus : ''].filter(Boolean).join(' · '));
   const parts = [];

@@ -5,7 +5,7 @@
 import { UI_SCALES, loadSettings, saveSettings } from './settings.js';
 import { isClean } from './profanity.js';
 import { WORLD_NAMES, clock } from './scores.js';
-import { parseCode, showCode } from './puzzle.js';
+import { parseCode, showCode, GENERATORS, LATEST } from './puzzle.js';
 import { el, dialog, focusField } from './dom.js';
 
 const SIZES = [
@@ -17,7 +17,7 @@ const SIZES = [
 
 // (a generated mission's code says how hard it is and how it looks: src/online/puzzle.js)
 const DIFFICULTIES = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };
-const LOOKS = { A: 'Grassland', B: 'Prehistoric', C: 'Jungle', D: 'City' };
+const LOOKS = { A: 'Grassland', B: 'Prehistoric', C: 'Jungle', D: 'City', E: 'Ocean' };
 
 const SENDS = [
   ['ask', 'Ask each time'],
@@ -119,7 +119,17 @@ export class OnlineUI {
       el('option', { value: 'A', text: 'Grassland' }),
       el('option', { value: 'B', text: 'Prehistoric' }),
       el('option', { value: 'C', text: 'Jungle' }),
-      el('option', { value: 'D', text: 'City' }));
+      el('option', { value: 'D', text: 'City' }),
+      el('option', { value: 'E', text: 'Ocean' }));
+    // (the generator: the newest, or Rando v1, whose codes still make the missions they made)
+    this.randomVersion = el('select', { 'aria-label': 'Generator' },
+      ...GENERATORS.map((g) => el('option', { value: String(g.version), text: g.name, selected: g.version === LATEST ? '' : undefined })));
+    // (a look the generator does not have can not be chosen)
+    this.randomVersion.addEventListener('change', () => {
+      const looks = (GENERATORS.find((g) => String(g.version) === this.randomVersion.value) || GENERATORS[0]).looks;
+      for (const o of this.randomLook.options) o.disabled = !!o.value && !looks.includes(o.value);
+      if (this.randomLook.selectedOptions[0] && this.randomLook.selectedOptions[0].disabled) this.randomLook.value = '';
+    });
     this.codeInput = el('input', { type: 'text', maxlength: '8', spellcheck: 'false', autocapitalize: 'characters', 'aria-label': 'Mission code', placeholder: 'Code' });
     this.randomNote = el('p', { class: 'note', 'aria-live': 'polite' });
     const fullRow = document.fullscreenEnabled
@@ -158,7 +168,7 @@ export class OnlineUI {
     this.seedList = el('ul', { class: 'seeds' });
     this.seedEmpty = el('p', { class: 'note', text: 'The random missions you play are kept here.' });
     this.randomPanel = dialog('random', 'Random mission', () => this.closeRandom(),
-      el('div', { class: 'choices pick' }, this.randomDifficulty, this.randomLook),
+      el('div', { class: 'choices pick' }, this.randomDifficulty, this.randomLook, this.randomVersion),
       el('div', { class: 'choices pick' }, this.codeInput),
       el('div', { class: 'choices' },
         el('button', { type: 'button', class: 'choice', text: 'New code', onclick: () => this.newCode() }),
@@ -273,7 +283,7 @@ export class OnlineUI {
   }
   newCode() {
     if (!this.random) return;
-    const code = this.random.newCode(Number(this.randomDifficulty.value) || 0, this.randomLook.value || '');
+    const code = this.random.newCode(Number(this.randomDifficulty.value) || 0, this.randomLook.value || '', Number(this.randomVersion.value) || LATEST);
     this.codeInput.value = code ? showCode(code) : '';
     this.randomNote.textContent = '';
   }
@@ -282,7 +292,7 @@ export class OnlineUI {
     if (!this.codeInput.value.trim()) this.newCode();
     const c = parseCode(this.codeInput.value);
     if (!c) {
-      this.randomNote.textContent = 'A code is two characters and four more, like 2C-K2Q9.';
+      this.randomNote.textContent = 'A code is two characters and five more, like 2C-K2Q9X (four more for Rando v1).';
       return;
     }
     if (!this.random.make(c.code)) {
@@ -326,7 +336,7 @@ export class OnlineUI {
       return el('li', null,
         el('span', { class: 'seed' },
           el('b', { text: showCode(e.code) }),
-          el('span', { class: 'what', text: DIFFICULTIES[c.difficulty] + ' · ' + LOOKS[c.look] })),
+          el('span', { class: 'what', text: DIFFICULTIES[c.difficulty] + ' · ' + LOOKS[c.look] + (c.version === LATEST ? '' : ' · ' + GENERATORS.find((g) => g.version === c.version).name) })),
         result('goal', e.goal),
         result('bonus', e.bonus),
         el('button', { type: 'button', class: 'choice', text: 'Play', 'aria-label': 'Play ' + showCode(e.code), onclick: () => this.playSeed(e.code) }));

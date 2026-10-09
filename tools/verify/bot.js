@@ -26,9 +26,25 @@ async (code) => {
   // tile wanders, so only those named are looked for)
   const units = {};
   const named = new Set(p.solution.concat(p.bonus).flatMap((s) => [s.unit, s.target]).filter(Boolean));
+  const kindOf = {};
+  p.pieces.forEach((piece, i) => { kindOf[Object.keys(p.units)[i]] = piece.kind; });
   for (const [name, at] of Object.entries(p.units)) {
     if (!named.has(name)) continue;
     units[name] = L.gp(tile(at), 'occupant');
+    if (!units[name] && /^m/.test(name)) {
+      // (a monster that roams a pen of its own may have moved off already: the nearest of
+      // its kind)
+      let best = null, bd = 1e9;
+      const size = L.gp(md, 'pmapsize').a;
+      for (let y = 0; y < size[1]; y++) for (let x = 0; x < size[0]; x++) {
+        const o = L.gp(tile([x, y]), 'occupant');
+        const k = L.gp(o, 'pclass') && L.gp(o, 'pclass').a[1];
+        if (!k || String(k.key !== undefined ? k.key : k).toLowerCase() !== kindOf[name]) continue;
+        const d = Math.abs(x - at[0]) + Math.abs(y - at[1]);
+        if (d < bd) { bd = d; best = o; }
+      }
+      units[name] = best;
+    }
     if (!units[name]) return fail('nothing on the map for ' + name + ' at ' + at);
   }
   // until the unit has stopped and done what it was sent to do
@@ -85,6 +101,30 @@ async (code) => {
         if (s.op === 'pick' && !cargo(u)) return fail('picked nothing' + where(u) + ': ' + what);
         if (s.op === 'drop' && cargo(u)) return fail('dropped nothing' + where(u) + ': ' + what);
         if (s.op !== 'pick' && s.op !== 'drop' && terrain(s.at) === before) return fail(s.op + ' changed nothing (' + before + ')' + where(u) + ': ' + what);
+        break;
+      }
+      case 'regate': {
+        // take up the tree between a monster's den and the yellow ground, back off a tile and
+        // plant it where the treebot stood
+        let why = drive(u, s.stand);
+        if (why) return fail(why + ': ' + what);
+        L.mc(u, 'menuclick', L.sym('uproot'));
+        L.mc(u, 'mapclick', L.sym('mouseDown'), P(s.at));
+        if (!idle(u)) return fail('never took it up' + where(u) + ': ' + what);
+        if (!cargo(u)) return fail('took nothing up' + where(u) + ': ' + what);
+        why = drive(u, s.back);
+        if (why) return fail(why + ' (backing off): ' + what);
+        L.mc(u, 'menuclick', L.sym('plant'));
+        L.mc(u, 'mapclick', L.sym('mouseDown'), P(s.stand));
+        if (!idle(u)) return fail('never planted it' + where(u) + ': ' + what);
+        if (!/^tree/.test(terrain(s.stand))) return fail('the way back is not shut (' + terrain(s.stand) + ')' + where(u) + ': ' + what);
+        break;
+      }
+      case 'wander': {
+        // a monster left to wander onto the yellow ground: the goal (or the bonus) is waited for
+        const goals = () => { const gs = L.gp(glob, 'goals'); const l = gs && L.gp(gs, part); return l && l.a ? l.a.length : -1; };
+        const before = goals();
+        if (!until(() => goals() < before || goals() === 0, 20000)) return fail('the monster never came onto the yellow ground (at ' + posOf(u) + '): ' + what);
         break;
       }
       case 'push': {

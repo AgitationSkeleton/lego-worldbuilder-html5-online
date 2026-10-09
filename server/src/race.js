@@ -44,7 +44,7 @@ function missionText(m) {
 
 const CODE_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 const CODE_RE = /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5}$/;
-const MISSION_RE = /^([1-7]\.([1-9]|1[0-2])|R-[1-7][A-L][0-9A-HJKMNP-TV-Z]{4})$/;
+const MISSION_RE = /^([1-7]\.([1-9]|1[0-2])|R-[1-7][A-L][0-9A-HJKMNP-TV-Z]{4,5})$/;
 const MAX_PLAYERS = 6;
 const COUNTDOWN_MS = 4000;      // from the host's start to everyone's
 const GRACE_MS = 30000;         // how long a disconnected player's place is kept

@@ -24,7 +24,7 @@ import { censor } from '../../src/online/profanity.js';
 import { discord, plain, clock } from './discord.js';
 
 // a campaign mission, "<world>.<mission>", or a generated one, "R-" and its code (src/online/random.js)
-const MISSION = /^([1-7]\.([1-9]|1[0-2])|R-[1-7][A-L][0-9A-HJKMNP-TV-Z]{4})$/;
+const MISSION = /^([1-7]\.([1-9]|1[0-2])|R-[1-7][A-L][0-9A-HJKMNP-TV-Z]{4,5})$/;
 const KINDS = new Set(['goal', 'bonus']);
 // No mission is won in under three seconds: the first unit has to move.  (Each mission's own
 // least, from the shortest route there, is for later.)

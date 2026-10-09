@@ -3,7 +3,8 @@ started as a player would start it, and tools/verify/bot.js plays its solution t
 the game's own handlers and checks each step and the goal (and bonus goal).
 
     python tools/verify/puzzles.py --count 24
-    python tools/verify/puzzles.py --codes 2AK2Q9,1CM7T4
+    python tools/verify/puzzles.py --codes 2AK2Q9X,1CM7T4
+    python tools/verify/puzzles.py --count 24 --version 1     (Rando v1's codes)
 
 Needs Playwright with Chromium, and the repository served over HTTP (the default URL is
 http://127.0.0.1:8766/).
@@ -26,11 +27,13 @@ def main():
     ap.add_argument('--codes', default='')
     ap.add_argument('--seed', type=int, default=1)
     ap.add_argument('--verbose', action='store_true')
+    ap.add_argument('--version', type=int, default=2, help='the generator: 2 (Rando v2) or 1 (Rando v1)')
     a = ap.parse_args()
     rnd = random.Random(a.seed)
     codes = [c.strip() for c in a.codes.split(',') if c.strip()]
     while len(codes) < a.count:
-        codes.append('%d%s%s' % (rnd.randint(1, 3), rnd.choice('ABCD'), ''.join(rnd.choice(CHARS) for _ in range(4))))
+        codes.append('%d%s%s' % (rnd.randint(1, 3), rnd.choice('ABCD' if a.version == 1 else 'ABCDE'),
+                                 ''.join(rnd.choice(CHARS) for _ in range(a.version + 3))))
     bot = open(os.path.join(os.path.dirname(__file__), 'bot.js'), encoding='utf-8').read()
     won = 0
     with sync_playwright() as p:

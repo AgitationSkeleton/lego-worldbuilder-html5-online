@@ -184,40 +184,45 @@ own missions, from the world whose look (sky, music) they have, with that missio
 and name swapped while it is played (`src/online/missions.js`). So the engine needs no
 change to play them.
 
-- **What a mission is**: two to five areas (by difficulty) laid out on a small grid, in a
-  row, a column, an L, a U or a zigzag, or scattered and joined by whirlpools. Each link
-  between two areas is one of the game's obstacles, with what gets past it: rocky ground
-  (a dirtbuggy, dumptruck or repairbot drives over it); water a steamshovel fills with
-  ground it digs elsewhere, from either side; trees a treebot takes up and plants
-  elsewhere, from either side; a few boulders in a narrow place, a pushing puzzle for a
-  bulldozer, found by search; a tree or boulder in a gap that a factory built beside it
-  turns into bricks for what is built next; a river a tugboat or freighter carries bricks
-  over; ponds far apart joined by whirlpools; water a duck or frog swims to fetch a plan;
-  a wide swamp only a defender's shield gets through; a narrow way past a monster's den
-  (a shark or water crab by a path, a crab or alligator by rocky ground, a lion, scorpion,
-  T. rex or crab on a river bank) that a freezebot kept within reach holds frozen, and
-  that a defender may take apart.
-- **Bricks and plans**: what is built is found in different ways: bricks already by its
-  site, a pile to fetch with a carrier, a windmill or garage built where its one free
-  side is by the site to make the energy brick or wheels that are short, a unit the
-  mission is done with taken apart for its bricks. Plans are in hand or lie on the map
-  (or float on the water) to be fetched; harder missions give plans that are not needed.
-  A unit short of energy for a trip recharges at a gas station, robot lab, marina or
-  repairbot, built for it if there is none.
-- **Goals**: a unit, an animal or a boat brought to a nook or the end of a pond; a
-  building built on a place (house, gas station, robot lab, guard tower, factory,
-  windmill, garage, nursery, marina); a monster between two boulders frozen, the boulders
-  pushed aside and the monster pushed into its pen or onto the goal (it ends shut in a
-  nook by the bulldozer, a freezebot in reach); a boulder pushed into a nook. Every
-  mission has a bonus goal too, mostly of another kind, in any of its areas. Goals claim
-  their room before anything else is put down.
-- **The areas**: shaped with ponds, groves, outcrops, rocky ground, swamp, caged monsters
-  and walled pools with sharks or water crabs in them, and in the city streets and
-  cement, before anything is put on them; once the solution is made, trees and rocks are
-  added where no unit goes.
+- **Rando v2, after the games' own missions**: the generator was made over after a study
+  of all 84 of the games' missions and the walkthroughs that came with them (what each
+  world is made of, how the missions vary, what their goals are). Its missions:
+  - **Shapes**: two to five areas (by difficulty) of all sizes, from an islet to a wide
+    island, out of line with each other: their edges worn and grown out into points and
+    lobes over the sky; water along some shores (all round in the ocean, with reefs
+    beyond); some areas a maze of narrow ways over the sky or between trees and rocks, with
+    a room or two, as in The Long Road or Treebot in the Forest.
+  - **Links between areas**, weighted by the look as the worlds have them: rocky ground (a
+    dirtbuggy, dumptruck or repairbot drives over it); water a steamshovel fills; trees a
+    treebot takes up and plants elsewhere; a few boulders to push, now and then; a tree or
+    boulder a factory turns into bricks (mostly the city's); a river a tugboat or freighter
+    carries bricks over and whirlpools (mostly the ocean's); water a duck or frog swims; a
+    swamp only a defender gets through (mostly the prehistoric world's); in the harder
+    missions, a narrow way past a monster a freezebot holds.
+  - **Looks**: A grassland, B prehistoric, C jungle, D city and E ocean (World Builder's
+    Ocean World: islands in the sea, reefs, whirlpools, boats, sharks).
+  - **Goals**, as often as the games have them: mostly a unit brought somewhere (built well
+    away from the goal, so bringing it is a trip) or a building built there (most of its
+    bricks brought from piles well away, by the biggest carrier there is or one made for
+    it); a fish, boat or animal brought to the end of a pond (a duck or frog from away on
+    the land, mostly); rarely a boulder pushed into a nook. A monster goal is rare: a
+    monster roams a den beside a yellow goal area of seven to eleven tiles, shut off from
+    it by a tree; a treebot takes the tree up, backs off and plants it where it stood, and
+    the monster wanders (or is lured) onto the yellow ground, as in World Builder 2's
+    jungle.
+  - **Monsters** roam ground of their own (an islet off a shore, a clearing walled in by
+    rocks and trees) of several tiles, kept clear of by the solution.
+  - **Plans**: only those the mission builds from, in hand or lying on the map to be
+    fetched, with spares of the units in hand.
+- **Rando v1**, the first generator (areas on a grid joined by the same links, goals of
+  all kinds as often as each other, caged monsters), is kept as it was in
+  `src/online/puzzle/v1/`, so that its codes make the missions they always made; the
+  random-mission panel can still make new ones with it.
 - **Beatable**: the solution is a list of steps as the game's controls do them (go, pick,
   drop, dig, fill, uproot, plant, push, whirlpool, build, take apart, a factory's colour,
-  waiting for a building to make something, recharge, attack), each naming the tile its
+  waiting for a building to make something, recharge, attack; in Rando v2 also a den's
+  tree taken up and planted behind, and a monster left to wander onto its goal), each
+  naming the tile its
   unit stands on to act. It is played step by step on a model of the rules
   (`src/online/puzzle/model.js`): piles brick by brick as the game takes and uses them,
   energy (with a margin for the game's longer routes), the swamp's harm, monsters' pens
@@ -235,8 +240,10 @@ change to play them.
   checks the generator on its own over many codes and, with `--report`, counts the
   units, buildings, monsters, terrains, links and goals the missions have.
 - **Codes**: a mission is its code: its difficulty, its look (A grassland, B prehistoric,
-  C jungle, D city) and a seed, like `2C-K2Q9`. The random-mission panel makes, types,
-  plays and copies a link to one; `?random=2C-K2Q9` offers it.
+  C jungle, D city, E ocean) and a seed, like `2C-K2Q9X`: a seed of five characters is
+  Rando v2's, of four Rando v1's (`2C-K2Q9`, the looks A to D). The random-mission panel
+  makes (by either generator), types, plays and copies a link to one; `?random=2C-K2Q9X`
+  offers it.
 - **Scores**: a generated mission is timed like the others, under `R-` and its code, on a
   table of its own. It does not count on the overall table.
 

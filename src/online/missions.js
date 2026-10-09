@@ -83,10 +83,11 @@ export class RandomMissions {
     return g;
   }
 
-  // A new code that makes a mission, of a difficulty (1 to 3) and look (A to D), or any.
-  newCode(difficulty, look) {
+  // A new code that makes a mission, of a difficulty (1 to 3) and look (A to E), or any, by a
+  // generator (the newest if not said: src/online/puzzle.js, GENERATORS).
+  newCode(difficulty, look, version) {
     for (let i = 0; i < 50; i++) {
-      const code = randomCode(difficulty, look);
+      const code = randomCode(difficulty, look, version);
       if (this.make(code)) return code;
     }
     return null;
