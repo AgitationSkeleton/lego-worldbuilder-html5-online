@@ -1,0 +1,40 @@
+{
+  "name": "lego-worldbuilder-online",
+  "productName": "LEGO World Builder Online",
+  "version": "1.0.0",
+  "description": "LEGO World Builder Online, as an app: the game with no browser, updating itself from GitHub Releases.",
+  "author": "LEGO World Builder Online contributors",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --publish never",
+    "release": "electron-builder --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "xyz.viosarcade.worldbuilderonline",
+    "productName": "LEGO World Builder Online",
+    "artifactName": "LEGO-World-Builder-Online-${version}-${os}-${arch}.${ext}",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "preload.js", "icon.png", "package.json"],
+    "extraResources": [
+      { "from": "..", "to": "game", "filter": ["index.html", "src/**/*", "data/**/*", "assets/**/*"] }
+    ],
+    "icon": "icon.png",
+    "publish": [
+      { "provider": "github", "owner": "AgitationSkeleton", "repo": "lego-worldbuilder-html5-online", "releaseType": "draft" }
+    ],
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] },
+    "nsis": { "oneClick": true, "perMachine": false, "deleteAppDataOnUninstall": false },
+    "mac": { "target": [{ "target": "dmg", "arch": ["universal"] }, { "target": "zip", "arch": ["universal"] }], "category": "public.app-category.games" },
+    "linux": { "target": [{ "target": "AppImage", "arch": ["x64"] }], "category": "Game" }
+  }
+}

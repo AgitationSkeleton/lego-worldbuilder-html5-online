@@ -17,7 +17,7 @@
 // be kept in step.
 
 import * as L from '../director/lingo.js';
-import { el, dialog, focusField } from './dom.js';
+import { el, dialog, focusField, shareUrl } from './dom.js';
 import { WORLD_NAMES, clock, scoreServer } from './scores.js';
 import { parseCode, showCode } from './puzzle.js';
 
@@ -656,9 +656,8 @@ export class Races {
   }
 
   copyLink() {
-    const url = new URL(location.href);
+    const url = shareUrl();
     url.search = '?race=' + this.code;
-    url.hash = '';
     const done = () => this.note('Copied: ' + url.href);
     if (navigator.clipboard) navigator.clipboard.writeText(url.href).then(done, () => this.note(url.href));
     else this.note(url.href);

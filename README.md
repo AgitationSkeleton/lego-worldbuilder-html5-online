@@ -55,6 +55,10 @@ then open <http://localhost:8000/>.
   shown as a small map with its name. The other players' units show on your map as ghosts
   in their colours, named when pointed at.
 
+There is also **an app** for Windows, macOS and Linux (the settings link to it, and so does
+the repository's Releases page): the same game without a browser, which keeps itself up to
+date. `client/` has it.
+
 ## Checking it
 
 With the repository served at <http://127.0.0.1:8766/>:
@@ -67,6 +71,7 @@ python tools/verify/race.py --server http://127.0.0.1:8787
 python tools/verify/soak.py merged --base http://127.0.0.1:8766/ --random 20
 node tools/verify/puzzle.mjs 50 --report
 python tools/verify/puzzles.py --count 40
+python tools/verify/app.py
 ```
 
 The first plays every mission with random clicks and reports script errors; the second
@@ -74,8 +79,11 @@ plays one with a finger on an emulated phone and checks that taps, drags and the
 arrows do what they should; the third times a mission and sends its results to a local
 score server (`server/`: `npm run dev`); the fourth races two browsers through it; the
 fifth plays generated missions with random input; the sixth generates puzzles over many
-codes, checks each plays through the model of the rules and counts what they have; the last plays generated
-missions' solutions in the game itself and checks they reach the goal.
+codes, checks each plays through the model of the rules and counts what they have (`--v1` for
+Rando v1's codes); the seventh plays generated missions' solutions in the game itself and checks
+they reach the goal (`--version 1` for Rando v1's); the last starts the app (`client/`, after
+`npm install` there), out of the way on a second screen, and plays a random mission in it
+(`--exe` for a built one).
 
 ## How the port works
 

@@ -54,6 +54,7 @@
 .panel p { margin: 0 0 8px; }
 .panel p.note { margin: 6px 0 0; color: #555; font-size: 14px; overflow-wrap: anywhere; }
 .panel p.note:empty { display: none; }
+.panel p a { color: #0a7a00; }
 .panel .choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .panel .choices + .choices { margin-top: 8px; }
 .panel button.choice, .panel button.done, #scores-toast button.send, #scores-toast button.skip {

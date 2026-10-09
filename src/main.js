@@ -99,6 +99,8 @@ async function main() {
     ui.random.install(scripts.scripts);
     ui.random.onLeft = (how) => ui.randomLeft(how);
     ui.scores = new Scores(rt, ui, params);
+    // (the app, client/: a new version fetched installs when it is closed)
+    if (window.worldbuilderApp) window.worldbuilderApp.onUpdateReady((v) => ui.scores.show('Version ' + v + ' of the app is ready', 'it installs when you close the app'));
     ui.scores.random = ui.random;
     ui.scores.install(scripts.scripts);
     // races (src/online/race.js): told of each goal reached; leaving a mission is giving up

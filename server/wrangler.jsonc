@@ -44,8 +44,9 @@
 		}
 	],
 	"vars": {
-		// Pages that may use the server (a trailing :* allows any port, for testing locally).
-		"ALLOWED_ORIGINS": "https://wbonline.viosarcade.xyz,http://localhost:*,http://127.0.0.1:*"
+		// Pages that may use the server (app://game is the app, client/; a trailing :* allows
+		// any port, for testing locally).
+		"ALLOWED_ORIGINS": "https://wbonline.viosarcade.xyz,app://game,http://localhost:*,http://127.0.0.1:*"
 	},
 	// The server's address.  viosarcade.xyz must be a zone on this Cloudflare account; the
 	// address and its certificate are made on the first deploy.

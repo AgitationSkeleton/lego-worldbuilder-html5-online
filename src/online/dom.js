@@ -49,3 +49,14 @@ export function focusField(input, instead) {
   const target = touch ? instead : input;
   if (target) target.focus();
 }
+
+// The game's address, for links to share: the website's in the app (client/), whose own page
+// is app://game/ and means nothing to anyone else; the page's own elsewhere.
+export const SITE = 'https://wbonline.viosarcade.xyz/';
+export const RELEASES = 'https://github.com/AgitationSkeleton/lego-worldbuilder-html5-online/releases/latest';
+export function shareUrl() {
+  const url = new URL(location.protocol === 'app:' ? SITE : location.href);
+  url.search = '';
+  url.hash = '';
+  return url;
+}

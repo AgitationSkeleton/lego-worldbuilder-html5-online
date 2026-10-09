@@ -1,0 +1,64 @@
+# The app (client/): built for Windows, macOS and Linux and published as a GitHub release (and
+# its tag), which is where installed apps look for updates.  The app carries its own copy of the
+# game, so it is built again whenever the game changes -- every push to main that touches the
+# game or the app, as <major.minor of client/package.json>.<this workflow's run number> -- and
+# on a version tag pushed by hand (v1.2.3), as that version.  An installed app finds the new
+# one and installs it on quitting.
+name: App
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths: ['index.html', 'src/**', 'data/**', 'assets/**', 'client/**', '.github/workflows/app.yml']
+permissions:
+  contents: write
+# (one release at a time, in order)
+concurrency:
+  group: app-release
+  cancel-in-progress: false
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: The version
+        id: version
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then v="${GITHUB_REF_NAME#v}"
+          else v="$(node -p "require('./client/package.json').version.split('.').slice(0, 2).join('.')").${GITHUB_RUN_NUMBER}"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - name: A draft release for the builds to go in
+        run: gh release create "v${{ steps.version.outputs.version }}" --target "$GITHUB_SHA" --draft --title "LEGO World Builder Online v${{ steps.version.outputs.version }}" --notes "The game as an app, for Windows, macOS and Linux, the same as the website (wbonline.viosarcade.xyz) at this version, with its score tables, races and random missions on the same server. Download the one for your computer below; it keeps itself up to date. (Windows may warn that it doesn't know the publisher: More info, Run anyway. macOS wants a right-click and Open the first time.)" || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+  build:
+    needs: draft
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: client
+      - run: npm version "${{ needs.draft.outputs.version }}" --no-git-tag-version --allow-same-version
+        working-directory: client
+      - run: npx electron-builder --publish always
+        working-directory: client
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+  publish:
+    needs: [draft, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: gh release edit "v${{ needs.draft.outputs.version }}" --draft=false --latest
+        env:
+          GH_TOKEN: ${{ github.token }}

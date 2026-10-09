@@ -6,7 +6,7 @@ import { UI_SCALES, loadSettings, saveSettings } from './settings.js';
 import { isClean } from './profanity.js';
 import { WORLD_NAMES, clock } from './scores.js';
 import { parseCode, showCode, GENERATORS, LATEST } from './puzzle.js';
-import { el, dialog, focusField } from './dom.js';
+import { el, dialog, focusField, shareUrl, RELEASES } from './dom.js';
 
 const SIZES = [
   ['small', 'Small'],
@@ -159,6 +159,14 @@ export class OnlineUI {
         el('p', { text: 'Each mission is timed to its goal and to its bonus goal. Your best times are kept in this browser; these say whether they go on the tables everyone sees.' }),
         el('div', { class: 'choices' }, ...this.sendButtons),
         el('div', { class: 'choices name' }, this.nameInput)),
+      // the app (client/): its version, or, in a browser, where to get it
+      el('section', null,
+        el('h3', { text: 'App' }),
+        window.worldbuilderApp
+          ? el('p', { text: 'The app, version ' + window.worldbuilderApp.version + '. It keeps itself up to date.' })
+          : el('p', null, 'Play without a browser: ',
+            el('a', { href: RELEASES, target: '_blank', rel: 'noopener', text: 'the app, for Windows, Mac and Linux' }),
+            '. It keeps itself up to date.')),
       this.leaveSection = el('section', null,
         el('h3', { text: 'Leave' }),
         el('p', { text: 'Back to the main menu (a mission being played is left).' }),
@@ -421,9 +429,8 @@ export class OnlineUI {
       this.randomNote.textContent = 'Make or type a code first.';
       return;
     }
-    const url = new URL(location.href);
+    const url = shareUrl();
     url.search = '?random=' + showCode(c.code);
-    url.hash = '';
     const done = () => { this.randomNote.textContent = 'Copied: ' + url.href; };
     if (navigator.clipboard) navigator.clipboard.writeText(url.href).then(done, () => { this.randomNote.textContent = url.href; });
     else this.randomNote.textContent = url.href;

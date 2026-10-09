@@ -291,7 +291,13 @@ Each step builds on the ones before it.
 4. **Scores** (4), with the server. *Done.*
 5. **The randomizer** (5), which scores can rank once it is in. *Done.*
 6. **Races** (6.1), on the scores server's rooms *(done)*; then **co-op** (6.2).
-7. **The offline client and smooth drawing** (7).
+7. **The offline client** (7), *done*: the game as an app (`client/`, Electron) for Windows,
+   macOS and Linux: the game's files come with it, the score tables, races and random
+   missions' log go to the same server, and it updates itself from GitHub Releases. Every
+   push to main that changes the game builds and publishes it as a tagged release
+   (`.github/workflows/app.yml`), so it stays the same as the website; the settings link to
+   the latest for browser players. Unsigned for now; `client/README.md` says more. **Smooth
+   drawing** is done too (units and monsters glide between the game's frames).
 
 ## How
 
