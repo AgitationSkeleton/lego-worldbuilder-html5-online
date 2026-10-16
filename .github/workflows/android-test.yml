@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install playwright
+      - run: pip install websocket-client
       - run: npm ci
         working-directory: mobile
       - run: npm run sync
