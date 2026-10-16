@@ -300,7 +300,10 @@ Each step builds on the ones before it.
    drawing** is done too (units and monsters glide between the game's frames). **The website
    installs as an app** too (a web app manifest and a service worker), on phones and tablets
    as well, and plays offline once visited: index.html from the network first, the files
-   named by their contents (tools/stamp.py) kept, those of older versions let go.
+   named by their contents (tools/stamp.py) kept, those of older versions let go. **An Android
+   app** (`mobile/`, Capacitor) too: its `.apk` is built, signed and put in each release, and
+   played in an emulator by the Android test workflow; it says when a newer one is out. No
+   store and no iOS app (the game is LEGO's): iPhones install the website.
 
 ## How
 

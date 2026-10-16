@@ -65,7 +65,8 @@ It keeps itself up to date: online, each start fetches what is new.
 
 There is also **an app** for Windows, macOS and Linux (the settings link to it, and so does
 the repository's Releases page): the same game without a browser, which keeps itself up to
-date. `client/` has it.
+date. `client/` has it. And **an Android app**, the `.apk` in each release (`mobile/`), which
+says when a newer one is out.
 
 ## Checking it
 
@@ -81,6 +82,7 @@ node tools/verify/puzzle.mjs 50 --report
 python tools/verify/puzzles.py --count 40
 python tools/verify/app.py
 python tools/verify/offline.py
+python tools/verify/android.py
 ```
 
 The first plays every mission with random clicks and reports script errors; the second
@@ -92,7 +94,8 @@ codes, checks each plays through the model of the rules and counts what they hav
 Rando v1's codes); the seventh plays generated missions' solutions in the game itself and checks
 they reach the goal (`--version 1` for Rando v1's); the last starts the app (`client/`, after
 `npm install` there), out of the way on a second screen, and plays a random mission in it
-(`--exe` for a built one); `offline.py` checks the website installs and plays offline.
+(`--exe` for a built one); `offline.py` checks the website installs and plays offline; `android.py` plays the
+Android app on an emulator or a phone (`mobile/README.md`), as the Android test workflow does.
 
 ## How the port works
 
