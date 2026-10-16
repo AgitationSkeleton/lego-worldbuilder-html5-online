@@ -2,8 +2,8 @@
 //
 // - the right mouse button and the middle one drag the map, as a finger does (touch.js),
 //   and a right click that does not drag puts down the unit chosen;
-// - held arrow keys move the map smoothly, a little at every drawing, rather than a tile at
-//   a time as the game's own keys do;
+// - held arrow keys (or W, A, S, D) move the map smoothly, a little at every drawing, rather
+//   than a tile at a time as the game's own keys do;
 // - the game's Menu button holds the game still while its menu is open (not in a race);
 // - the music, the sounds and the interface's sounds each have a loudness of their own: the
 //   game's sounds asked for as sfx_interface_... are the interface's.
@@ -162,10 +162,14 @@ export class Controls {
   }
 
   // Held arrow keys: the map moves a little at every drawing, the game's own tile-a-time
-  // scrolling left out.
+  // scrolling left out.  W, A, S and D are arrow keys too (by where they are on the keyboard,
+  // whatever its letters: ZQSD on a French one), with smooth keys or with the game's own
+  // scrolling; with Control, Alt or the command key they are left alone.
   installKeys() {
     const held = new Set();
     const DIRS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+    const ALIAS = { KeyW: 'ArrowUp', KeyA: 'ArrowLeft', KeyS: 'ArrowDown', KeyD: 'ArrowRight' };
+    const dirOf = (e) => (DIRS[e.key] ? e.key : (!e.ctrlKey && !e.altKey && !e.metaKey && ALIAS[e.code]) || null);
     let last = 0, running = false;
     const active = () => this.settings.smoothKeys && this.mapDisplay() && !this.classic();
     const typing = (e) => e.target instanceof Element && !!e.target.closest('input, textarea, select, button, a[href], [contenteditable], .panel, #menu');
@@ -188,11 +192,21 @@ export class Controls {
       requestAnimationFrame(step);
     };
     window.addEventListener('keydown', (e) => {
-      if (!DIRS[e.key] || typing(e) || !active()) return;
+      const k = dirOf(e);
+      if (!k || typing(e)) return;
+      if (!active()) {
+        // (W, A, S, D to the game's own scrolling, as the arrow keys they stand for)
+        if (k !== e.key && this.mapDisplay()) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          this.rt.keyDown({ code: k, key: k, shiftKey: e.shiftKey, ctrlKey: false, altKey: false, metaKey: false });
+        }
+        return;
+      }
       // (not the game's: it would scroll a tile as well)
       e.preventDefault();
       e.stopImmediatePropagation();
-      held.add(e.key);
+      held.add(k);
       if (!running) {
         running = true;
         last = performance.now();
@@ -200,8 +214,8 @@ export class Controls {
       }
     }, true);
     window.addEventListener('keyup', (e) => {
-      if (!DIRS[e.key]) return;
-      held.delete(e.key);
+      const k = DIRS[e.key] ? e.key : ALIAS[e.code];
+      if (k) held.delete(k);
     }, true);
     window.addEventListener('blur', () => held.clear());
   }

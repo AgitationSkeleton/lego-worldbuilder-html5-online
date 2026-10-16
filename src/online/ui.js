@@ -152,7 +152,7 @@ export class OnlineUI {
         row('Mouse 2 Camera Pan', toggle('panRight')),
         row('Mouse 3 Camera Pan', toggle('panMiddle')),
         row('Mouse 2 Deselect', toggle('deselectRight')),
-        row('Smooth Arrow-Key Camera', toggle('smoothKeys')),
+        row('Smooth Arrow-Key/WASD Camera', toggle('smoothKeys')),
         row('Smooth Unit Movement', toggle('smoothUnits'))),
       el('section', null,
         el('h3', { text: 'Score tables' }),

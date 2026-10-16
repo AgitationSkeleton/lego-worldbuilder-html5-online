@@ -33,6 +33,8 @@ then open <http://localhost:8000/>.
   the original layout, since its arrows point at it.
 - **Zoom**: the mouse wheel (or two fingers) zooms the map, and the map alone: out until
   its edges would show, in to the game's own scale. The interface keeps its size.
+- **Keys**: the arrow keys or W, A, S, D move the map, smoothly or a tile at a time as the
+  game's own arrows do (a setting); the spacebar is the chosen unit's action.
 - **Touch**: a tap is a click, a drag moves the map, a long press on the map shows what
   hovering would, and two fingers zoom the map (or, where it already fits, pinch the
   interface smaller or bigger).
