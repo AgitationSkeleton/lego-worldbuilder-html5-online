@@ -50,22 +50,51 @@ def adb(*a):
     return r.stdout
 
 
-class Page:
-    """A page over Chrome's debugging protocol: evaluate(), wait(), screenshot()."""
+def find_page(port, timeout=90):
+    """The page's target from the debugging port's list, once there is one."""
+    for _ in range(timeout):
+        try:
+            targets = json.load(urllib.request.urlopen('http://127.0.0.1:%d/json/list' % port, timeout=10))
+            t = next((t for t in targets if t.get('type') == 'page' and t.get('url', '').startswith(args.url) and t.get('webSocketDebuggerUrl')), None)
+            if t:
+                return t
+        except Exception:
+            pass
+        time.sleep(1)
+    return None
 
-    def __init__(self, ws_url):
-        self.ws = websocket.create_connection(ws_url, timeout=120, suppress_origin=True)
+
+class Page:
+    """A page over Chrome's debugging protocol: evaluate(), wait(), screenshot().  (Should the page
+    be replaced as the app starts, and its socket close, the new one is found and used.)"""
+
+    def __init__(self, port):
+        self.port = port
+        self.ws = None
         self.n = 0
+        self.connect()
+
+    def connect(self):
+        t = find_page(self.port)
+        if not t:
+            raise RuntimeError('no page')
+        self.ws = websocket.create_connection(t['webSocketDebuggerUrl'], timeout=120, suppress_origin=True)
 
     def send(self, method, params=None):
-        self.n += 1
-        self.ws.send(json.dumps({'id': self.n, 'method': method, 'params': params or {}}))
-        while True:
-            m = json.loads(self.ws.recv())
-            if m.get('id') == self.n:
-                if 'error' in m:
-                    raise RuntimeError(m['error'])
-                return m['result']
+        for attempt in range(5):
+            try:
+                self.n += 1
+                self.ws.send(json.dumps({'id': self.n, 'method': method, 'params': params or {}}))
+                while True:
+                    m = json.loads(self.ws.recv())
+                    if m.get('id') == self.n:
+                        if 'error' in m:
+                            raise RuntimeError(m['error'])
+                        return m['result']
+            except (websocket.WebSocketException, ConnectionError, OSError):
+                time.sleep(2)
+                self.connect()
+        raise RuntimeError("the page's socket keeps closing")
 
     def evaluate(self, fn):
         """The value of a JavaScript function (it may be async)."""
@@ -109,20 +138,11 @@ if not port:
         sys.exit(1)
     adb('forward', 'tcp:%d' % args.port, 'localabstract:' + sock)
     port = args.port
-target = None
-for _ in range(90):
-    try:
-        targets = json.load(urllib.request.urlopen('http://127.0.0.1:%d/json/list' % port, timeout=10))
-        target = next((t for t in targets if t.get('type') == 'page' and t.get('url', '').startswith(args.url)), None)
-        if target:
-            break
-    except Exception:
-        pass
-    time.sleep(1)
+target = find_page(port)
 check(target is not None, 'its window shows the game from its own files: %s' % (target and target['url']))
 if not target:
     sys.exit(1)
-page = Page(target['webSocketDebuggerUrl'])
+page = Page(port)
 READY = "() => !!(window.__online && window.__online.menu && window.__rt && window.__rt.started)"
 check(page.wait(READY, 300), 'the game loads and the main menu comes up')
 if not args.cdp:
@@ -149,5 +169,10 @@ errs = page.evaluate('() => window.__rt.errors.map(String).slice(0, 3)')
 check(not errs, 'no script errors %s' % errs)
 if not args.cdp:
     adb('forward', '--remove', 'tcp:%d' % args.port)
+    if failures:
+        # (what the app and its page said, for the failure)
+        log = adb('logcat', '-d', '-s', 'Capacitor:*', 'Capacitor/Console:*', 'chromium:*', 'AndroidRuntime:*')
+        for line in log.splitlines()[-80:]:
+            print(line)
 print('all passed' if not failures else '%d failed' % len(failures))
 sys.exit(1 if failures else 0)
