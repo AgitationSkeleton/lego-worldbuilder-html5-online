@@ -160,6 +160,17 @@ code = page.evaluate("() => { const ui = window.__online; ui.openRandom(); ui.ne
 check(page.wait("() => window.__rt.labelAt(window.__rt.frame) === 'play' && !!window.__online.random.active", 180), 'a random mission plays: %s' % code)
 time.sleep(3)
 page.screenshot(os.path.join(args.shots, 'android-game.png'))
+# (a debugger's picture of a WebView may leave out its canvas: the canvas's own pixels, and the
+# phone's screen as it shows)
+drawn = page.evaluate("""() => { const c = document.getElementById('stage'); const t = document.createElement('canvas');
+  t.width = 64; t.height = 64; const g = t.getContext('2d'); g.drawImage(c, 0, 0, 64, 64);
+  const d = g.getImageData(0, 0, 64, 64).data; let lit = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 60) lit++;
+  return lit / (64 * 64); }""")
+check(drawn > 0.3, 'the mission is drawn on the game\'s canvas (%d%% of it lit)' % round(drawn * 100))
+if not args.cdp:
+    png = subprocess.run([args.adb, 'exec-out', 'screencap', '-p'], capture_output=True).stdout
+    open(os.path.join(args.shots, 'android-screen.png'), 'wb').write(png)
 link = page.evaluate("async () => { const { shareUrl } = await import('./src/online/dom.js'); return shareUrl().href; }")
 if not args.cdp:
     check(link.startswith('https://wbonline.viosarcade.xyz/'), 'a link to share is the website\'s: %s' % link)
