@@ -297,7 +297,10 @@ Each step builds on the ones before it.
    push to main that changes the game builds and publishes it as a tagged release
    (`.github/workflows/app.yml`), so it stays the same as the website; the settings link to
    the latest for browser players. Unsigned for now; `client/README.md` says more. **Smooth
-   drawing** is done too (units and monsters glide between the game's frames).
+   drawing** is done too (units and monsters glide between the game's frames). **The website
+   installs as an app** too (a web app manifest and a service worker), on phones and tablets
+   as well, and plays offline once visited: index.html from the network first, the files
+   named by their contents (tools/stamp.py) kept, those of older versions let go.
 
 ## How
 

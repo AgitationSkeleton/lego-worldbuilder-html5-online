@@ -12,6 +12,7 @@ import { Races } from './online/race.js';
 import { MainMenu } from './online/menu.js';
 import { Controls } from './online/controls.js';
 import { fileUrl } from './files.js';
+import { installOffline } from './online/offline.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -167,6 +168,9 @@ function waitForClick(rt) {
     window.addEventListener('keydown', go, { once: true });
   });
 }
+
+// (the game installed, and offline: src/online/offline.js)
+if (game === 'merged') installOffline(root, params);
 
 main().catch((e) => {
   console.error(e);

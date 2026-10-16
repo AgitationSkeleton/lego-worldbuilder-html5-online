@@ -7,6 +7,7 @@ import { isClean } from './profanity.js';
 import { WORLD_NAMES, clock } from './scores.js';
 import { parseCode, showCode, GENERATORS, LATEST } from './puzzle.js';
 import { el, dialog, focusField, shareUrl, RELEASES } from './dom.js';
+import { offline, ios } from './offline.js';
 
 const SIZES = [
   ['small', 'Small'],
@@ -159,14 +160,8 @@ export class OnlineUI {
         el('p', { text: 'Each mission is timed to its goal and to its bonus goal. Your best times are kept in this browser; these say whether they go on the tables everyone sees.' }),
         el('div', { class: 'choices' }, ...this.sendButtons),
         el('div', { class: 'choices name' }, this.nameInput)),
-      // the app (client/): its version, or, in a browser, where to get it
-      el('section', null,
-        el('h3', { text: 'App' }),
-        window.worldbuilderApp
-          ? el('p', { text: 'The app, version ' + window.worldbuilderApp.version + '. It keeps itself up to date.' })
-          : el('p', null, 'Play without a browser: ',
-            el('a', { href: RELEASES, target: '_blank', rel: 'noopener', text: 'the app, for Windows, Mac and Linux' }),
-            '. It keeps itself up to date.')),
+      // the game installed: the app's version, or in a browser how to install it (renderApp)
+      this.appSection = el('section', null, el('h3', { text: 'App' })),
       this.leaveSection = el('section', null,
         el('h3', { text: 'Leave' }),
         el('p', { text: 'Back to the main menu (a mission being played is left).' }),
@@ -184,6 +179,7 @@ export class OnlineUI {
         el('button', { type: 'button', class: 'choice', text: 'Copy link', onclick: () => this.copyLink() })),
       this.randomNote,
       el('section', { class: 'history' }, el('h3', { text: 'Seed History' }), this.seedEmpty, this.seedList));
+    offline.listeners.push(() => this.renderApp());
     this.buildTables();
     document.addEventListener('fullscreenchange', () => this.render());
     document.body.append(this.gear, this.panel, this.randomPanel, this.tables);
@@ -266,6 +262,7 @@ export class OnlineUI {
     this.focusGame();
   }
   render() {
+    this.renderApp();
     const size = this.forcedScale ? null : this.settings.size;
     for (const b of this.sizeButtons) b.setAttribute('aria-pressed', String(b.dataset.key === size));
     for (const b of this.sendButtons) b.setAttribute('aria-pressed', String(b.dataset.key === this.settings.scores));
@@ -288,6 +285,24 @@ export class OnlineUI {
   save() {
     saveSettings(this.settings);
     this.render();
+  }
+  // The App section: in the app for Windows, Mac and Linux (client/), its version; in a
+  // browser, the web app installed (src/online/offline.js) or how to install it, and the app.
+  renderApp() {
+    const p = (...kids) => el('p', null, ...kids);
+    const link = (text) => el('a', { href: RELEASES, target: '_blank', rel: 'noopener', text });
+    const rows = [];
+    if (window.worldbuilderApp) rows.push(p('The app, version ' + window.worldbuilderApp.version + '. It keeps itself up to date.'));
+    else {
+      if (offline.installed) rows.push(p('Installed on this device: it plays offline, and keeps itself up to date.'));
+      else if (offline.prompt) {
+        rows.push(el('div', { class: 'choices' }, el('button', { type: 'button', class: 'choice', text: 'Install on this device', onclick: () => offline.install() })));
+        rows.push(p('It then has an icon of its own, plays offline, and keeps itself up to date.'));
+      } else if (ios) rows.push(p('To install it on this iPhone or iPad: Safari\'s Share button, then Add to Home Screen. It then plays offline, and keeps itself up to date.'));
+      else rows.push(p('Your browser can install it (its menu: Install, or Add to Home Screen): it then plays offline, and keeps itself up to date.'));
+      rows.push(p('Or ', link('the app, for Windows, Mac and Linux'), '.'));
+    }
+    this.appSection.replaceChildren(el('h3', { text: 'App' }), ...rows);
   }
   newCode() {
     if (!this.random) return;
