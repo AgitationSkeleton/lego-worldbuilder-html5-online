@@ -1,0 +1,8 @@
+{
+  "appId": "xyz.viosarcade.worldbuilderonline",
+  "appName": "World Builder",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#ffffff"
+  }
+}

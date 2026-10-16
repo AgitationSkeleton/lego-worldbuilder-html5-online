@@ -8,6 +8,7 @@ import { WORLD_NAMES, clock } from './scores.js';
 import { parseCode, showCode, GENERATORS, LATEST } from './puzzle.js';
 import { el, dialog, focusField, shareUrl, RELEASES } from './dom.js';
 import { offline, ios } from './offline.js';
+import { android, isAndroidApp, openOutside } from './android.js';
 
 const SIZES = [
   ['small', 'Small'],
@@ -180,6 +181,7 @@ export class OnlineUI {
       this.randomNote,
       el('section', { class: 'history' }, el('h3', { text: 'Seed History' }), this.seedEmpty, this.seedList));
     offline.listeners.push(() => this.renderApp());
+    android.listeners.push(() => this.renderApp());
     this.buildTables();
     document.addEventListener('fullscreenchange', () => this.render());
     document.body.append(this.gear, this.panel, this.randomPanel, this.tables);
@@ -293,7 +295,14 @@ export class OnlineUI {
     const link = (text) => el('a', { href: RELEASES, target: '_blank', rel: 'noopener', text });
     const rows = [];
     if (window.worldbuilderApp) rows.push(p('The app, version ' + window.worldbuilderApp.version + '. It keeps itself up to date.'));
-    else {
+    else if (isAndroidApp()) {
+      // (src/online/android.js: a newer one is downloaded in the phone's browser)
+      rows.push(p('The Android app' + (android.version ? ', version ' + android.version : '') + '.'));
+      if (android.update) {
+        const u = android.update;
+        rows.push(p('Version ' + u.version + ' is out: ', el('a', { href: u.url, text: 'download it', onclick: (e) => { e.preventDefault(); openOutside(u.url); } }), ', then open it to install it.'));
+      } else rows.push(p('New versions are listed on ', el('a', { href: RELEASES, text: 'its releases page', onclick: (e) => { e.preventDefault(); openOutside(RELEASES); } }), '.'));
+    } else {
       if (offline.installed) rows.push(p('Installed on this device: it plays offline, and keeps itself up to date.'));
       else if (offline.prompt) {
         rows.push(el('div', { class: 'choices' }, el('button', { type: 'button', class: 'choice', text: 'Install on this device', onclick: () => offline.install() })));

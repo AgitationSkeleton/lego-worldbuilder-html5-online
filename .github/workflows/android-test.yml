@@ -1,0 +1,54 @@
+# The Android app (mobile/) tried in an emulator: a debug build (its page can be inspected)
+# installed and started, and tools/verify/android.py checks the game loads from the app's own
+# files, plays a random mission and reaches the score server.  On changes to the app, or by
+# hand (Actions, Android test, Run workflow).  Pictures of the run are kept with it.
+name: Android test
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['mobile/**', 'src/online/android.js', 'tools/verify/android.py', '.github/workflows/android-test.yml']
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install playwright
+      - run: npm ci
+        working-directory: mobile
+      - run: npm run sync
+        working-directory: mobile
+      - name: The debug APK
+        working-directory: mobile/android
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+      - name: KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: In the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: python tools/verify/android.py --shots android-shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-shots
+          path: android-shots/
+          if-no-files-found: ignore

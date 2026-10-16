@@ -13,6 +13,7 @@ import { MainMenu } from './online/menu.js';
 import { Controls } from './online/controls.js';
 import { fileUrl } from './files.js';
 import { installOffline } from './online/offline.js';
+import { android, checkAndroid } from './online/android.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -102,6 +103,9 @@ async function main() {
     ui.scores = new Scores(rt, ui, params);
     // (the app, client/: a new version fetched installs when it is closed)
     if (window.worldbuilderApp) window.worldbuilderApp.onUpdateReady((v) => ui.scores.show('Version ' + v + ' of the app is ready', 'it installs when you close the app'));
+    // (the Android app: a newer one out is said once, and in the settings)
+    android.listeners.push(() => { if (android.update && !android.told) { android.told = true; ui.scores.show('Version ' + android.update.version + ' of the app is out', 'the settings have its link'); } });
+    checkAndroid();
     ui.scores.random = ui.random;
     ui.scores.install(scripts.scripts);
     // races (src/online/race.js): told of each goal reached; leaving a mission is giving up
