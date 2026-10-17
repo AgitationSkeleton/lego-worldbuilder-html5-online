@@ -27,12 +27,16 @@ export const DEFAULTS = {
   deselectRight: true,      // a right click puts down the unit chosen
   smoothKeys: true,         // held arrow keys move the map smoothly
   smoothUnits: true,        // units and monsters glide between the game's frames (layout.js)
-  // the Android app (mobile/): landscape (either way up), or turned upright too (android.js)
-  allowPortrait: false,
+  // the Android app (mobile/): which way round the screen is, one of ORIENTATIONS (android.js)
+  orientation: 'landscape',
 };
 
 const VOLUMES = ['music', 'sound', 'ui'];
-const SWITCHES = ['menuPauses', 'panRight', 'panMiddle', 'deselectRight', 'smoothKeys', 'smoothUnits', 'allowPortrait'];
+const SWITCHES = ['menuPauses', 'panRight', 'panMiddle', 'deselectRight', 'smoothKeys', 'smoothUnits'];
+
+// The Android app's screen: landscape or portrait (each either way up), or turned with the
+// phone, as its rotation setting has it.
+export const ORIENTATIONS = ['landscape', 'portrait', 'any'];
 
 export function loadSettings() {
   let saved = null;
@@ -51,6 +55,10 @@ export function loadSettings() {
     s[k] = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : DEFAULTS[k];
   }
   for (const k of SWITCHES) if (typeof s[k] !== 'boolean') s[k] = DEFAULTS[k];
+  // (Allow Portrait, the first version of the setting: on was turning with the phone)
+  if (saved && saved.allowPortrait === true && !saved.orientation) s.orientation = 'any';
+  delete s.allowPortrait;
+  if (!ORIENTATIONS.includes(s.orientation)) s.orientation = DEFAULTS.orientation;
   return s;
 }
 

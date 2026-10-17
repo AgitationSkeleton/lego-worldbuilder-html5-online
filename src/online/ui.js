@@ -76,6 +76,11 @@ export class OnlineUI {
       type: 'button', class: 'choice', text: 'Full screen',
       onclick: () => this.toggleFullscreen(),
     });
+    // (the Android app's screen: settings.js, ORIENTATIONS; android.js)
+    this.orientButtons = [['landscape', 'Landscape'], ['portrait', 'Portrait'], ['any', 'Turn with phone']].map(([key, label]) => el('button', {
+      type: 'button', class: 'choice', 'data-key': key, text: label,
+      onclick: () => { this.settings.orientation = key; this.save(); applyOrientation(key); },
+    }));
     this.sendButtons = SENDS.map(([key, label]) => el('button', {
       type: 'button', class: 'choice', 'data-key': key, text: label,
       onclick: () => { this.settings.scores = key; this.save(); },
@@ -102,11 +107,10 @@ export class OnlineUI {
     };
     // Controls: an On and an Off for each switch.
     this.switches = {};
-    // (then what the switch changes, if given)
-    const toggle = (key, changed) => {
+    const toggle = (key) => {
       const b = [true, false].map((on) => el('button', {
         type: 'button', class: 'choice', text: on ? 'On' : 'Off', 'data-on': String(on),
-        onclick: () => { this.settings[key] = on; this.save(); if (changed) changed(on); },
+        onclick: () => { this.settings[key] = on; this.save(); },
       }));
       this.switches[key] = b;
       return el('div', { class: 'choices' }, ...b);
@@ -137,7 +141,7 @@ export class OnlineUI {
     this.randomNote = el('p', { class: 'note', 'aria-live': 'polite' });
     // (the Android app is on the whole screen already: there, which way round it turns)
     const fullRow = isAndroidApp()
-      ? el('section', null, el('h3', { text: 'Screen' }), row('Allow Portrait', toggle('allowPortrait', applyOrientation)))
+      ? el('section', null, el('h3', { text: 'Screen' }), el('div', { class: 'choices' }, ...this.orientButtons))
       : document.fullscreenEnabled
         ? el('section', null, el('h3', { text: 'Screen' }), el('div', { class: 'choices' }, this.fullButton))
         : null;
@@ -272,6 +276,7 @@ export class OnlineUI {
     const size = this.forcedScale ? null : this.settings.size;
     for (const b of this.sizeButtons) b.setAttribute('aria-pressed', String(b.dataset.key === size));
     for (const b of this.sendButtons) b.setAttribute('aria-pressed', String(b.dataset.key === this.settings.scores));
+    for (const b of this.orientButtons) b.setAttribute('aria-pressed', String(b.dataset.key === this.settings.orientation));
     for (const [key, input] of Object.entries(this.sliders)) {
       if (document.activeElement !== input) input.value = String(Math.round(this.settings[key] * 100));
     }

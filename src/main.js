@@ -106,7 +106,7 @@ async function main() {
     // (the Android app: a newer one out is said once, and in the settings)
     android.listeners.push(() => { if (android.update && !android.told) { android.told = true; ui.scores.show('Version ' + android.update.version + ' of the app is out', 'the settings have its link'); } });
     checkAndroid();
-    applyOrientation(ui.settings.allowPortrait);
+    applyOrientation(ui.settings.orientation);
     ui.scores.random = ui.random;
     ui.scores.install(scripts.scripts);
     // races (src/online/race.js): told of each goal reached; leaving a mission is giving up

@@ -162,15 +162,18 @@ if not args.cdp:
     check(page.wait('() => innerWidth > innerHeight', 30), 'it opens in landscape, the phone held upright')
     png = subprocess.run([args.adb, 'exec-out', 'screencap', '-p'], capture_output=True).stdout
     open(os.path.join(args.shots, 'android-landscape.png'), 'wb').write(png)
-    def allow_portrait(on):
-        # (the settings' Allow Portrait switch, clicked as a player would)
+    def screen(label):
+        # (a choice of the settings' Screen, clicked as a player would)
         return page.evaluate("""() => { window.__online.open();
-          const r = [...document.querySelectorAll('.panel .row')].find((x) => x.textContent.startsWith('Allow Portrait'));
-          if (!r) return false; r.querySelector('button[data-on="%s"]').click(); window.__online.close(); return true; }""" % ('true' if on else 'false'))
-    check(allow_portrait(True) is True, 'the settings have Allow Portrait')
-    check(page.wait('() => innerHeight > innerWidth', 30), 'with Allow Portrait on, it turns upright with the phone')
-    allow_portrait(False)
-    check(page.wait('() => innerWidth > innerHeight', 30), 'with it off again, landscape')
+          const b = [...document.querySelectorAll('.panel button')].find((x) => x.textContent === '%s');
+          if (!b) return false; b.click(); window.__online.close(); return true; }""" % label)
+    check(screen('Portrait') is True, "the settings have the screen's choices")
+    check(page.wait('() => innerHeight > innerWidth', 30), 'Portrait: it turns upright')
+    screen('Turn with phone')
+    check(page.wait('() => innerHeight > innerWidth', 30), 'Turn with phone: upright, as the phone is held')
+    screen('Landscape')
+    check(page.wait('() => innerWidth > innerHeight', 30), 'Landscape: landscape again')
+    check(page.evaluate("() => JSON.parse(localStorage.getItem('lego-wb-online:settings')).orientation") == 'landscape', 'the choice is kept with the settings')
 page.screenshot(os.path.join(args.shots, 'android-menu.png'))
 code = page.evaluate("() => { const ui = window.__online; ui.openRandom(); ui.newCode(); const c = ui.codeInput.value; ui.playCode(); return c; }")
 check(page.wait("() => window.__rt.labelAt(window.__rt.frame) === 'play' && !!window.__online.random.active", 180), 'a random mission plays: %s' % code)
