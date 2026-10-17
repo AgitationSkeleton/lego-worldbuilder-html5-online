@@ -47,6 +47,13 @@ export async function checkAndroid() {
   }
 }
 
+// The screen's way round: landscape, either way up (as AndroidManifest.xml starts it), or
+// turned with the phone, upright too (the setting Allow Portrait; MainActivity.java).
+export function applyOrientation(allowPortrait) {
+  const screen = isAndroidApp() && window.WorldBuilderAndroid;
+  if (screen) screen.allowPortrait(!!allowPortrait);
+}
+
 // A page outside the game, in the phone's browser (the app's own window keeps to the game).
 export function openOutside(url) {
   location.href = url;

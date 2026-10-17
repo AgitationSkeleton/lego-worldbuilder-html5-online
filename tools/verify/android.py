@@ -155,6 +155,22 @@ if not args.cdp:
 else:
     print('     (the settings: %s)' % note)
 page.evaluate("() => window.__online.close()")
+if not args.cdp:
+    # landscape, the phone held upright; upright too with Allow Portrait on (MainActivity.java)
+    adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', '0')
+    adb('shell', 'settings', 'put', 'system', 'user_rotation', '0')
+    check(page.wait('() => innerWidth > innerHeight', 30), 'it opens in landscape, the phone held upright')
+    png = subprocess.run([args.adb, 'exec-out', 'screencap', '-p'], capture_output=True).stdout
+    open(os.path.join(args.shots, 'android-landscape.png'), 'wb').write(png)
+    def allow_portrait(on):
+        # (the settings' Allow Portrait switch, clicked as a player would)
+        return page.evaluate("""() => { window.__online.open();
+          const r = [...document.querySelectorAll('.panel .row')].find((x) => x.textContent.startsWith('Allow Portrait'));
+          if (!r) return false; r.querySelector('button[data-on="%s"]').click(); window.__online.close(); return true; }""" % ('true' if on else 'false'))
+    check(allow_portrait(True) is True, 'the settings have Allow Portrait')
+    check(page.wait('() => innerHeight > innerWidth', 30), 'with Allow Portrait on, it turns upright with the phone')
+    allow_portrait(False)
+    check(page.wait('() => innerWidth > innerHeight', 30), 'with it off again, landscape')
 page.screenshot(os.path.join(args.shots, 'android-menu.png'))
 code = page.evaluate("() => { const ui = window.__online; ui.openRandom(); ui.newCode(); const c = ui.codeInput.value; ui.playCode(); return c; }")
 check(page.wait("() => window.__rt.labelAt(window.__rt.frame) === 'play' && !!window.__online.random.active", 180), 'a random mission plays: %s' % code)

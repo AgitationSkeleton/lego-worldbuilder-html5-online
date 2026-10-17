@@ -8,7 +8,7 @@ import { WORLD_NAMES, clock } from './scores.js';
 import { parseCode, showCode, GENERATORS, LATEST } from './puzzle.js';
 import { el, dialog, focusField, shareUrl, RELEASES } from './dom.js';
 import { offline, ios } from './offline.js';
-import { android, isAndroidApp, openOutside } from './android.js';
+import { android, isAndroidApp, openOutside, applyOrientation } from './android.js';
 
 const SIZES = [
   ['small', 'Small'],
@@ -102,10 +102,11 @@ export class OnlineUI {
     };
     // Controls: an On and an Off for each switch.
     this.switches = {};
-    const toggle = (key) => {
+    // (then what the switch changes, if given)
+    const toggle = (key, changed) => {
       const b = [true, false].map((on) => el('button', {
         type: 'button', class: 'choice', text: on ? 'On' : 'Off', 'data-on': String(on),
-        onclick: () => { this.settings[key] = on; this.save(); },
+        onclick: () => { this.settings[key] = on; this.save(); if (changed) changed(on); },
       }));
       this.switches[key] = b;
       return el('div', { class: 'choices' }, ...b);
@@ -134,9 +135,12 @@ export class OnlineUI {
     });
     this.codeInput = el('input', { type: 'text', maxlength: '8', spellcheck: 'false', autocapitalize: 'characters', 'aria-label': 'Mission code', placeholder: 'Code' });
     this.randomNote = el('p', { class: 'note', 'aria-live': 'polite' });
-    const fullRow = document.fullscreenEnabled
-      ? el('section', null, el('h3', { text: 'Screen' }), el('div', { class: 'choices' }, this.fullButton))
-      : null;
+    // (the Android app is on the whole screen already: there, which way round it turns)
+    const fullRow = isAndroidApp()
+      ? el('section', null, el('h3', { text: 'Screen' }), row('Allow Portrait', toggle('allowPortrait', applyOrientation)))
+      : document.fullscreenEnabled
+        ? el('section', null, el('h3', { text: 'Screen' }), el('div', { class: 'choices' }, this.fullButton))
+        : null;
     this.panel = dialog('settings', 'Settings', () => this.close(),
       el('section', null,
         el('h3', { text: 'Interface size' }),

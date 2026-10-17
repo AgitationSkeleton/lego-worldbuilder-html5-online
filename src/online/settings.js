@@ -27,10 +27,12 @@ export const DEFAULTS = {
   deselectRight: true,      // a right click puts down the unit chosen
   smoothKeys: true,         // held arrow keys move the map smoothly
   smoothUnits: true,        // units and monsters glide between the game's frames (layout.js)
+  // the Android app (mobile/): landscape (either way up), or turned upright too (android.js)
+  allowPortrait: false,
 };
 
 const VOLUMES = ['music', 'sound', 'ui'];
-const SWITCHES = ['menuPauses', 'panRight', 'panMiddle', 'deselectRight', 'smoothKeys', 'smoothUnits'];
+const SWITCHES = ['menuPauses', 'panRight', 'panMiddle', 'deselectRight', 'smoothKeys', 'smoothUnits', 'allowPortrait'];
 
 export function loadSettings() {
   let saved = null;

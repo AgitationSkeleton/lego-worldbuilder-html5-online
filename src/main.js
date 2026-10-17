@@ -13,7 +13,7 @@ import { MainMenu } from './online/menu.js';
 import { Controls } from './online/controls.js';
 import { fileUrl } from './files.js';
 import { installOffline } from './online/offline.js';
-import { android, checkAndroid } from './online/android.js';
+import { android, checkAndroid, applyOrientation } from './online/android.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -106,6 +106,7 @@ async function main() {
     // (the Android app: a newer one out is said once, and in the settings)
     android.listeners.push(() => { if (android.update && !android.told) { android.told = true; ui.scores.show('Version ' + android.update.version + ' of the app is out', 'the settings have its link'); } });
     checkAndroid();
+    applyOrientation(ui.settings.allowPortrait);
     ui.scores.random = ui.random;
     ui.scores.install(scripts.scripts);
     // races (src/online/race.js): told of each goal reached; leaving a mission is giving up
