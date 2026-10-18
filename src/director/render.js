@@ -145,11 +145,18 @@ export class Renderer {
     const alpha = s.blend / 100;
     if (alpha <= 0) return;
     ctx.globalAlpha = alpha;
+    // (not Director's: a page may paint a sprite's picture anew, a dark interface's say: the
+    // layout's paint(s) answers a function from the picture to the one drawn, and the picture
+    // it was made from as the key it keeps it by (a text's is its drawing, made anew as the
+    // text changes), or null; a shape's colour goes through its rgb, if it has one)
+    const layout = this.runtime.layout;
+    const paint = layout && layout.paint ? layout.paint(s) : null;
     if (m instanceof BitmapMember) {
       let src = this.inked(m, s);
       if (!src) return;
       // (not Director's: a sprite may be given a colour to wash its picture with)
       if (s.tint) src = tinted(src, s.tint);
+      if (paint) src = paint(src, src) || src;
       const w = s.width, h = s.height;
       if (w <= 0 || h <= 0) return;
       const x = s.left, y = s.top;
@@ -165,9 +172,9 @@ export class Renderer {
         ctx.drawImage(src, x, y, w, h);
       }
     } else if (m instanceof TextMember) {
-      this.drawText(ctx, s, m);
+      this.drawText(ctx, s, m, paint);
     } else if (m instanceof ShapeMember) {
-      this.drawShape(ctx, s, m);
+      this.drawShape(ctx, s, m, paint);
     }
     ctx.globalAlpha = 1;
   }
@@ -176,8 +183,9 @@ export class Renderer {
     if (!fore && s.backRGB) return s.backRGB;
     return this.runtime.paletteRGB(fore ? s.foreColor : s.backColor);
   }
-  drawShape(ctx, s, m) {
-    const rgb = this.spriteRGB(s, true);
+  drawShape(ctx, s, m, paint) {
+    let rgb = this.spriteRGB(s, true);
+    if (paint && paint.rgb) rgb = paint.rgb(rgb);
     const x = s.left, y = s.top, w = s.width, h = s.height;
     const r = m.rec;
     ctx.fillStyle = ctx.strokeStyle = 'rgb(' + rgb.join(',') + ')';
@@ -204,12 +212,14 @@ export class Renderer {
       ctx.fillRect(x + w - lw, y, lw, h);
     }
   }
-  drawText(ctx, s, m) {
+  drawText(ctx, s, m, paint) {
     const layout = m.layout();
     const w = m.width, h = layout.height;
     const x = s.locH - m.regX, y = s.locV - m.regY;
     if (s.ink === INK_COPY) {
-      ctx.fillStyle = 'rgb(' + this.spriteRGB(s, false).join(',') + ')';
+      let back = this.spriteRGB(s, false);
+      if (paint && paint.rgb) back = paint.rgb(back);
+      ctx.fillStyle = 'rgb(' + back.join(',') + ')';
       ctx.fillRect(x, y, w, h);
     }
     // (the text is drawn at the size the stage is drawn at: see draw)
@@ -226,7 +236,8 @@ export class Renderer {
       entry = { canvas: c, version: m.version, scale };
       this.textCache.set(m, entry);
     }
-    ctx.drawImage(entry.canvas, x, y, entry.canvas.width / scale, entry.canvas.height / scale);
+    const img = paint ? paint(entry.canvas, entry) || entry.canvas : entry.canvas;
+    ctx.drawImage(img, x, y, entry.canvas.width / scale, entry.canvas.height / scale);
   }
   // A bitmap with the sprite's ink applied, kept for the next time.
   inked(m, s) {
