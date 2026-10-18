@@ -3,7 +3,7 @@
 // - the right mouse button and the middle one drag the map, as a finger does (touch.js),
 //   and a right click that does not drag puts down the unit chosen;
 // - held arrow keys (or W, A, S, D) move the map smoothly, a little at every drawing, rather
-//   than a tile at a time as the game's own keys do;
+//   than a tile at a time as the game's own keys do; Escape opens and closes the game's menu;
 // - the game's Menu button holds the game still while its menu is open (not in a race);
 // - the music, the sounds and the interface's sounds each have a loudness of their own: the
 //   game's sounds asked for as sfx_interface_... are the interface's.
@@ -82,6 +82,7 @@ export class Controls {
   }
 
   menuOpen(on) {
+    this.gameMenuOpen = on;
     const races = this.ui.races;
     const racing = !!(races && races.racing && races.racing.started);
     this.rt.setPaused(on && this.settings.menuPauses && !racing);
@@ -218,5 +219,25 @@ export class Controls {
       if (k) held.delete(k);
     }, true);
     window.addEventListener('blur', () => held.clear());
+    // Escape: the game's own menu, opened as its Menu button opens it, and closed again as its
+    // Continue does (not in the tutorial, nor with one of the page's panels or its main menu
+    // open: Escape closes those, src/online/dom.js)
+    window.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || e.repeat || typing(e)) return;
+      if (this.ui.menu && this.ui.menu.shown) return;
+      const md = this.mapDisplay();
+      const glob = this.rt.globals.glob;
+      const popup = md && L.gp(glob, 'main_menu_popup');
+      if (!(popup instanceof L.LInstance) || this.classic()) return;
+      e.preventDefault();
+      try {
+        this.sfx('sfx_interface_click_button');
+        if (this.gameMenuOpen) L.mc(popup, 'button', L.sym('continue'));
+        else L.mc(md, 'generic_button', L.sym('menu'), L.sym('mouseDown'));
+      } catch (err) {
+        this.rt.reportError(err);
+      }
+      this.rt.needsDraw = true;
+    }, true);
   }
 }

@@ -115,6 +115,8 @@ export class OnlineUI {
       this.switches[key] = b;
       return el('div', { class: 'choices' }, ...b);
     };
+    // (a mouse, or a trackpad: a pointer that can hover)
+    const mouse = !isAndroidApp() && !!(window.matchMedia && matchMedia('(any-hover: hover), (any-pointer: fine)').matches);
     const row = (label, control) => el('div', { class: 'row' }, el('span', { class: 'label', text: label }), control);
     this.randomDifficulty = el('select', { 'aria-label': 'Difficulty' },
       el('option', { value: '1', text: 'Easy' }),
@@ -159,10 +161,12 @@ export class OnlineUI {
       el('section', null,
         el('h3', { text: 'Controls' }),
         row('Menu Button Pauses Game', toggle('menuPauses')),
-        row('Mouse 2 Camera Pan', toggle('panRight')),
-        row('Mouse 3 Camera Pan', toggle('panMiddle')),
-        row('Mouse 2 Deselect', toggle('deselectRight')),
-        row('Smooth Arrow-Key/WASD Camera', toggle('smoothKeys')),
+        // (the mouse's and the keys' only where there is a mouse: not on a phone or tablet)
+        ...(mouse ? [
+          row('Mouse 2 Camera Pan', toggle('panRight')),
+          row('Mouse 3 Camera Pan', toggle('panMiddle')),
+          row('Mouse 2 Deselect', toggle('deselectRight')),
+          row('Smooth Arrow-Key/WASD Camera', toggle('smoothKeys'))] : []),
         row('Smooth Unit Movement', toggle('smoothUnits'))),
       el('section', null,
         el('h3', { text: 'Score tables' }),
