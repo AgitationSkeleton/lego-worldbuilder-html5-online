@@ -647,10 +647,79 @@ def merge():
         lib, num = find_ref(out, name)
         off, ln = out['casts'][lib - 1]['members'][str(num)]['png']
         open(os.path.join(online, out_name), 'wb').write(pack[off:off + ln])
+    dark_menu_art(online)
     with open(os.path.join(ROOT, 'assets', 'wb2', 'sounds.bin'), 'rb') as fp:
         open(os.path.join(ROOT, 'assets', 'merged', 'sounds.bin'), 'wb').write(fp.read())
     print('merged: %d frames, %d casts, bitmaps %.1f MB' % (len(frames), len(out['casts']), len(pack) / 1e6))
     return out
+
+
+# The main menu's pictures for the dark interface (src/online/dark.js, ui.css html.dark):
+# - the WB1 logo and the title's picture were drawn on white: that white taken out (the logo's
+#   letters' insides too), and their
+#   edges, smoothed into it, unmixed from it (each pixel's white made transparency), so that
+#   no white fuzz is left round them on the dark gray;
+# - the WB2 logo's dark brown letters (on transparency) made as light, the same brown's hue,
+#   and their gray drop shadow black.
+def dark_menu_art(online):
+    from PIL import Image
+    import colorsys
+
+    def unwhite(name, out_name, near, everywhere=False):
+        im = Image.open(os.path.join(online, name)).convert('RGBA')
+        w, h = im.size
+        px = im.load()
+        back = [[False] * w for _ in range(h)]
+        white = lambda p: p[3] and min(p[:3]) >= near and max(p[:3]) - min(p[:3]) <= 24
+        todo = [(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for y in range(h) for x in (0, w - 1)]
+        if everywhere:
+            # (a logo: its letters' insides too, all but the LEGO badge's own white, inside
+            # its red)
+            red = [(x, y) for y in range(h) for x in range(w) if px[x, y][0] > 200 and px[x, y][1] < 60 and px[x, y][2] < 60]
+            x0, x1 = min(x for x, _ in red) - 1, max(x for x, _ in red) + 1
+            y0, y1 = min(y for _, y in red) - 1, max(y for _, y in red) + 1
+            todo += [(x, y) for y in range(h) for x in range(w) if not (x0 <= x <= x1 and y0 <= y <= y1)]
+        while todo:
+            x, y = todo.pop()
+            if back[y][x] or not white(px[x, y]):
+                continue
+            back[y][x] = True
+            todo += [(x + dx, y + dy) for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)) if 0 <= x + dx < w and 0 <= y + dy < h]
+        near_back = lambda x, y: any(back[yy][xx] for yy in range(max(0, y - 2), min(h, y + 3)) for xx in range(max(0, x - 2), min(w, x + 3)))
+        out = im.copy()
+        op = out.load()
+        for y in range(h):
+            for x in range(w):
+                r, g, b, a = px[x, y]
+                if back[y][x]:
+                    op[x, y] = (0, 0, 0, 0)
+                elif a and near_back(x, y):
+                    # (colour to alpha: as much of the pixel transparent as was white)
+                    k = max(255 - r, 255 - g, 255 - b) / 255
+                    if k <= 0:
+                        op[x, y] = (0, 0, 0, 0)
+                    elif k < 1:
+                        un = lambda v: max(0, min(255, round((v - 255 * (1 - k)) / k)))
+                        op[x, y] = (un(r), un(g), un(b), round(a * k))
+        out.save(os.path.join(online, out_name), optimize=True)
+
+    unwhite('logo_wb.png', 'logo_wb_dark.png', 250, everywhere=True)
+    unwhite('title_art.png', 'title_art_dark.png', 242)
+    im = Image.open(os.path.join(online, 'logo_wb2.png')).convert('RGBA')
+    px = im.load()
+    for y in range(im.height):
+        for x in range(im.width):
+            r, g, b, a = px[x, y]
+            if not a:
+                continue
+            hh, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+            if s > 0.3 and l < 0.35 and 0.02 < hh < 0.12:
+                # (the letters' brown, and their edges on the shadow: lightness turned round)
+                r2, g2, b2 = colorsys.hls_to_rgb(hh, 1 - l, s)
+                px[x, y] = (round(r2 * 255), round(g2 * 255), round(b2 * 255), a)
+            elif s < 0.08 and 50 <= l * 255 <= 90 and a < 255:
+                px[x, y] = (0, 0, 0, a)
+    im.save(os.path.join(online, 'logo_wb2_dark.png'), optimize=True)
 
 
 # The right-hand panel shows a unit's or a plan's bricks, the most first, in four rows: a fifth

@@ -222,6 +222,7 @@
   position: fixed;
   inset: -40px;
   background: #fff center / cover no-repeat;
+  background-image: var(--art);
   filter: blur(22px) saturate(1.2);
   opacity: 0.55;
 }
@@ -264,7 +265,7 @@
 @media (max-width: 640px) {
   #menu .body { flex-direction: column; }
   #menu nav { flex: none; width: 100%; }
-  #menu .art { display: none; }
+  #menu .art, html.dark #menu .art.dark { display: none; }
 }
 
 
@@ -333,3 +334,44 @@
   #race .racerow { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 32px auto; }
   #race .racerow .phase { display: none; }
 }
+
+/* The dark interface (the setting Dark Interface): white panels dark gray, black edges and text
+   light, every gray turned round as the game's own interface's are (src/online/dark.js: white
+   #2e2e2e, black #e2e2e2, a gray v at 46 + 180 * ((255 - v) / 255)^0.65); the green, orange and cyan
+   buttons as they are, their labels black. */
+html.dark #gear { background: #2e2e2e; border-color: #e2e2e2; }
+html.dark #gear svg { fill: #e2e2e2; }
+html.dark .bubble, html.dark #scores-toast { background: #2e2e2e; border-color: #e2e2e2; color: #e2e2e2; }
+html.dark .panel h2 { color: #868686; }
+html.dark .panel p.note, html.dark #scores-toast .note, html.dark #race .players .status,
+html.dark #random .seeds .what, html.dark #menu .status { color: #b8b8b8; }
+html.dark .panel p a { color: #7ddc5c; }
+html.dark #scores-toast button.link { color: #7ddc5c; }
+html.dark #scores-toast button:focus-visible, html.dark #scores-toast input:focus-visible,
+html.dark #menu .btn:focus-visible { outline-color: #e2e2e2; }
+html.dark .panel input[type=text], html.dark .panel select, html.dark #scores-toast input[type=text] {
+  background: #2e2e2e; color: #e2e2e2; border-color: #e2e2e2; }
+html.dark .panel select option { background: #2e2e2e; color: #e2e2e2; }
+html.dark #scores th { border-bottom-color: #e2e2e2; }
+html.dark #scores td { border-bottom-color: #464646; }
+html.dark #scores td:first-child, html.dark #scores th:first-child { color: #a6a6a6; }
+html.dark #scores tr.me td { background: #2f4a24; }
+html.dark #scores-toast .always { color: #cacaca; }
+html.dark #race .players li { border-bottom-color: #464646; }
+html.dark #race-hud { background: rgba(46, 46, 46, 0.92); border-color: #e2e2e2; color: #e2e2e2; }
+html.dark #ghost-tag { background: #2e2e2e; border-color: #e2e2e2; color: #e2e2e2; }
+html.dark #ghost-tag .dot, html.dark #race .dot, html.dark #race-hud .dot { border-color: #e2e2e2; }
+html.dark #menu, html.dark #menu .backdrop { background-color: #2e2e2e; }
+html.dark #menu .backdrop { background-image: var(--art-dark); }
+#menu img.dark, html.dark #menu img.light { display: none; }
+html.dark #menu img.dark { display: block; }
+html.dark #menu .online { color: #000; }
+html.dark #menu .footnote { color: #afafaf; }
+html.dark #random .seeds li { border-color: #e2e2e2; }
+html.dark #random .seeds .result.none .time { color: #919191; }
+html.dark #race .racerow, html.dark #race .chatlog, html.dark #race .mapcard { border-color: #e2e2e2; }
+html.dark #race .mapcard { background: #23414f; }
+html.dark #race .racelist .empty, html.dark #race .racerow .count, html.dark #race .racerow .phase { color: #b8b8b8; }
+html.dark #race .mapnote { color: #cacaca; }
+html.dark #race .chatlog .system { color: #afafaf; }
+html.dark { color-scheme: dark; }

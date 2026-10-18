@@ -14,6 +14,7 @@ export const SEND_CHOICES = ['ask', 'always', 'never'];
 
 export const DEFAULTS = {
   size: 'medium',
+  dark: false,              // the dark interface: the page's panels and the game's own (dark.js)
   name: '',                 // the name on the score tables
   scores: 'ask',            // one of SEND_CHOICES
   // loudness, 0 to 1, of the music, the game's sounds and the interface's (src/online/controls.js)
@@ -32,7 +33,7 @@ export const DEFAULTS = {
 };
 
 const VOLUMES = ['music', 'sound', 'ui'];
-const SWITCHES = ['menuPauses', 'panRight', 'panMiddle', 'deselectRight', 'smoothKeys', 'smoothUnits'];
+const SWITCHES = ['dark', 'menuPauses', 'panRight', 'panMiddle', 'deselectRight', 'smoothKeys', 'smoothUnits'];
 
 // The Android app's screen: landscape or portrait (each either way up), or turned with the
 // phone, as its rotation setting has it.

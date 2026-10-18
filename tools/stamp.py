@@ -25,7 +25,8 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FETCHED = ['data/merged.json', 'assets/merged/bitmaps.bin', 'assets/merged/sounds.bin',
            'assets/fonts/04b08.otf', 'assets/online/logo_wb.png', 'assets/online/logo_wb2.png',
-           'assets/online/title_art.png']
+           'assets/online/title_art.png', 'assets/online/logo_wb_dark.png', 'assets/online/logo_wb2_dark.png',
+           'assets/online/title_art_dark.png']
 STYLES = ['src/page.css', 'src/online/ui.css']
 ENTRY = 'src/main.js'
 START, END = '<!-- stamp: tools/stamp.py -->', '<!-- /stamp -->'

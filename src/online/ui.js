@@ -151,7 +151,8 @@ export class OnlineUI {
       el('section', null,
         el('h3', { text: 'Interface size' }),
         el('p', { text: 'How large the game is drawn. In a bigger window, more of the map shows instead.' }),
-        el('div', { class: 'choices' }, ...this.sizeButtons)),
+        el('div', { class: 'choices' }, ...this.sizeButtons),
+        row('Dark Interface', toggle('dark'))),
       fullRow,
       el('section', null,
         el('h3', { text: 'Sound' }),
@@ -277,6 +278,14 @@ export class OnlineUI {
   }
   render() {
     this.renderApp();
+    // (the dark interface: the page's panels by ui.css's html.dark, the game's by dark.js)
+    const dark = !!this.settings.dark;
+    if (document.documentElement.classList.contains('dark') !== dark) {
+      document.documentElement.classList.toggle('dark', dark);
+      const theme = document.querySelector('meta[name="theme-color"]');
+      if (theme) theme.content = dark ? '#2e2e2e' : '#ffffff';
+      this.rt.needsDraw = true;
+    }
     const size = this.forcedScale ? null : this.settings.size;
     for (const b of this.sizeButtons) b.setAttribute('aria-pressed', String(b.dataset.key === size));
     for (const b of this.sendButtons) b.setAttribute('aria-pressed', String(b.dataset.key === this.settings.scores));

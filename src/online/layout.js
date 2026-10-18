@@ -11,6 +11,7 @@
 
 import * as L from '../director/lingo.js';
 import { shiftMap } from './touch.js';
+import { paintOf, worldPaintOf } from './dark.js';
 
 const BASE_W = 610, BASE_H = 440;
 
@@ -287,6 +288,13 @@ export function makeLayout(rt, options = {}) {
     },
     glidePart() {
       return Math.min(1, (performance.now() - (rt.tickAt || 0)) * rt.tempo() / 1000);
+    },
+    // (the dark interface, by the setting, on the play screen: src/online/dark.js)
+    paint(s) {
+      if (!options.dark || !options.dark()) return null;
+      const label = rt.labelAt(rt.frame);
+      if (label === 'play') return paintOf(rt, s, MAP_CHANNELS);
+      return /^world /.test(label) ? worldPaintOf(s) : null;
     },
     drawOffset(s) {
       if (!this.glides.size) return null;
