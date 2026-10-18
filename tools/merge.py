@@ -632,6 +632,8 @@ def merge():
 
     pack += separators_5(out, pack)
     pack += bubbles_tall(out, pack)
+    guard_tower_regs(out)
+    pack += frog_eyes(out, pack, wb1, pack1)
     os.makedirs(os.path.join(ROOT, 'assets', 'merged'), exist_ok=True)
     with open(os.path.join(ROOT, 'data', 'merged.json'), 'w', encoding='utf-8') as fp:
         json.dump(out, fp, separators=(',', ':'), ensure_ascii=False)
@@ -766,6 +768,99 @@ def bubbles_tall(out, pack):
 # and the Dumptruck's have it, in both games), but its description says Normal only; the
 # Dirtbuggy's says "Terrain: Normal,\rRocky", Rocky beginning the next paragraph. The
 # Repairbot's says so too.
+# The guard tower's four pictures (building.guard_tower.left and so on): World Builder 2's are
+# World Builder's with a pixel cut off each side, but registered at their middles (Director's
+# point for a picture imported anew), where every other building's point is at its top left, as
+# World Builder's guard tower's is: the tower stood off its tile, up and to the left.  Each has
+# World Builder's point, less the pixel cut off.
+GUARD_TOWER_REGS = {'down': (8, 11), 'left': (12, 12), 'right': (8, 14), 'up': (8, 19)}
+
+
+def guard_tower_regs(out):
+    for way, (x, y) in GUARD_TOWER_REGS.items():
+        m = member_named(out, 'building.guard_tower.' + way)
+        assert (m['regX'], m['regY']) == (m['width'] // 2, m['height'] // 2), 'guard tower ' + way + ' moved'
+        m['regX'], m['regY'] = x, y
+
+
+# The frog's eyes: World Builder 2's frog pictures carry an alpha channel that makes every pure
+# white pixel clear, the whites of its eyes too (they reach the picture's top edge), so its eyes
+# were holes.  World Builder's same pictures have a green edge round the eyes and are drawn with
+# matte ink, which takes out only the white the picture's edge reaches.  Each World Builder 2
+# frog picture is kept, its alpha clear only where World Builder's matte is (the two pictures
+# laid over each other where they match best); answers the new PNGs' bytes, for the pack's end.
+def frog_eyes(out, pack, wb1, pack1):
+    from PIL import Image
+    import io
+    old = {}
+    for c in wb1['casts']:
+        for m in c['members'].values():
+            if m['name'].startswith('vehicle.frog.') and 'png' in m:
+                old.setdefault(m['name'], m)
+    data = b''
+    for c in out['casts']:
+        for rec in c['members'].values():
+            name = rec['name']
+            if not name.startswith('vehicle.frog.') or not rec.get('alpha') or name not in old:
+                continue
+            off, ln = rec['png']
+            b = Image.open(io.BytesIO(bytes(pack[off:off + ln]))).convert('RGBA')
+            off1, ln1 = old[name]['png']
+            a = Image.open(io.BytesIO(bytes(pack1[off1:off1 + ln1]))).convert('RGBA')
+            matte = matte_of(a)
+            bw, bh = b.size
+            bp, ap = b.load(), a.load()
+            # (where the two match best: World Builder 2's picture at (dx, dy) in World Builder's)
+            best = None
+            for dy in range(-2, 3):
+                for dx in range(-2, 3):
+                    err = n = 0
+                    for y in range(bh):
+                        for x in range(bw):
+                            if bp[x, y][3] < 128 or not (0 <= x + dx < a.width and 0 <= y + dy < a.height):
+                                continue
+                            p, q = bp[x, y], ap[x + dx, y + dy]
+                            err += abs(p[0] - q[0]) + abs(p[1] - q[1]) + abs(p[2] - q[2])
+                            n += 1
+                    if n and (best is None or err / n < best[0]):
+                        best = (err / n, dx, dy)
+            _, dx, dy = best
+            fixed = b.copy()
+            fp = fixed.load()
+            for y in range(bh):
+                for x in range(bw):
+                    if fp[x, y][3] >= 128:
+                        continue
+                    # (white World Builder's matte leaves: the eyes' whites; not where its green
+                    # edge was, which World Builder 2's picture cut off)
+                    inside = 0 <= x + dx < a.width and 0 <= y + dy < a.height and not matte[y + dy][x + dx] \
+                        and ap[x + dx, y + dy][:3] == (255, 255, 255)
+                    if inside:
+                        fp[x, y] = fp[x, y][:3] + (255,)
+            buf = io.BytesIO()
+            fixed.save(buf, 'PNG')
+            png = buf.getvalue()
+            rec['png'] = [len(pack) + len(data), len(png)]
+            data += png
+    return data
+
+
+def matte_of(img):
+    """Director's matte ink: the white a picture's edge reaches, through white.  Rows of booleans."""
+    w, h = img.size
+    px = img.load()
+    white = lambda x, y: px[x, y][:3] == (255, 255, 255)
+    clear = [[False] * w for _ in range(h)]
+    stack = [(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for y in range(h) for x in (0, w - 1)]
+    while stack:
+        x, y = stack.pop()
+        if not (0 <= x < w and 0 <= y < h) or clear[y][x] or not white(x, y):
+            continue
+        clear[y][x] = True
+        stack += [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+    return clear
+
+
 def repairbot_rocky(out):
     m = member_named(out, 'vehicle.repairbot.description')
     at = m['text'].index('Terrain: Normal\r') + len('Terrain: Normal')
