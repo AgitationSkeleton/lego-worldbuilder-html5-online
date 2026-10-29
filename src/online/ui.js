@@ -173,7 +173,11 @@ export class OnlineUI {
         el('h3', { text: 'Score tables' }),
         el('p', { text: 'Each mission is timed to its goal and to its bonus goal. Your best times are kept in this browser; these say whether they go on the tables everyone sees.' }),
         el('div', { class: 'choices' }, ...this.sendButtons),
-        el('div', { class: 'choices name' }, this.nameInput)),
+        el('div', { class: 'choices name' }, this.nameInput),
+        // (times this browser kept that the tables are missing: src/online/scores.js, sync)
+        el('div', { class: 'choices' },
+          el('button', { type: 'button', class: 'choice', text: 'Send my best times', onclick: () => this.syncTimes() })),
+        this.syncNote = el('p', { class: 'note', hidden: '' })),
       // the game installed: the app's version, or in a browser how to install it (renderApp)
       this.appSection = el('section', null, el('h3', { text: 'App' })),
       this.leaveSection = el('section', null,
@@ -215,6 +219,21 @@ export class OnlineUI {
     this.tables = dialog('scores', 'Score tables', () => this.closeTables(),
       el('div', { class: 'choices pick' }, this.worldSelect, this.missionSelect),
       this.tableBody);
+  }
+  async syncTimes() {
+    const say = (t) => { this.syncNote.textContent = t; this.syncNote.hidden = false; };
+    if (!this.settings.name) { say('Your name first.'); this.nameInput.focus(); return; }
+    if (!this.scores) return;
+    say('Sending…');
+    try {
+      const n = await this.scores.sync();
+      const left = this.scores.unsent.length;
+      say(!n ? 'The tables have all your best times.'
+        : left ? n + (n === 1 ? ' time' : ' times') + ' found: ' + left + ' not sent yet; they will be, later.'
+          : 'Sent ' + n + (n === 1 ? ' time' : ' times') + ' the tables were missing.');
+    } catch (e) {
+      say('The score server could not be reached.');
+    }
   }
   fillMissions(selected) {
     const w = this.worldSelect.value;

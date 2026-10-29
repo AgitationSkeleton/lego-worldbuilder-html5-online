@@ -48,6 +48,13 @@ const o = await (await fetch(`${SERVER}/scores/overall`)).json();
 const annAll = o.overall.find((x) => x.name.toLowerCase() === ann.toLowerCase());
 ok(annAll && annAll.goals === 1 && annAll.bonuses === 1 && annAll.ms === 70000, 'the overall table: ' + JSON.stringify(annAll));
 
+// a name's own best times, for a game to send those that never arrived
+const mine = await (await fetch(`${SERVER}/scores/player?name=${encodeURIComponent(ann.toUpperCase())}`)).json();
+ok(mine.results && mine.results[mission] && mine.results[mission].goal === 70000 && mine.results[mission].bonus === 150000, 'a name\'s best times: ' + JSON.stringify(mine));
+ok((await fetch(`${SERVER}/scores/player?name=%20`)).status === 400, 'and a name is needed for them');
+r = await post({ mission, kind: 'bonus', ms: 30 * 3600 * 1000, name: bob });
+ok(r.status === 200 && r.body.ok, 'a bonus reached a day after the mission started still counts');
+
 // a generated mission: its own table, and not in the overall one
 r = await post({ mission: 'R-6DK2Q9', kind: 'goal', ms: 40000, name: bob });
 ok(r.status === 200 && r.body.ok, 'a generated mission\'s time is saved');

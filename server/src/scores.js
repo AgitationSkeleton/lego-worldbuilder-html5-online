@@ -10,6 +10,9 @@
 //   GET  /scores/overall          [{name, goals, bonuses, ms}]: campaign missions with the goal
 //                                 reached, with the bonus, and the best goal times added up; the
 //                                 best 50
+//   GET  /scores/player?name=Ann  {name, results: {"6.3": {goal: ms, bonus: ms}}}: a name's best
+//                                 campaign times, so that a game may send the ones its browser
+//                                 kept that never arrived (src/online/scores.js, sync)
 //
 // A generated mission (src/online/random.js) is "R-" and its code, such as R-6DK2Q9: it has
 // tables of its own, and is not counted in the overall table.
@@ -29,7 +32,9 @@ const KINDS = new Set(['goal', 'bonus']);
 // No mission is won in under three seconds: the first unit has to move.  (Each mission's own
 // least, from the shortest route there, is for later.)
 const MIN_MS = 3000;
-const MAX_MS = 6 * 3600 * 1000;
+// (a mission may be left open for hours, its clock going: a bonus reached the next day is still
+// the player's)
+const MAX_MS = 7 * 24 * 3600 * 1000;
 // Results one address may send in an hour.
 const PER_HOUR = 60;
 
@@ -58,6 +63,15 @@ async function overall(env, limit) {
      FROM best b JOIN names n ON n.who = b.who AND n.r = 1
      GROUP BY b.who ORDER BY goals DESC, bonuses DESC, ms ASC LIMIT ?1`).bind(limit).all();
   return (results || []).map((r) => ({ name: censor(r.name), goals: r.goals, bonuses: r.bonuses, ms: r.ms }));
+}
+
+async function player(env, name) {
+  const { results } = await env.DB.prepare(
+    `SELECT mission, kind, MIN(ms) AS ms FROM results WHERE lower(name) = lower(?1) AND mission NOT LIKE 'R-%'
+     GROUP BY mission, kind`).bind(name).all();
+  const out = {};
+  for (const r of results || []) (out[r.mission] || (out[r.mission] = {}))[r.kind] = r.ms;
+  return out;
 }
 
 async function save(request, env, ctx) {
@@ -107,6 +121,11 @@ export async function handleScores(request, env, url, ctx) {
     const limit = Math.max(1, Math.min(50, Number(url.searchParams.get('limit')) || 10));
     const [goal, bonus] = await Promise.all([table(env, mission, 'goal', limit), table(env, mission, 'bonus', limit)]);
     return json(env, request, { mission, goal, bonus });
+  }
+  if (path === '/scores/player' && request.method === 'GET') {
+    const name = cleanName(url.searchParams.get('name'));
+    if (!name) return json(env, request, { error: 'name' }, 400);
+    return json(env, request, { name, results: await player(env, name) });
   }
   if (path === '/scores/overall' && request.method === 'GET') {
     return json(env, request, { overall: await overall(env, 50) });

@@ -6,6 +6,11 @@
 // The player's best times are kept in the browser.  Sending them to the score tables
 // (server/, at wbserver.viosarcade.xyz) is the player's choice, in the settings: ask each
 // time (the first time, a name is asked for), always, or never.  The tutorial is not timed.
+//
+// A time that could not be sent (no connection, the server busy) is kept, and sent when the
+// server can be reached again.  And a browser's best times the tables are missing (a time
+// lost so before this was kept, say) are sent: by themselves when every time is sent, or by
+// the settings' Send My Best Times (sync).
 
 import * as L from '../director/lingo.js';
 import { isClean } from './profanity.js';
@@ -14,6 +19,10 @@ import { snapshot } from './snapshot.js';
 import { el } from './dom.js';
 
 const BESTS = 'lego-wb-online:bests';
+const UNSENT = 'lego-wb-online:unsent';
+// How long after the game starts its times are looked over, and between tries to send
+const SYNC_AFTER = 5000;
+const RETRY = 5 * 60 * 1000;
 // A generated mission's picture is taken this long after it starts (its map laid out)
 const ANNOUNCE_AFTER = 1500;
 
@@ -66,6 +75,23 @@ function saveBests(b) {
   }
 }
 
+function loadUnsent() {
+  try {
+    const u = JSON.parse(localStorage.getItem(UNSENT) || '[]');
+    return Array.isArray(u) ? u.filter((x) => x && x.mission && x.kind && Number.isInteger(x.ms) && x.name) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveUnsent(u) {
+  try {
+    localStorage.setItem(UNSENT, JSON.stringify(u));
+  } catch (e) {
+    // (kept for the visit)
+  }
+}
+
 export class Scores {
   // ui: the settings (src/online/ui.js), whose `settings` hold the name and the choice
   constructor(rt, ui, params) {
@@ -78,8 +104,18 @@ export class Scores {
     this.attempt = null;
     this.random = null;     // the generated missions (src/online/missions.js), set by main.js
     this.listeners = [];    // told of each goal and bonus reached: f(kind, ms, mission)
+    this.unsent = loadUnsent();
     this.toast = el('div', { id: 'scores-toast', role: 'status', hidden: '' });
     document.body.append(this.toast);
+    if (this.sending) {
+      // (times kept unsent go when the server can be reached; every time sent: the bests too)
+      setTimeout(() => {
+        const s = this.ui.settings;
+        if (s.scores === 'always' && s.name) this.sync().catch(() => {});
+        else this.flush();
+      }, SYNC_AFTER);
+      window.addEventListener('online', () => this.flush());
+    }
   }
 
   // Hooks into the game's scripts, before the runtime binds them: the start of a mission,
@@ -165,19 +201,86 @@ export class Scores {
     }
   }
 
-  async send(mission, kind, ms) {
+  // One result to the server: 'ok' (and its answer), 'refused' (the server will never take it),
+  // or 'later' (not reached, or busy: worth sending again).
+  async post(result) {
     try {
       const r = await fetch(this.server + '/scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mission, kind, ms, name: this.ui.settings.name }),
+        body: JSON.stringify(result),
       });
-      const body = await r.json();
-      if (!r.ok || !body.ok) throw new Error(body.error || r.status);
-      this.line('#' + body.rank + ' of ' + body.of + ' on the table', () => this.ui.openTables(mission));
+      const body = await r.json().catch(() => ({}));
+      if (r.ok && body.ok) return { how: 'ok', body };
+      return { how: r.status >= 400 && r.status < 500 && r.status !== 429 ? 'refused' : 'later', body };
     } catch (e) {
-      this.line('The score server could not be reached.');
+      return { how: 'later' };
     }
+  }
+
+  async send(mission, kind, ms) {
+    const result = { mission, kind, ms, name: this.ui.settings.name };
+    const { how, body } = await this.post(result);
+    if (how === 'ok') {
+      this.line('#' + body.rank + ' of ' + body.of + ' on the table', () => this.ui.openTables(mission));
+      this.flush();
+    } else if (how === 'refused') {
+      this.line('The score table did not take it.');
+    } else {
+      this.keep(result);
+      this.line('Not sent yet: it will be, when the score server can be reached.');
+    }
+  }
+
+  // A result kept to send later (one for each mission, kind and name: the fastest).
+  keep(result) {
+    const same = this.unsent.find((u) => u.mission === result.mission && u.kind === result.kind && u.name.toLowerCase() === result.name.toLowerCase());
+    if (same) same.ms = Math.min(same.ms, result.ms);
+    else this.unsent.push({ ...result });
+    saveUnsent(this.unsent);
+  }
+
+  // The kept results sent, one at a time, until the server cannot take more for now.
+  async flush() {
+    if (this.flushing || !this.unsent.length || !this.sending) return;
+    this.flushing = true;
+    clearTimeout(this.retryTimer);
+    try {
+      while (this.unsent.length) {
+        const { how } = await this.post(this.unsent[0]);
+        if (how === 'later') {
+          this.retryTimer = setTimeout(() => this.flush(), RETRY);
+          break;
+        }
+        this.unsent.shift();
+        saveUnsent(this.unsent);
+      }
+    } finally {
+      this.flushing = false;
+    }
+  }
+
+  // This browser's best campaign times that the tables are missing, or have slower under the
+  // player's name, sent.  Answers how many were found.
+  async sync() {
+    const name = this.ui.settings.name;
+    if (!this.sending || !name) return 0;
+    const r = await fetch(this.server + '/scores/player?name=' + encodeURIComponent(name));
+    if (!r.ok) throw new Error(r.status);
+    const theirs = (await r.json()).results || {};
+    let n = 0;
+    for (const [mission, mine] of Object.entries(this.bests)) {
+      if (mission.startsWith('R-') || !mine) continue;
+      for (const kind of ['goal', 'bonus']) {
+        const ms = mine[kind];
+        const there = theirs[mission] && theirs[mission][kind];
+        if (!Number.isInteger(ms) || (there !== undefined && there <= ms)) continue;
+        this.keep({ mission, kind, ms, name });
+        n++;
+      }
+    }
+    await this.flush();
+    return n;
   }
 
   // A generated mission started here for the first time: a picture of its map and what it
