@@ -187,6 +187,85 @@ async (code) => {
         if (!until(() => energy(u) >= 100, 1500)) return fail('not recharged' + where(u) + ': ' + what);
         break;
       }
+      case 'hunt': {
+        // (Rando v3) two defenders built where a monster roams, from the bricks there, sent after
+        // it until it is taken apart, and back to where they were built
+        const m = units[s.target];
+        if (!m) return fail('no monster ' + s.target + ': ' + what);
+        const alive = (x) => !L.t(L.gp(x, 'pdead')) && !!L.gp(x, 'ptile');
+        const at = (x) => posOf(x).split(',').map(Number);
+        const near = (t, r) => { if (!alive(m)) return false; const [mx, my] = at(m); return Math.abs(mx - t[0]) + Math.abs(my - t[1]) <= r; };
+        const hunters = [];
+        for (const [site, as] of [[s.at, s.as], [s.at2, s.as2]]) {
+          // (built when the monster is not on its bricks or beside them)
+          if (!until(() => !L.gp(tile(site), 'occupant') && !near(site, 2), 8000)) return fail('the site never came free: ' + what);
+          let icon = null;
+          for (let c = 1; c < 200 && !icon; c++) {
+            const sp = rt.sprites[c];
+            if (!sp) continue;
+            for (const inst of sp.scriptInstances) {
+              const cls = inst.$ && inst.$.pclass;
+              if (inst.script.name === 'build plan icon behavior' && cls && cls.a && name(cls.a[1]) === s.what && !inst.$.pswoop) icon = inst;
+            }
+          }
+          if (!icon) return fail('no plan for ' + s.what + ': ' + what);
+          L.mc(icon, 'dobuild', P(site));
+          // (it is off after the monster at once, if it is near: the new one within 2 of its site)
+          let d = null;
+          for (let dy = -2; dy <= 2 && !d; dy++) for (let dx = -2; dx <= 2 && !d; dx++) {
+            const t = tile([site[0] + dx, site[1] + dy]);
+            const o = t && L.gp(t, 'occupant');
+            if (o && name(L.gp(o, 'pclass').a[1]) === s.what && !hunters.includes(o) && !Object.values(units).includes(o)) d = o;
+          }
+          rt.step(5);
+          if (!d) return fail('not built at ' + site + ' (the ' + kindOf[s.target] + ' at ' + posOf(m) + '): ' + what);
+          units[as] = d;
+          hunters.push(d);
+        }
+        let lastAt = posOf(m);
+        // (they wait where they were built for it to come for them, as it does for anything
+        // within 4; only after a minute are they sent after it)
+        for (let i = 0; i < 300 && alive(m); i++) {
+          lastAt = posOf(m);
+          if (i < 90) { rt.step(20); continue; }
+          if (!hunters.some(alive)) return fail('the ' + s.what + 's were beaten (the ' + kindOf[s.target] + ' at ' + posOf(m) + '): ' + what);
+          const [mx, my] = at(m);
+          for (const d of hunters) {
+            if (!alive(d) || L.gp(L.gp(d, 'pattack'), 'target')) continue;
+            const [dx0, dy0] = at(d);
+            // (it goes for a monster within 2 on its own: driven to beside where the monster is)
+            if (Math.abs(mx - dx0) + Math.abs(my - dy0) <= 1 || !idle(d, 1)) continue;
+            const next = [[1, 0], [0, 1], [-1, 0], [0, -1]].map(([ox, oy]) => [mx + ox, my + oy])
+              .filter((t) => tile(t) && !L.gp(tile(t), 'occupant') && ['normal', 'street', 'swamp'].includes(terrain(t)))
+              .sort((a, b) => Math.abs(a[0] - dx0) + Math.abs(a[1] - dy0) - Math.abs(b[0] - dx0) - Math.abs(b[1] - dy0))[0];
+            L.mc(d, 'gotopos', P(next || [mx, my]));
+          }
+          rt.step(20);
+        }
+        if (alive(m)) return fail('the monster still stands (at ' + posOf(m) + '): ' + what);
+        rt.step(10);
+        // (back to where they were built, in turns: one may stand in the other's way)
+        const home = [[s.at, s.as], [s.at2, s.as2]];
+        for (const [, as] of home) {
+          if (!alive(units[as])) return fail('a ' + s.what + ' fell (' + as + '): ' + what);
+          try { L.mc(units[as], 'disengageattack'); } catch (e) { /* none */ }
+        }
+        rt.step(5);
+        let left = home.slice(), why = null;
+        for (let pass = 0; pass < 4 && left.length; pass++) {
+          const still = [];
+          for (const [site, as] of left) {
+            why = drive(units[as], site);
+            if (why) still.push([site, as]);
+          }
+          left = still;
+        }
+        if (left.length) {
+          const [site] = left[0], t = tile(site), o = L.gp(t, 'occupant');
+          return fail(why + ' (back from the hunt; the site has ' + (o ? name(L.gp(o, 'pclass').a[1]) : L.gp(t, 'resource') ? 'bricks' : 'nothing') + ', the ' + kindOf[s.target] + ' last at ' + lastAt + '): ' + what);
+        }
+        break;
+      }
       case 'attack': {
         // (a defender goes for a monster in reach on its own; it takes it apart, frozen)
         const m = units[s.target];

@@ -33,7 +33,18 @@ const RESERVE = 12;          // energy no unit is planned to go below
 const SLACK = 1.12;          // the game's routes, at times longer than the shortest
 const FREEZE = 25000;       // how long a freeze lasts (the freezebot's freeze_duration)
 const FREEZE_SAFE = 4000;   // of a freeze, what a plan does not count on at its end
-const PEN_MAX = 40;         // the most ground a monster may roam and still be shut in
+// the most ground a monster may roam and still be shut in: a whole area of the map, kept in
+// by what the units cross to get there (Rando v2's model, which had them in pens of their
+// own, took 40)
+const PEN_MAX = 400;
+// What two defenders at full strength beat together, one at a time (src/online/puzzle/gen.js,
+// hunt): a crab or a gator (each defender 25 hits a minute of 150 to 250 at a tenth, three
+// in four landing; the monster 25 a minute of 100 to 200 at a twentieth, on one of them: one
+// defender alone is left with a third of its energy brick, or beaten, as often as not).  A
+// lion, a scorpion or a T rex beats them.
+const HUNTABLE = new Set(['crab', 'gator']);
+const HUNT_ENERGY = 50;     // what the fight takes of each defender's energy, at most
+const HUNT_MS = 40000;      // and how long it takes, finding it first
 const key = (x, y) => x + ',' + y;
 const man = (ax, ay, bx, by) => Math.abs(ax - bx) + Math.abs(ay - by);
 
@@ -67,6 +78,7 @@ export class Model {
     this.inventory = Object.assign({}, inventory);
     this.clock = 0;
     this.trail = new Set();     // every tile a unit has been on
+    this.strewn = new Set();    // where a hunted monster's bricks may lie (hunt)
     this.n = 0;
     for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) if (this.grid[y][x] === ':') this.goalTiles.add(key(x, y));
     for (const it of items) this.addItem(it);
@@ -382,6 +394,7 @@ export class Model {
   }
   // Tiles a unit must not go over that lie on a way to a tile as short as d.
   temptations(u, to, opts, d) {
+    const near = d;
     const free = (x, y) => {
       const t = this.ter(x, y);
       if (!t || !this.cfg[u.kind].terrain.includes(t)) return false;
@@ -403,6 +416,10 @@ export class Model {
       }
       return dist;
     };
+    // (the game's pathfinder does not always take the shortest way: no way a little longer
+    // than this one may go beside a monster either)
+    const far = Math.ceil(d * SLACK) + 2;
+    d = far;
     const ds = spread([u.x, u.y]), dt = spread(to);
     const danger = u.cls === 'monster' ? new Set() : this.danger() || new Set();
     const engage = this.cfg[u.kind].attack && u.kind !== 'guard_tower' ? this.engageZone(opts.engage) : null;
@@ -412,6 +429,10 @@ export class Model {
       const b = dt.get(k);
       if (b === undefined || a + b > d || a === 0 || b === 0) continue;
       const [x, y] = k.split(',').map(Number);
+      if (a + b > near) {
+        if (danger.has(k) && u.kind !== 'freezebot') bad.push([x, y]);
+        continue;
+      }
       if (!this.passable(u, x, y, o, danger, engage)) bad.push([x, y]);
     }
     return bad;
@@ -653,6 +674,8 @@ export class Model {
     const u = s.unit !== undefined ? this.units[s.unit] : null;
     if (s.unit !== undefined && !u) fail('no unit ' + s.unit + ' for ' + s.op);
     const c = u && this.cfg[u.kind];
+    // (nothing is made or put down where a hunted monster's bricks may have fallen)
+    if (s.at && ['build', 'plant', 'drop', 'dig', 'fill'].includes(s.op) && this.strewn.has(key(s.at[0], s.at[1]))) fail('its bricks may lie there');
     switch (s.op) {
       case 'go':
         this.goTo(u, s.to);
@@ -875,6 +898,44 @@ export class Model {
         u.x = tx; u.y = ty;
         this.occ[ty][tx] = u.name;
         this.clock += 30000;
+        break;
+      }
+      case 'hunt': {
+        // (Rando v3) a defender built where a monster roams, from the bricks there, goes after it
+        // and takes it apart: one at a time, and only what it beats
+        const m = this.units[s.target];
+        if (!m || m.cls !== 'monster') fail('nothing to hunt');
+        const b = this.cfg[s.what];
+        if (!b || !(b.attack || {})[m.kind] || !HUNTABLE.has(m.kind)) fail('a ' + s.what + ' does not beat a ' + m.kind);
+        if (m.loose) fail('the monster is loose');
+        const [x, y] = s.at;
+        if (!m.pen.has(key(x, y))) fail('the site is not where it roams');
+        if (this.monsters().some((o) => o !== m && !o.loose && [...o.pen].some((k) => m.pen.has(k)))) fail('two of them at once');
+        if (!(this.inventory[s.what] > 0)) fail('no plan for ' + s.what);
+        if (this.occ[y][x]) fail('the site is taken');
+        if (!b.terrain.includes(this.ter(x, y))) fail(s.what + ' cannot go on ' + this.ter(x, y));
+        if (!this.enoughAround(x, y, b.recipe)) fail('not enough bricks for ' + s.what);
+        this.inventory[s.what]--;
+        const h = this.addUnit(s.as, 'vehicle', s.what, x, y, this.useAround(x, y, b.recipe));
+        // (and the second, beside it)
+        const [x2, y2] = s.at2;
+        if (!m.pen.has(key(x2, y2)) || man(x, y, x2, y2) > 5) fail('the second site is not by the first');
+        if (!(this.inventory[s.what] > 0)) fail('no second plan for ' + s.what);
+        if (this.occ[y2][x2]) fail('the second site is taken');
+        if (!b.terrain.includes(this.ter(x2, y2))) fail(s.what + ' cannot go on ' + this.ter(x2, y2));
+        if (!this.enoughAround(x2, y2, b.recipe)) fail('not enough bricks for the second ' + s.what);
+        this.inventory[s.what]--;
+        const h2 = this.addUnit(s.as2, 'vehicle', s.what, x2, y2, this.useAround(x2, y2, b.recipe));
+        if (this.energyOf(h) < 100 || this.energyOf(h2) < 100) fail('the ' + s.what + 's are not at full strength');
+        // (it falls apart into its bricks where the fight ends: by the defenders, which wait for
+        // it where they were built, as it comes for them)
+        for (const k of m.pen) { const [px, py] = k.split(',').map(Number); if (man(px, py, x, y) <= 4 || man(px, py, x2, y2) <= 4) this.strewn.add(k); }
+        this.removeUnit(m);
+        this.useEnergy(h, HUNT_ENERGY);
+        this.useEnergy(h2, HUNT_ENERGY);
+        this.clock += HUNT_MS;
+        this.afterTerrain();
+        this.checkGoals();
         break;
       }
       case 'attack': {

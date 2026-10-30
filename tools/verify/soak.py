@@ -59,13 +59,13 @@ def main():
         missions = [tuple(int(x) for x in m.split('.')) for m in a.missions.split(',')]
     rnd = random.Random(a.seed)
     if a.random:
-        # codes as src/online/puzzle.js reads them: difficulty, look, four of Crockford's base 32
+        # codes as src/online/puzzle.js reads them: difficulty, look, four to six of Crockford's base 32
         chars = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
         missions = []
         while len(missions) < a.random:
-            # (Rando v2's codes and Rando v1's in turn)
-            v1 = len(missions) % 2 == 1
-            missions.append(('R', '%d%s%s' % (rnd.randint(1, 3), rnd.choice('ABCD' if v1 else 'ABCDE'), ''.join(rnd.choice(chars) for _ in range(4 if v1 else 5)))))
+            # (Rando v3's codes, v2's and v1's in turn)
+            v = 3 - len(missions) % 3
+            missions.append(('R', '%d%s%s' % (rnd.randint(1, 3), rnd.choice('ABCD' if v == 1 else 'ABCDE'), ''.join(rnd.choice(chars) for _ in range(v + 3)))))
     total = 0
     seen = {}
     with sync_playwright() as p:

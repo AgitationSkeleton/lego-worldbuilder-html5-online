@@ -1,4 +1,4 @@
-// Rando v2's generator (Rando v1's is kept in src/online/puzzle/v1/): a mission's layout, the puzzles on its way, its goal and bonus goal, and
+// Rando v3's generator (Rando v1's and v2's are kept in src/online/puzzle/v1/ and v2/): a mission's layout, the puzzles on its way, its goal and bonus goal, and
 // the solution to all of them, each step played on a live model of the rules as it is
 // written (src/online/puzzle/model.js).
 //
@@ -18,7 +18,9 @@
 //   swamp     a wide swamp only a defender's shield gets it through
 //   guard     a narrow way past a monster in its den: a freezebot kept within its reach
 //             holds it frozen while the others go by
-// What a unit is built from is found in different ways: bricks already by its site, bricks
+// A crab or gator may roam the whole of an area beyond the first, kept in by the way there:
+// before anything goes in, two defenders are built there from the bricks lying in it and take
+// it apart (hazards, hunt).  What a unit is built from is found in different ways: bricks already by its site, bricks
 // to be fetched, a windmill or garage that makes the energy bricks or wheels that are
 // short, a unit taken apart for its bricks, a monster taken apart by a defender.  Plans
 // are in hand or lie on the map to be fetched.  The goal is mostly a unit brought to a
@@ -57,6 +59,13 @@ export class Gen {
     this.into = this.steps;
     this.tags = new Set();     // what the mission has, for the variety report
     this.spent = new Set();    // units the solution is done with
+    // how the land is dressed, as the originals' missions differ: open, wooded, rocky or wet
+    // (mountains and other rocks only now and then, as in theirs)
+    this.style = rng.weighted([['open', 3], ['forest', 3], ['rocky', 2], ['wet', 2]]);
+  }
+  dressing() {
+    const k = { open: [3, 0.4, 2, 2, 0.6], forest: [6, 0.4, 1, 1, 1], rocky: [2, 1.2, 6, 1, 1], wet: [3, 0.4, 1, 5, 1] }[this.style];
+    return { kinds: [['tree', k[0]], ['rock', k[1]], ['rocky', k[2]], ['pond', k[3]]], density: k[4] };
   }
 
   // ---------- playing steps on the live model ----------
@@ -560,7 +569,7 @@ Gen.prototype.chooseLinks = function (n) {
 // have them: most bring a unit somewhere or build something there; a monster brought to a
 // place, or a boulder, is rare, and only in the harder missions.
 Gen.prototype.goalPool = function () {
-  return [['reach', 46], ['build', 30], ['water', this.look.ocean ? 26 : 12],
+  return [['reach', 58], ['build', 18], ['water', this.look.ocean ? 26 : 12],
     ['monster', this.d >= 2 ? 4 : 0], ['boulder', this.d >= 2 ? 1.5 : 0]].filter(([, w]) => w > 0);
 };
 
@@ -570,14 +579,15 @@ const MARGIN = 6;
 
 Gen.prototype.layout = function () {
   const rng = this.rng, d = this.d;
-  const n = d === 1 ? rng.int(2, 3) : d === 2 ? rng.int(3, 4) : rng.int(4, 5);
+  // (fewer than Rando v2's: the originals' missions have one to three obstacles on the way)
+  const n = d === 1 ? 2 : d === 2 ? rng.int(2, 3) : rng.int(3, 4);
   const kinds = this.chooseLinks(n - 1);
   const w = walk(rng, n, kinds.map((k) => k === 'whirl'));
   if (!w) no('no walk');
   const { cols, rows, cells } = w;
   // cells of all sizes, from an islet's to a wide island's
-  const colW = Array.from({ length: cols }, () => rng.int(5, cols > 3 ? 9 : 12));
-  const rowH = Array.from({ length: rows }, () => rng.int(5, rows > 2 ? 8 : 10));
+  const colW = Array.from({ length: cols }, () => rng.int(4, cols > 3 ? 6 : 8));
+  const rowH = Array.from({ length: rows }, () => rng.int(4, rows > 2 ? 5 : 7));
   // the goal and bonus goal, chosen now: an area with a goal has room for it
   const pool = this.goalPool();
   this.goalKind0 = rng.weighted(pool);
@@ -1917,106 +1927,81 @@ Gen.prototype.maze = function (A) {
   this.tags.add('feature maze');
 };
 
-// ---------- monsters about the map ----------
+// ---------- monsters in the field ----------
 
-// Monsters as the games' own have them, each with ground of its own to roam: an islet off a
-// shore, or a clearing in an area walled in by rocks and trees.  The solution keeps clear of
-// them; they are there to watch out for, and to be dealt with by whoever likes.
+// Monsters as the games' own have them: out on the land the mission is played on, a crab or a
+// gator roaming the whole of one of its areas (not the first), kept in by the way there, which
+// it cannot cross (rocky ground, water, trees, a gap) as the units cannot without what the
+// solution brings.  Before anything goes in, a defender is built there from the bricks lying in
+// it and takes the monster apart ("send a Defender in to take apart the crab", as the
+// walkthroughs have it): the hunt (model.js).  One to an area: two at once beat a defender.
 Gen.prototype.hazards = function () {
-  const rng = this.rng;
-  const n = [rng.chance(0.5) ? 1 : 0, rng.int(1, 2), rng.int(1, 3)][this.d - 1];
-  const water = ['shark', 'water_crab', 'gator'].filter((m) => this.look.monsters.includes(m));
-  const land = ['crab', 'lion', 'scorpion', 'trex', 'gator'].filter((m) => this.look.monsters.includes(m));
-  for (let i = 0; i < n; i++) {
-    const A = rng.pick(this.areas);
-    const wet = water.length > 0 && (this.look.ocean ? rng.chance(0.7) : rng.chance(0.3));
-    const kind = rng.pick(wet ? water : land.length ? land : ['crab']);
-    for (let t = 0; t < 3; t++) if ((wet || rng.chance(0.55)) ? this.islet(A, kind, wet) : this.clearing(A, kind)) break;
-  }
-};
-
-// Ground (or water) grown in the sky from a tile two off an area's shore: a few tiles with
-// nothing but sky round them.
-Gen.prototype.islet = function (A, kind, wet) {
+  if (this.calm) return;
   const rng = this.rng, w = this.world;
-  const of = (x, y) => w.areaOf[y]?.[x] ?? -1;
-  const sky = (x, y) => of(x, y) === -1 && w.at(x, y) === '@';
-  const free = (x, y) => x > 1 && y > 1 && x < w.W - 2 && y < w.H - 2 && sky(x, y) && AROUND.every(([dx, dy]) => sky(x + dx, y + dy));
-  const starts = [];
-  for (const k of A.tiles) {
-    const [x, y] = split(k);
-    for (const [dx, dy] of DIRS) if (sky(x + dx, y + dy) && free(x + 2 * dx, y + 2 * dy)) starts.push([x + 2 * dx, y + 2 * dy]);
+  const n = [rng.chance(0.6) ? 1 : 0, rng.int(1, 2), rng.int(2, 3)][this.d - 1];
+  const kinds = [['crab', 3], ['gator', 1]].filter(([k]) => this.look.monsters.includes(k));
+  if (!kinds.length) return;
+  const areas = rng.shuffle(this.areas.slice(1).filter((A) => !A.maze));
+  for (let i = 0; i < n && areas.length; i++) {
+    for (let t = 0; t < areas.length; t++) {
+      const A = areas[t];
+      const kind = rng.weighted(kinds);
+      const walks = new Set(this.cfg[kind].terrain);
+      const can = (x, y) => walks.has(CHAR[w.at(x, y)]) || (w.at(x, y) === ':' && walks.has('normal'));
+      // (where it starts: open ground well inside the area, away from the way in)
+      const starts = [...A.tiles].map(split).filter(([x, y]) => w.at(x, y) === '.' && !w.itemAt(x, y) && !this.reserved.has(key(x, y)) && !this.keeps.has(key(x, y))
+        && [...this.mouths].every((k) => man([x, y], split(k)) >= 4));
+      if (!starts.length) continue;
+      const at = rng.pick(starts);
+      // all it can get to is the area itself, and the strips of the ways in: no swamp (it chases
+      // over it), nothing beyond
+      const seen = new Set([key(...at)]);
+      const stack = [at];
+      const swamp = new Set();
+      let ok = true;
+      while (stack.length && ok) {
+        const [x, y] = stack.pop();
+        for (const [dx, dy] of DIRS) {
+          const nx = x + dx, ny = y + dy, k = key(nx, ny);
+          // (a patch of swamp in the area made rocky ground; a swamp on the way in, no)
+          if (w.at(nx, ny) === '#') { if (A.tiles.has(k)) { swamp.add(k); continue; } ok = false; break; }
+          if (seen.has(k) || !can(nx, ny)) continue;
+          // (the strip of a way in and the goal's nook, but no other area)
+          if (!A.tiles.has(k) && ![-2, -3].includes(w.areaOf[ny]?.[nx])) { ok = false; break; }
+          seen.add(k);
+          stack.push([nx, ny]);
+        }
+      }
+      if (!ok || seen.size < 8) continue;
+      for (const k of swamp) w.set(...split(k), '_');
+      A.monster = this.add({ t: 'unit', cls: 'monster', kind, at });
+      this.tags.add('feature monster in the field');
+      this.tags.add('monster ' + kind);
+      areas.splice(t, 1);
+      break;
+    }
   }
-  if (!starts.length) return false;
-  const tiles = [rng.pick(starts)];
-  const has = new Set([key(...tiles[0])]);
-  const size = rng.int(4, 12);
-  for (let t = 0; t < 60 && tiles.length < size; t++) {
-    const [x, y] = rng.pick(tiles);
-    const [dx, dy] = rng.pick(DIRS);
-    const k = key(x + dx, y + dy);
-    if (has.has(k) || !free(x + dx, y + dy)) continue;
-    has.add(k);
-    tiles.push([x + dx, y + dy]);
-  }
-  if (tiles.length < 4) return false;
-  for (const [x, y] of tiles) { w.set(x, y, wet ? rng.pick(['w', 'w', 'x']) : '.'); w.areaOf[y][x] = -4; }
-  this.penMonsters(tiles, kind, wet);
-  this.tags.add('feature monster islet');
-  return true;
 };
 
-// A clearing in an area, walled in by the look's rocks and trees.
-Gen.prototype.clearing = function (A, kind) {
-  const rng = this.rng, w = this.world, look = this.look;
-  const ok = (x, y) => {
-    const k = key(x, y);
-    return A.tiles.has(k) && w.at(x, y) === '.' && !this.reserved.has(k) && !this.keeps.has(k) && !this.mouths.has(k) && !w.itemAt(x, y)
-      && !AROUND.some(([dx, dy]) => this.mouths.has(key(x + dx, y + dy)) || [-2, -3].includes(w.areaOf[y + dy]?.[x + dx]));
-  };
-  const all = [...A.tiles].map(split).filter(([x, y]) => ok(x, y));
-  if (!all.length) return false;
-  const tiles = [rng.pick(all)];
-  const has = new Set([key(...tiles[0])]);
-  const size = rng.int(3, 7);
-  for (let t = 0; t < 40 && tiles.length < size; t++) {
-    const [x, y] = rng.pick(tiles);
-    const [dx, dy] = rng.pick(DIRS);
-    if (has.has(key(x + dx, y + dy)) || !ok(x + dx, y + dy)) continue;
-    has.add(key(x + dx, y + dy));
-    tiles.push([x + dx, y + dy]);
-  }
-  if (tiles.length < 3) return false;
-  const ring = new Map();
-  for (const [x, y] of tiles) for (const [dx, dy] of DIRS) {
-    const k = key(x + dx, y + dy);
-    if (has.has(k) || ring.has(k)) continue;
-    const ch = w.at(x + dx, y + dy);
-    if (ch === '.' && ok(x + dx, y + dy)) ring.set(k, ch);
-    else if (!SOLID.has(ch) && !TREES.has(CHAR[ch])) return false;
-  }
-  const wall = () => rng.pick(look.rocks.concat(look.trees));
-  for (const k of ring.keys()) { const [x, y] = split(k); w.set(x, y, wall()); }
-  for (const k of has) A.tiles.delete(k);
-  if (!this.groundJoined(A.i) || !this.areaJoined(A.i)) {
-    for (const [k, ch] of ring) { const [x, y] = split(k); w.set(x, y, ch); }
-    for (const k of has) A.tiles.add(k);
-    return false;
-  }
-  for (const [x, y] of tiles) w.areaOf[y][x] = -4;
-  for (const k of ring.keys()) this.reserve(split(k));
-  this.penMonsters(tiles, kind, false);
-  this.tags.add('feature monster clearing');
-  return true;
-};
-
-// One monster in a pen, or two in a big one.
-Gen.prototype.penMonsters = function (tiles, kind, wet) {
-  const n = tiles.length >= 9 && this.rng.chance(0.5) ? 2 : 1;
-  for (const at of this.rng.shuffle(tiles).slice(0, n)) {
-    this.add({ t: 'unit', cls: 'monster', kind, at, water: wet });
-    this.tags.add('monster ' + kind);
-  }
+// The hunt in an area with a monster in it: two defenders' plans in hand, their bricks laid by
+// two sites side by side in the area, and the two built there to take the monster apart
+// together ("try to use 2 Defenders on the same crab", as the walkthroughs have it).
+Gen.prototype.hunt = function (A) {
+  const m = A.monster;
+  if (!m || A.hunted) return;
+  if (!this.model.units[m.name]) { A.hunted = true; return; }
+  const pen = this.model.units[m.name].pen;
+  const site = this.spot(A.i, { spacing: 1, why: 'the hunters', test: (x, y) => this.roomAround(x, y) >= 4 && pen.has(key(x, y)) && man([x, y], m.at) >= 3 });
+  // (far enough apart that each one's bricks are its own)
+  const site2 = this.spot(A.i, { spacing: 1, near: site, within: 5, min: 3, why: 'the second hunter', test: (x, y) => Math.max(Math.abs(x - site[0]), Math.abs(y - site[1])) >= 3 && this.roomAround(x, y) >= 3 && pen.has(key(x, y)) && man([x, y], m.at) >= 3 });
+  // (a plan for each, in hand)
+  for (const inv of [this.world.inventory, this.model.inventory]) inv.defender = (inv.defender || 0) + 2;
+  this.supply(A.i, site, this.cfg.defender.recipe, { full: true });
+  this.supply(A.i, site2, this.cfg.defender.recipe, { full: true });
+  const as = this.world.name('u'), as2 = this.world.name('u');
+  this.play({ op: 'hunt', what: 'defender', at: site, as, at2: site2, as2, target: m.name });
+  A.hunted = true;
+  this.tags.add('defender hunts a monster in the field');
 };
 
 // Trees, rocks, rocky ground, swamp, ponds and (in the city) streets about the areas, each
@@ -2069,9 +2054,10 @@ Gen.prototype.decorate = function (density) {
       return A.tiles.has(k) && this.world.at(x, y) === '.' && !this.reserved.has(k) && !this.keeps.has(k) && !this.mouths.has(k) && !used.has(k) && !this.world.itemAt(x, y);
     };
     const tiles = [...A.tiles].map((k) => k.split(',').map(Number));
-    const budget = Math.round(tiles.length * density);
+    const style = this.dressing();
+    const budget = Math.round(tiles.length * density * style.density);
     let placed = 0;
-    const kinds = [['tree', 5], ['rock', 3], ['rocky', 2], ['pond', 1.5]];
+    const kinds = style.kinds.slice();
     if (look.swamp) kinds.push(['swamp', 1.5]);
     for (let f = 0; f < 40 && placed < budget; f++) {
       const kind = rng.weighted(kinds);
@@ -2152,6 +2138,7 @@ Gen.prototype.run = function () {
   this.hazards();
   this.model = new Model(this.cfg, this.world.grid, this.world.items, this.world.inventory);
   this.model.strict = true;
+  if (this.model.monsters().some((m) => m.loose)) no('a monster is not shut in');
   this.model.drySwamp = (tiles) => {
     for (const [x, y] of tiles) { this.world.set(x, y, '.'); this.model.setChar(x, y, '.'); }
     return true;
@@ -2160,6 +2147,7 @@ Gen.prototype.run = function () {
   for (this.li = 0; this.li < this.links.length; this.li++) {
     const l = this.links[this.li];
     this.busy = new Set();
+    this.hunt(this.areas[l.b]);
     RUN[l.kind].call(this, l);
     this.tags.add('link ' + l.kind);
     this.hint = l.kind === 'factory' ? this.hint : null;
@@ -2180,7 +2168,11 @@ Gen.prototype.run = function () {
       (this.why || (this.why = [])).push(e.message);
     }
   }
+  this.infill();
+  this.ornaments();
   this.spares();
+  this.mapPlans();
+  this.sparePiles();
   this.unyellow();
   // (the map has room for 31 kinds of item)
   const defs = new Set(this.world.items.map((it) => JSON.stringify([it.t, it.cls, it.kind, it.bricks, it.what, it.which, it.want, it.id, it.water])));
@@ -2216,6 +2208,235 @@ Gen.prototype.unyellow = function () {
   if (changed) this.verify();
 };
 
+// ---------- finishing as the originals are ----------
+
+// A tile of open ground in an area for something put there once the solution is made: not
+// one the solution acts on or stands on to act (a route may go over it: whether the solution
+// still plays is checked after); `test` for any other condition.
+Gen.prototype.looseSpot = function (A, test) {
+  const w = this.world;
+  const cands = [...A.tiles].map(split).filter(([x, y]) => {
+    const k = key(x, y);
+    return w.at(x, y) === '.' && !w.itemAt(x, y) && !this.touched.has(k) && !this.keeps.has(k) && !this.mouths.has(k) && (!test || test(x, y));
+  });
+  if (!cands.length) no('no room');
+  // (off the solution's way if it can be)
+  const off = cands.filter(([x, y]) => !this.trail || !this.trail.has(key(x, y)));
+  return this.rng.pick(off.length ? off : cands);
+};
+// Open ground round a tile.
+Gen.prototype.openAround = function (x, y) {
+  let n = 0;
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && this.world.at(x + dx, y + dy) === '.' && !this.world.itemAt(x + dx, y + dy)) n++;
+  return n;
+};
+
+// How many more kinds of item the map has room for (31 in all), with this one.
+Gen.prototype.itemDef = (it) => JSON.stringify([it.t, it.cls, it.kind, it.bricks, it.what, it.which, it.want, it.id, it.water]);
+Gen.prototype.roomFor = function (it) {
+  const defs = new Set(this.world.items.map(this.itemDef));
+  return defs.has(this.itemDef(it)) || defs.size < 31;
+};
+
+// Is the mission as it is now still played by its solution, every monster shut in?  If not,
+// `undo` puts it back.
+Gen.prototype.stillPlays = function (undo) {
+  try {
+    const m = this.verify();
+    if (m.monsters().some((x) => x.loose)) no('a monster is let out');
+    return true;
+  } catch (e) {
+    if (!(e instanceof Fail)) throw e;
+    undo();
+    return false;
+  }
+};
+
+// The sky inside the map filled, as the originals' maps are one piece of land and water: what
+// keeps their parts apart is water, rocky ground or a line of trees, a hole only now and
+// then.  Each stretch of sky is filled with deep water, or trees or rocks (beside a monster
+// that swims, or as the look has it), or left a hole; kept only if the solution still plays.
+Gen.prototype.infill = function () {
+  const rng = this.rng, w = this.world, look = this.look;
+  let x0 = w.W, y0 = w.H, x1 = -1, y1 = -1;
+  for (let y = 0; y < w.H; y++) for (let x = 0; x < w.W; x++) {
+    if (w.grid[y][x] === '@' && !w.itemAt(x, y)) continue;
+    x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
+  }
+  // monsters that swim, and where each may be: no water is put beside them
+  const swimmers = new Set();
+  for (const it of w.items) if (it.t === 'unit' && it.cls === 'monster' && it.kind !== 'boulder' && this.cfg[it.kind].terrain.includes('water')) {
+    const stack = [it.at];
+    const seen = new Set([key(...it.at)]);
+    while (stack.length) {
+      const [x, y] = stack.pop();
+      for (const [dx, dy] of DIRS) {
+        const k = key(x + dx, y + dy);
+        if (seen.has(k) || !this.cfg[it.kind].terrain.includes(CHAR[w.at(x + dx, y + dy)])) continue;
+        seen.add(k);
+        stack.push([x + dx, y + dy]);
+      }
+    }
+    for (const k of seen) { const [x, y] = split(k); for (const [dx, dy] of DIRS) swimmers.add(key(x + dx, y + dy)); }
+  }
+  const done = new Set();
+  let filled = 0;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    if (w.grid[y][x] !== '@' || w.itemAt(x, y) || done.has(key(x, y))) continue;
+    const part = [];
+    const stack = [[x, y]];
+    done.add(key(x, y));
+    let rim = false, byWet = false;
+    while (stack.length) {
+      const [a, b] = stack.pop();
+      part.push([a, b]);
+      if (a === x0 || a === x1 || b === y0 || b === y1) rim = true;
+      if (swimmers.has(key(a, b))) byWet = true;
+      for (const [dx, dy] of DIRS) {
+        const nx = a + dx, ny = b + dy, k = key(nx, ny);
+        if (nx < x0 || ny < y0 || nx > x1 || ny > y1 || done.has(k) || w.grid[ny][nx] !== '@' || w.itemAt(nx, ny)) continue;
+        done.add(k);
+        stack.push([nx, ny]);
+      }
+    }
+    // (the map's own edge is ragged now and then; a small hole inside is kept now and then)
+    if (rim && rng.chance(0.12)) continue;
+    if (!rim && part.length <= 3 && rng.chance(0.4)) continue;
+    const fills = byWet ? [[look.trees, 3], [look.rocks, 0.5]]
+      : look.ocean ? [[['x', 'x', 'w'], 6], [look.trees, 1]]
+        : [[['x', 'x', 'w'], { wet: 6, open: 4, forest: 2, rocky: 2 }[this.style]], [look.trees, { forest: 1.5, open: 0.7, wet: 0.5, rocky: 0.5 }[this.style]], [look.rocks, 0.25], [['_'], this.style === 'rocky' ? 3 : 1.2]];
+    // (a wide stretch of sky is water, as the originals' seas are, not a forest; beside a monster
+    // that swims, where water would let it out, a hole)
+    if (part.length > 14 && byWet) continue;
+    const wide = part.length > 14 ? rng.weighted([['sea', 3], ['hole', 1.5], ['wood', 0.7], ['rocky', 1]]) : null;
+    if (wide === 'hole') continue;
+    const set = wide === 'sea' ? ['x', 'x', 'w'] : wide === 'wood' ? look.trees : wide === 'rocky' ? ['_'] : rng.weighted(fills);
+    for (const [a, b] of part) w.set(a, b, rng.pick(set));
+    if (this.stillPlays(() => { for (const [a, b] of part) w.set(a, b, '@'); })) filled += part.length;
+  }
+  if (filled) this.tags.add('feature infill');
+};
+
+// What stands on the map from the start besides what the solution uses, as the originals
+// have: a building or two (a house, a gas station, a robot lab, a guard tower, kept well away
+// from any monster, which it would go after), a spare unit or two of the mission's own
+// kinds, and now and then boulders lying about.  Each kept only if the solution still plays.
+Gen.prototype.ornaments = function () {
+  const rng = this.rng;
+  const monsters = this.world.items.filter((it) => it.t === 'unit' && it.cls === 'monster' && it.kind !== 'boulder');
+  const place = (it, test, tag) => {
+    const quiet = this.areas.filter((A) => !A.monster || it.t !== 'unit');
+    for (let t = 0; t < 8 && quiet.length; t++) {
+      const A = rng.pick(quiet);
+      let at;
+      try {
+        at = this.looseSpot(A, test);
+      } catch (e) {
+        if (!(e instanceof Fail)) throw e;
+        continue;
+      }
+      const one = { ...it, at };
+      if (!this.roomFor(one)) return null;
+      this.world.items.push(one);
+      if (this.stillPlays(() => this.world.items.splice(this.world.items.indexOf(one), 1))) { this.tags.add(tag); return one; }
+    }
+    return null;
+  };
+  const buildings = rng.chance(0.5) ? (rng.chance(0.35) ? 2 : 1) : 0;
+  for (let i = 0; i < buildings; i++) {
+    const kind = rng.pick(['house', 'house', 'gas_station', 'robot_lab', 'guard_tower']);
+    place({ t: 'unit', cls: 'building', kind, name: this.world.name('b') },
+      (x, y) => monsters.every((m) => man([x, y], m.at) > 4) && this.openAround(x, y) >= 5, 'start building ' + kind);
+  }
+  // spare units, parked
+  const kinds = [...new Set(this.world.items.filter((it) => it.t === 'unit' && it.cls === 'vehicle' && !this.cfg[it.kind].terrain.includes('water')).map((it) => it.kind))];
+  const spare = kinds.length && rng.chance(0.4) ? rng.int(1, 2) : 0;
+  for (let i = 0; i < spare; i++) {
+    const kind = rng.pick(kinds);
+    place({ t: 'unit', cls: 'vehicle', kind, name: this.world.name('u') },
+      (x, y) => monsters.every((m) => man([x, y], m.at) > 3) && this.openAround(x, y) >= 4, 'start spare ' + kind);
+  }
+  // boulders lying about, in a clump
+  if (rng.chance(this.d === 1 ? 0.2 : 0.35)) {
+    const first = place({ t: 'unit', cls: 'monster', kind: 'boulder', name: this.world.name('m') }, (x, y) => this.openAround(x, y) >= 4, 'feature loose boulders');
+    if (first) {
+      let last = first.at;
+      for (let i = 0, t = 0; i < rng.int(1, 6) && t < 12; t++) {
+        const [dx, dy] = rng.pick(AROUND);
+        const at = [last[0] + dx, last[1] + dy];
+        const k = key(...at);
+        if (this.world.at(...at) !== '.' || this.world.itemAt(...at) || this.touched.has(k) || this.keeps.has(k) || this.mouths.has(k) || this.world.areaOf[at[1]]?.[at[0]] < 0) continue;
+        const one = { t: 'unit', cls: 'monster', kind: 'boulder', at, name: this.world.name('m') };
+        if (!this.roomFor(one)) break;
+        this.world.items.push(one);
+        if (this.stillPlays(() => this.world.items.splice(this.world.items.indexOf(one), 1))) { i++; last = at; }
+      }
+    }
+  }
+};
+
+// Plans lying on the map, more of them than the solution fetches, as the originals have: one
+// of a unit the mission has, or by a monster a defender's or a freezebot's.
+Gen.prototype.mapPlans = function () {
+  const rng = this.rng;
+  const monsters = this.world.items.filter((it) => it.t === 'unit' && it.cls === 'monster' && it.kind !== 'boulder');
+  const kinds = Object.keys(this.world.inventory).filter((k) => this.world.inventory[k] > 0 && this.cfg[k].cls === 'vehicle');
+  const n = rng.int(1, 3);
+  for (let i = 0, t = 0; i < n && t < 6; t++) {
+    let what, near = null;
+    if (monsters.length && rng.chance(0.5)) {
+      const m = rng.pick(monsters);
+      what = rng.pick(this.cfg[m.kind].terrain.includes('normal') ? ['defender', 'defender', 'freezebot'] : ['freezebot']);
+      near = m.at;
+    } else if (kinds.length) what = rng.pick(kinds);
+    else break;
+    const A = near ? this.areas.reduce((best, X) => {
+      const d = Math.min(...[...X.tiles].map((k) => man(split(k), near)));
+      return !best || d < best.d ? { X, d } : best;
+    }, null).X : rng.pick(this.areas);
+    let at;
+    try {
+      at = this.looseSpot(A, (x, y) => !near || (man([x, y], near) > 2 && man([x, y], near) <= 7));
+    } catch (e) {
+      if (!(e instanceof Fail)) throw e;
+      continue;
+    }
+    const it = { t: 'plan', at, what, n: 1 };
+    if (!this.roomFor(it)) break;
+    this.world.items.push(it);
+    if (this.stillPlays(() => this.world.items.splice(this.world.items.indexOf(it), 1))) { i++; this.tags.add('spare plan on the map'); }
+  }
+};
+
+// Bricks lying about beyond what the solution uses, as the originals have them: a pile or two
+// of the look's colours, for whoever finds another way.
+Gen.prototype.sparePiles = function () {
+  const rng = this.rng;
+  const n = rng.chance(0.6) ? rng.int(1, 2) : 0;
+  for (let i = 0, t = 0; i < n && t < 6; t++) {
+    const A = rng.pick(this.areas);
+    let at;
+    try {
+      at = this.looseSpot(A, (x, y) => this.openAround(x, y) >= 3);
+    } catch (e) {
+      if (!(e instanceof Fail)) throw e;
+      continue;
+    }
+    let bricks = {};
+    for (const c of rng.shuffle(COLORS).slice(0, rng.int(1, 2))) bricks[c] = rng.pick([5, 10, 10, 15, 20, 25, 40]);
+    if (rng.chance(0.25)) bricks.energy = 1;
+    let it = { t: 'pile', at, bricks };
+    // (short of room for another kind of item: one more of a pile there already is)
+    if (!this.roomFor(it)) {
+      const piles = this.world.items.filter((x) => x.t === 'pile' && !x.water);
+      if (!piles.length) break;
+      it = { t: 'pile', at, bricks: { ...rng.pick(piles).bricks } };
+    }
+    this.world.items.push(it);
+    if (this.stillPlays(() => this.world.items.splice(this.world.items.indexOf(it), 1))) { i++; this.tags.add('spare bricks'); }
+  }
+};
+
 // Spare plans, as the games' own missions give them: more of the units the mission has plans
 // for in hand (one lost to a monster, or taken apart once too often, can be built again).
 Gen.prototype.spares = function () {
@@ -2223,8 +2444,11 @@ Gen.prototype.spares = function () {
   for (const k of Object.keys(inv)) {
     if (!(inv[k] > 0) || this.cfg[k].cls !== 'vehicle') continue;
     if (k === this.startKind) inv[k] += this.rng.int(1, 4);
-    else if (this.rng.chance(0.35)) inv[k] += this.rng.int(1, 2);
+    else if (this.rng.chance(0.6)) inv[k] += this.rng.int(1, 2);
   }
+  // (and now and then one for a unit the mission does not need, as theirs have)
+  const others = ['buggy', 'dirtbuggy', 'forklift', 'dumptruck', 'duck', 'tugboat', 'treebot', 'defender'].filter((k) => this.cfg[k] && !(inv[k] > 0));
+  if (others.length && this.rng.chance(0.4)) inv[this.rng.pick(others)] = this.rng.int(1, 2);
 };
 
 // Cuts the map down to what is on it, a tile of void round it, and moves everything to
@@ -2247,7 +2471,7 @@ Gen.prototype.crop = function () {
   const mv = (p) => { if (moved.has(p)) return; moved.add(p); p[0] += dx; p[1] += dy; };
   for (const it of w.items) mv(it.at);
   for (const s of this.steps.concat(this.bonusSteps)) {
-    for (const k of ['to', 'at', 'stand', 'out', 'back']) if (s[k]) mv(s[k]);
+    for (const k of ['to', 'at', 'at2', 'stand', 'out', 'back']) if (s[k]) mv(s[k]);
     if (s.made) s.made.forEach(mv);
   }
   this.verify();
@@ -2260,7 +2484,7 @@ Gen.prototype.features = function () {
   const rng = this.rng, look = this.look;
   for (const A of this.areas) {
     const n = rng.int(1, 2 + (this.d > 1 ? 1 : 0));
-    const kinds = [['pond', 3], ['grove', 3], ['outcrop', 2], ['rocky', 2]];
+    const kinds = [['pond', 3], ['grove', 3], ['outcrop', 0.7], ['rocky', 2]];
     if (look.swamp) kinds.push(['swamp', 2]);
     if (look.city) kinds.push(['plaza', 3]);
     for (let f = 0; f < n; f++) {
@@ -2285,7 +2509,7 @@ Gen.prototype.features = function () {
   }
 };
 // Is an area's open ground in one piece?
-Gen.prototype.groundJoined = function (a) {
+Gen.prototype.groundJoined = function (a, least = 0.6) {
   const A = this.areas[a];
   const ground = [...A.tiles].filter((k) => { const [x, y] = k.split(',').map(Number); const ch = this.world.at(x, y); return ch === '.' || CHAR[ch] === 'street'; });
   if (!ground.length) return false;
@@ -2299,5 +2523,5 @@ Gen.prototype.groundJoined = function (a) {
       if (!seen.has(k) && set.has(k)) { seen.add(k); stack.push([x + dx, y + dy]); }
     }
   }
-  return seen.size === ground.length && ground.length >= A.tiles.size * 0.6;
+  return seen.size === ground.length && ground.length >= A.tiles.size * least;
 };
