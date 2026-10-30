@@ -9,7 +9,7 @@ async (code) => {
   const L = await import(new URL('src/director/lingo.js', location.href).href);
   const rt = window.__rt, ui = window.__online;
   const log = [];
-  const fail = (why) => ({ ok: false, why, log: log.slice(-8), errors: rt.errors.slice(0, 3) });
+  const fail = (why) => ({ ok: false, why, log: log.slice(-40), errors: rt.errors.slice(0, 3) });
   rt.errors.length = 0;
   if (!/^world \d$/.test(rt.labelAt(rt.frame) || '')) { rt.go('world 1'); rt.step(2); }
   const problem = ui.random.play(code);
@@ -75,6 +75,8 @@ async (code) => {
   let n = 0;
   for (const [s, part] of steps) {
     n++;
+    // (a test may stop the bot after a step, its units left to it)
+    if (window.__stopAfter && n > window.__stopAfter) { window.__botUnits = units; return { ok: true, stopped: n - 1, log }; }
     const what = part + ' step ' + n + ' ' + JSON.stringify(s);
     const u = s.unit !== undefined ? units[s.unit] : null;
     if (s.unit !== undefined && !u) return fail('no unit ' + s.unit + ' for ' + what);
@@ -223,28 +225,40 @@ async (code) => {
           hunters.push(d);
         }
         let lastAt = posOf(m);
-        // (they wait where they were built for it to come for them, as it does for anything
-        // within 4; only after a minute are they sent after it)
-        for (let i = 0; i < 300 && alive(m); i++) {
+        // (they hold their ground where they were built while it comes for them, as it does for
+        // anything within 4; the fight is theirs to go after it in)
+        for (let i = 0; i < 1500 && alive(m); i++) {
           lastAt = posOf(m);
-          if (i < 90) { rt.step(20); continue; }
           if (!hunters.some(alive)) return fail('the ' + s.what + 's were beaten (the ' + kindOf[s.target] + ' at ' + posOf(m) + '): ' + what);
+          // (when it comes for one of them, the other goes to its side: two against it, not one)
           const [mx, my] = at(m);
-          for (const d of hunters) {
-            if (!alive(d) || L.gp(L.gp(d, 'pattack'), 'target')) continue;
-            const [dx0, dy0] = at(d);
-            // (it goes for a monster within 2 on its own: driven to beside where the monster is)
-            if (Math.abs(mx - dx0) + Math.abs(my - dy0) <= 1 || !idle(d, 1)) continue;
-            const next = [[1, 0], [0, 1], [-1, 0], [0, -1]].map(([ox, oy]) => [mx + ox, my + oy])
-              .filter((t) => tile(t) && !L.gp(tile(t), 'occupant') && ['normal', 'street', 'swamp'].includes(terrain(t)))
-              .sort((a, b) => Math.abs(a[0] - dx0) + Math.abs(a[1] - dy0) - Math.abs(b[0] - dx0) - Math.abs(b[1] - dy0))[0];
-            L.mc(d, 'gotopos', P(next || [mx, my]));
+          const engaged = hunters.find((d) => alive(d) && (() => { const [dx0, dy0] = at(d); return Math.abs(mx - dx0) + Math.abs(my - dy0) <= 1; })());
+          if (engaged) {
+            for (const d of hunters) {
+              if (d === engaged || !alive(d) || L.gp(L.gp(d, 'pattack'), 'target')) continue;
+              const [dx0, dy0] = at(d);
+              if (Math.abs(mx - dx0) + Math.abs(my - dy0) <= 2 || !idle(d, 1)) continue;
+              // (within 2 of it is enough: a defender goes for what is that near on its own)
+              const near2 = [];
+              for (let oy = -2; oy <= 2; oy++) for (let ox = -2; ox <= 2; ox++) if ((ox || oy) && Math.abs(ox) + Math.abs(oy) <= 2) near2.push([mx + ox, my + oy]);
+              const next = near2.filter((t) => tile(t) && !L.gp(tile(t), 'occupant') && ['normal', 'street', 'swamp'].includes(terrain(t)))
+                .sort((a, b) => Math.abs(a[0] - dx0) + Math.abs(a[1] - dy0) - Math.abs(b[0] - dx0) - Math.abs(b[1] - dy0))[0];
+              if (next) L.mc(d, 'gotopos', P(next));
+            }
           }
           rt.step(20);
         }
         if (alive(m)) return fail('the monster still stands (at ' + posOf(m) + '): ' + what);
         rt.step(10);
-        // (back to where they were built, in turns: one may stand in the other's way)
+        // (back to where they were built, in turns: one may stand in the other's way.  They are
+        // alike: each to whichever of the two sites is nearer it)
+        {
+          const [h1, h2] = [units[s.as], units[s.as2]];
+          if (alive(h1) && alive(h2)) {
+            const dd = (d, t) => { const [x, y] = at(d); return Math.abs(x - t[0]) + Math.abs(y - t[1]); };
+            if (dd(h1, s.at2) + dd(h2, s.at) < dd(h1, s.at) + dd(h2, s.at2)) { units[s.as] = h2; units[s.as2] = h1; }
+          }
+        }
         const home = [[s.at, s.as], [s.at2, s.as2]];
         for (const [, as] of home) {
           if (!alive(units[as])) return fail('a ' + s.what + ' fell (' + as + '): ' + what);
@@ -280,7 +294,7 @@ async (code) => {
         return fail('no such step: ' + what);
     }
     if (rt.errors.length) return fail('script error after ' + what);
-    { const gs = L.gp(glob, 'goals'); log.push(n + ' ' + s.op + ' goals ' + (gs ? L.gp(gs, 'goal').a.length + '/' + L.gp(gs, 'bonus').a.length : '-') + ' bonus on ' + L.gp(md, 'pbonusavailable')); }
+    { const gs = L.gp(glob, 'goals'); log.push(n + ' ' + s.op + ' goals ' + (gs ? L.gp(gs, 'goal').a.length + '/' + L.gp(gs, 'bonus').a.length : '-') + ' bonus on ' + L.gp(md, 'pbonusavailable') + (s.unit !== undefined && units[s.unit] ? ' ' + s.unit + ' e=' + energy(units[s.unit]) + ' @' + posOf(units[s.unit]) : s.as && units[s.as] ? ' ' + s.as + ' e=' + energy(units[s.as]) + ' @' + posOf(units[s.as]) : '')); }
   }
   rt.step(20);
   const goals = L.gp(glob, 'goals');
@@ -298,5 +312,5 @@ async (code) => {
       }
     }
   }
-  return { ok, why: ok ? '' : 'goal not reached (goals left ' + left('goal') + ', bonus ' + left('bonus') + ')' + detail, log: ok ? [] : log, errors: rt.errors.slice(0, 3) };
+  return { ok, why: ok ? '' : 'goal not reached (goals left ' + left('goal') + ', bonus ' + left('bonus') + ')' + detail, log: ok && !window.__botLog ? [] : log, errors: rt.errors.slice(0, 3) };
 }

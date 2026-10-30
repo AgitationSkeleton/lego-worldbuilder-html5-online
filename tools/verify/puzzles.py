@@ -27,7 +27,7 @@ def main():
     ap.add_argument('--codes', default='')
     ap.add_argument('--seed', type=int, default=1)
     ap.add_argument('--verbose', action='store_true')
-    ap.add_argument('--version', type=int, default=3, help='the generator: 3 (Rando v3), 2 (Rando v2) or 1 (Rando v1)')
+    ap.add_argument('--version', type=int, default=4, help='the generator: 4 (Rando v4), 3, 2 or 1')
     a = ap.parse_args()
     rnd = random.Random(a.seed)
     codes = [c.strip() for c in a.codes.split(',') if c.strip()]

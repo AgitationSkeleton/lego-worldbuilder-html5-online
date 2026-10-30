@@ -4,17 +4,17 @@
 //   node tools/verify/puzzle.mjs [codes per difficulty and look, default 50]
 //   node tools/verify/puzzle.mjs 0 2C-K2Q9          print one mission
 //   node tools/verify/puzzle.mjs 50 --report        and count what the missions have
-//   node tools/verify/puzzle.mjs 50 --v1            Rando v1's codes (--v2 Rando v2's; Rando v3's otherwise)
+//   node tools/verify/puzzle.mjs 50 --v1            Rando v1's codes (--v2, --v3 theirs; the newest's otherwise)
 
 import { readFileSync } from 'node:fs';
-import { generatePuzzle, readConfig } from '../../src/online/puzzle.js';
+import { generatePuzzle, readConfig, LATEST } from '../../src/online/puzzle.js';
 
 const args = process.argv.slice(2);
 const N = Number(args[0]) || 50;
 const SHOW = args.find((a, i) => i > 0 && !a.startsWith('--'));
 const REPORT = args.includes('--report');
-const V1 = args.includes('--v1');
-const V2 = args.includes('--v2');
+const VERSION = [1, 2, 3].find((v) => args.includes('--v' + v)) || LATEST;
+const V1 = VERSION === 1;
 const data = JSON.parse(readFileSync(new URL('../../data/merged.json', import.meta.url), 'utf8'));
 let text = '';
 for (const c of data.casts) for (const m of Object.values(c.members)) if (m.name === 'config' && !text) text = m.text;
@@ -43,7 +43,7 @@ for (const d of [1, 2, 3]) {
   for (const look of V1 ? 'ABCD' : 'ABCDE') {
     let ok = 0;
     for (let s = 0; s < N; s++) {
-      const code = `${d}${look}${CH[s % 32]}${CH[(s * 7 + 3) % 32]}${CH[(s * 13 + 5) % 32]}${CH[(s * 5 + 1) % 32]}${V1 ? '' : CH[(s * 11 + 9) % 32]}${V1 || V2 ? '' : CH[(s * 17 + 4) % 32]}`;
+      const code = `${d}${look}${CH[s % 32]}${CH[(s * 7 + 3) % 32]}${CH[(s * 13 + 5) % 32]}${CH[(s * 5 + 1) % 32]}${VERSION >= 2 ? CH[(s * 11 + 9) % 32] : ''}${VERSION >= 3 ? CH[(s * 17 + 4) % 32] : ''}${VERSION >= 4 ? CH[(s * 19 + 7) % 32] : ''}`;
       const why = [];
       tried++;
       const t0 = performance.now();

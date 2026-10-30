@@ -403,7 +403,7 @@ export class Races {
       ...WORLD_NAMES.map((n, i) => el('option', { value: String(i + 1), text: n })),
       el('option', { value: 'R', text: 'A random mission' }));
     this.missionSelect = el('select', { 'aria-label': 'Mission' });
-    this.randomInput = el('input', { type: 'text', maxlength: '8', spellcheck: 'false', autocapitalize: 'characters', 'aria-label': 'Random mission code', placeholder: 'Code' });
+    this.randomInput = el('input', { type: 'text', maxlength: '10', spellcheck: 'false', autocapitalize: 'characters', 'aria-label': 'Random mission code', placeholder: 'Code' });
     this.worldSelect.addEventListener('change', () => this.fillMissions());
     for (const e of [this.missionSelect, this.randomInput]) e.addEventListener('change', () => this.pickMission());
     this.newRandom = el('button', { type: 'button', class: 'choice', text: 'New code', onclick: () => {

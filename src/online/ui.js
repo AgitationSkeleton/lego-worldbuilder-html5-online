@@ -130,16 +130,20 @@ export class OnlineUI {
       el('option', { value: 'C', text: 'Jungle' }),
       el('option', { value: 'D', text: 'City' }),
       el('option', { value: 'E', text: 'Ocean' }));
-    // (the generator: the newest, or Rando v1, whose codes still make the missions they made)
+    // (the generator: any of them for each mission, by default, or one of them, the older ones'
+    // codes still making the missions they made.  A goal's New Random Mission makes the next
+    // one as this is set: a chain of missions from one generator, or from any.)
     this.randomVersion = el('select', { 'aria-label': 'Generator' },
-      ...GENERATORS.map((g) => el('option', { value: String(g.version), text: g.name, selected: g.version === LATEST ? '' : undefined })));
+      el('option', { value: '', text: 'Random', selected: '' }),
+      ...GENERATORS.map((g) => el('option', { value: String(g.version), text: g.name })));
     // (a look the generator does not have can not be chosen)
     this.randomVersion.addEventListener('change', () => {
-      const looks = (GENERATORS.find((g) => String(g.version) === this.randomVersion.value) || GENERATORS[0]).looks;
+      const g = GENERATORS.find((x) => String(x.version) === this.randomVersion.value);
+      const looks = g ? g.looks : 'ABCDE';
       for (const o of this.randomLook.options) o.disabled = !!o.value && !looks.includes(o.value);
       if (this.randomLook.selectedOptions[0] && this.randomLook.selectedOptions[0].disabled) this.randomLook.value = '';
     });
-    this.codeInput = el('input', { type: 'text', maxlength: '8', spellcheck: 'false', autocapitalize: 'characters', 'aria-label': 'Mission code', placeholder: 'Code' });
+    this.codeInput = el('input', { type: 'text', maxlength: '10', spellcheck: 'false', autocapitalize: 'characters', 'aria-label': 'Mission code', placeholder: 'Code' });
     this.randomNote = el('p', { class: 'note', 'aria-live': 'polite' });
     // (the Android app is on the whole screen already: there, which way round it turns)
     const fullRow = isAndroidApp()
@@ -356,7 +360,11 @@ export class OnlineUI {
   }
   newCode() {
     if (!this.random) return;
-    const code = this.random.newCode(Number(this.randomDifficulty.value) || 0, this.randomLook.value || '', Number(this.randomVersion.value) || LATEST);
+    const look = this.randomLook.value || '';
+    // (Random: a generator picked for this mission, of those that have the look)
+    const pool = GENERATORS.filter((g) => !look || g.looks.includes(look));
+    const version = Number(this.randomVersion.value) || pool[Math.floor(Math.random() * pool.length)].version;
+    const code = this.random.newCode(Number(this.randomDifficulty.value) || 0, look, version);
     this.codeInput.value = code ? showCode(code) : '';
     this.randomNote.textContent = '';
   }
@@ -365,7 +373,7 @@ export class OnlineUI {
     if (!this.codeInput.value.trim()) this.newCode();
     const c = parseCode(this.codeInput.value);
     if (!c) {
-      this.randomNote.textContent = 'A code is two characters and five more, like 2C-K2Q9X (four more for Rando v1).';
+      this.randomNote.textContent = 'A code is two characters and four to seven more, like 2C-K2Q9XMA.';
       return;
     }
     if (!this.random.make(c.code)) {

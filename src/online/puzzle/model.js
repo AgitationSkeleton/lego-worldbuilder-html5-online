@@ -43,7 +43,10 @@ const PEN_MAX = 400;
 // defender alone is left with a third of its energy brick, or beaten, as often as not).  A
 // lion, a scorpion or a T rex beats them.
 const HUNTABLE = new Set(['crab', 'gator']);
-const HUNT_ENERGY = 50;     // what the fight takes of each defender's energy, at most
+// what the fight may take of each defender's energy: the monster bites one of them, which
+// one and how often is the game's to say, so each is counted as left with almost nothing (a
+// defender used afterwards is recharged first)
+const HUNT_ENERGY = 90;
 const HUNT_MS = 40000;      // and how long it takes, finding it first
 const key = (x, y) => x + ',' + y;
 const man = (ax, ay, bx, by) => Math.abs(ax - bx) + Math.abs(ay - by);
@@ -283,7 +286,6 @@ export class Model {
   }
 
   // ---------- routes ----------
-
   tileMs(u) {
     const sp = this.cfg[u.kind].speed || 1;
     return (Math.ceil(1000 / sp / FRAME) + 1) * FRAME;
@@ -394,7 +396,6 @@ export class Model {
   }
   // Tiles a unit must not go over that lie on a way to a tile as short as d.
   temptations(u, to, opts, d) {
-    const near = d;
     const free = (x, y) => {
       const t = this.ter(x, y);
       if (!t || !this.cfg[u.kind].terrain.includes(t)) return false;
@@ -417,7 +418,7 @@ export class Model {
       return dist;
     };
     // (the game's pathfinder does not always take the shortest way: no way a little longer
-    // than this one may go beside a monster either)
+    // than this one may go by them either)
     const far = Math.ceil(d * SLACK) + 2;
     d = far;
     const ds = spread([u.x, u.y]), dt = spread(to);
@@ -429,114 +430,10 @@ export class Model {
       const b = dt.get(k);
       if (b === undefined || a + b > d || a === 0 || b === 0) continue;
       const [x, y] = k.split(',').map(Number);
-      if (a + b > near) {
-        if (danger.has(k) && u.kind !== 'freezebot') bad.push([x, y]);
-        continue;
-      }
+      // (a monster's reach, a whirlpool, swamp, a goal's tile: on any of those ways)
       if (!this.passable(u, x, y, o, danger, engage)) bad.push([x, y]);
     }
     return bad;
-  }
-  passable(u, x, y, opts, danger, engage) {
-    const t = this.ter(x, y);
-    if (!t || !this.cfg[u.kind].terrain.includes(t)) return false;
-    const o = this.occ[y][x];
-    if (o && o !== u.name) return false;
-    const k = key(x, y);
-    const target = opts.target && opts.target[0] === x && opts.target[1] === y;
-    if (opts.relax) return true;
-    if (t === 'water_whirlpool' && !(target && opts.whirl)) return false;
-    if (t === 'swamp' && !this.swampOk(u)) return false;
-    if (danger && danger.has(k) && u.kind !== 'freezebot') return false;
-    if (engage && engage.has(k)) return false;
-    if (!target) {
-      // (a unit the goal wants is stopped on it)
-      for (const g of this.goals) {
-        if (g.done || g.collect || g.at[0] !== x || g.at[1] !== y) continue;
-        if (g.which === 'bonus' && !this.goals.every((h) => h.which === 'bonus' || h.done)) continue;
-        if (g.want === 'anything' || g.want === u.kind) return false;
-      }
-    }
-    return true;
-  }
-  // Only shielded units cross swamp: it takes 50 energy (times the shield) every 0.7 s.
-  swampOk(u) { return (this.cfg[u.kind].shield ?? 1) <= 0.1; }
-  // The shortest route for a unit to a tile: the tiles it goes over, or null.
-  path(u, tx, ty, opts = {}) {
-    if (u.x === tx && u.y === ty) return [];
-    const danger = u.cls === 'monster' || opts.relax ? new Set() : this.danger();
-    if (!danger) fail('a monster is loose');
-    const engage = this.cfg[u.kind].attack && u.kind !== 'guard_tower' && !opts.relax ? this.engageZone(opts.engage) : null;
-    const o = Object.assign({}, opts, { target: [tx, ty] });
-    const prev = new Map([[key(u.x, u.y), null]]);
-    let frontier = [[u.x, u.y]];
-    while (frontier.length) {
-      const next = [];
-      for (const [x, y] of frontier) {
-        for (const [dx, dy] of DIRS) {
-          const nx = x + dx, ny = y + dy, k = key(nx, ny);
-          if (prev.has(k) || !this.passable(u, nx, ny, o, danger, engage)) continue;
-          prev.set(k, [x, y]);
-          if (nx === tx && ny === ty) {
-            const p = [[nx, ny]];
-            let c = [x, y];
-            while (c && !(c[0] === u.x && c[1] === u.y)) { p.unshift(c); c = prev.get(key(c[0], c[1])); }
-            return p;
-          }
-          next.push([nx, ny]);
-        }
-      }
-      frontier = next;
-    }
-    return null;
-  }
-  // Drives a unit over a route, a tile at a time, as followPath does.
-  drive(u, path) {
-    const move = this.cfg[u.kind].energy.move || 0;
-    let swamp = 0;
-    for (const [x, y] of path) {
-      if (this.cfg[u.kind].recipe.energy && this.energyOf(u) === 0) fail(u.name + ' has no energy');
-      this.occ[u.y][u.x] = null;
-      u.x = x; u.y = y;
-      this.occ[y][x] = u.name;
-      this.trail.add(key(x, y));
-      this.useEnergy(u, move);
-      u.dist++;
-      this.clock += this.tileMs(u);
-      const r = this.res.get(key(x, y));
-      if (r && r.type === 'plan' && u.cls !== 'monster') this.takePlan(x, y);
-      // the swamp: a hit every 0.7 s on it
-      if (this.ter(x, y) === 'swamp') {
-        swamp += this.tileMs(u);
-        while (swamp > 700) { swamp -= 700; this.useEnergy(u, 50 * (this.cfg[u.kind].shield ?? 1)); }
-      } else swamp = 0;
-      this.freezeAround();
-      const d = this.danger();
-      if (!d) fail('a monster is loose');
-      if (u.cls !== 'monster' && d.has(key(x, y))) fail(u.name + ' goes beside a monster');
-      this.checkEnergy(u);
-    }
-    if (swamp) this.useEnergy(u, 50 * (this.cfg[u.kind].shield ?? 1));
-    this.checkGoals();
-  }
-  goTo(u, to, opts = {}) {
-    let p = this.path(u, to[0], to[1], opts);
-    if (!p) fail(u.name + ' (' + u.kind + ') cannot get to ' + to);
-    // (on the finished map: the game's pathfinder knows nothing of swamp's harm, of
-    // whirlpools on the way, of goals or monsters; it must not find a shorter way by them)
-    if (this.strict && p.length > 1) {
-      let r = this.path(u, to[0], to[1], Object.assign({}, opts, { relax: true }));
-      // (while the mission is made, swamp in the way of a shorter route is dried out)
-      if (r && r.length < p.length && this.drySwamp && !this.swampOk(u)) {
-        const wet = r.filter(([x, y]) => this.ter(x, y) === 'swamp');
-        if (wet.length && this.drySwamp(wet)) {
-          p = this.path(u, to[0], to[1], opts);
-          r = this.path(u, to[0], to[1], Object.assign({}, opts, { relax: true }));
-        }
-      }
-      if (r && p && r.length < p.length) fail(u.name + ' (' + u.kind + ') may go another way to ' + to);
-    }
-    this.drive(u, p);
   }
   dist(u, to, opts) {
     const p = this.path(u, to[0], to[1], opts);
@@ -911,6 +808,12 @@ export class Model {
         const [x, y] = s.at;
         if (!m.pen.has(key(x, y))) fail('the site is not where it roams');
         if (this.monsters().some((o) => o !== m && !o.loose && [...o.pen].some((k) => m.pen.has(k)))) fail('two of them at once');
+        // (while it roams and fights, nothing else is where it can get to, or beside it: it goes
+        // for anything within 4)
+        for (const o of Object.values(this.units)) {
+          if (o.cls === 'monster') continue;
+          if (m.pen.has(key(o.x, o.y)) || DIRS.some(([dx, dy]) => m.pen.has(key(o.x + dx, o.y + dy)))) fail(o.name + ' (' + o.kind + ') is where the ' + m.kind + ' roams while it is hunted');
+        }
         if (!(this.inventory[s.what] > 0)) fail('no plan for ' + s.what);
         if (this.occ[y][x]) fail('the site is taken');
         if (!b.terrain.includes(this.ter(x, y))) fail(s.what + ' cannot go on ' + this.ter(x, y));
@@ -927,9 +830,10 @@ export class Model {
         this.inventory[s.what]--;
         const h2 = this.addUnit(s.as2, 'vehicle', s.what, x2, y2, this.useAround(x2, y2, b.recipe));
         if (this.energyOf(h) < 100 || this.energyOf(h2) < 100) fail('the ' + s.what + 's are not at full strength');
-        // (it falls apart into its bricks where the fight ends: by the defenders, which wait for
-        // it where they were built, as it comes for them)
-        for (const k of m.pen) { const [px, py] = k.split(',').map(Number); if (man(px, py, x, y) <= 4 || man(px, py, x2, y2) <= 4) this.strewn.add(k); }
+        // (it falls apart into its bricks where the fight ends: beside the defenders, which hold
+        // their ground where they were built while it comes for them, as it does for anything
+        // within 4, going after it no further than the fight takes them)
+        for (const k of m.pen) { const [px, py] = k.split(',').map(Number); if (man(px, py, x, y) <= 2 || man(px, py, x2, y2) <= 2) this.strewn.add(k); }
         this.removeUnit(m);
         this.useEnergy(h, HUNT_ENERGY);
         this.useEnergy(h2, HUNT_ENERGY);

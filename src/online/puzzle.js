@@ -2,7 +2,7 @@
 // played through before the mission is given (and, offline, by tools/verify/puzzles.py in
 // the game itself).
 //
-// A mission (Rando v3: src/online/puzzle/gen.js) is two to five areas of all sizes, shaped
+// A mission (Rando v4: src/online/puzzle/gen.js) is two to six areas of all sizes, shaped
 // like the games' own islands (worn edges, points and lobes, coasts, mazes), each link
 // between them one of the game's obstacles: rocky ground, water to fill, trees to move,
 // boulders to push (a small pushing puzzle), a tree or boulder a factory turns into
@@ -16,10 +16,12 @@
 // goal is another of those, and every mission has both.  Monsters are out in the field, as
 // the games' own are: a crab or a gator roaming the whole of one of the areas the mission
 // goes through, kept in only by the way there, which the solution takes apart with two
-// defenders built there before anything else goes in (Rando v3; Rando v2's roamed islets of
-// their own off the shore).  And as the originals' maps are, the map is one piece of land
-// and water (the sky between the areas filled with sea, trees or rocky ground), with
-// buildings, spare units, boulders, bricks and plans about beyond what the solution uses.
+// defenders built there before anything else goes in (from Rando v3; Rando v2's roamed
+// islets of their own off the shore).  And as the originals' maps are, the map is one piece
+// of land and water: the sky between the areas filled, with rocks where anything else would
+// be a way round what the mission puts there.  (Rando v3 also had fewer obstacles, and spare
+// bricks, units and recharging buildings about, and was too easy for it: Rando v4 has as many
+// obstacles as Rando v2, more in the harder missions, and gives nothing away.)
 // The areas are dressed with the look's trees, rocks, ponds, swamp, rocky ground and
 // (in the city) streets, each kept only if the solution still plays.
 //
@@ -48,8 +50,8 @@
 // C jungle, D city, E ocean) and a seed, written like 2C-K2Q9XM.  The seed's length says
 // which generator made it, each kept as it was so that its codes make the missions they
 // always made: four characters, the first one (Rando v1, in src/online/puzzle/v1/, only
-// for the looks A to D); five, Rando v2 (in src/online/puzzle/v2/); six, the one in use
-// (Rando v3).
+// for the looks A to D); five, Rando v2 (in src/online/puzzle/v2/); six, Rando v3 (in
+// src/online/puzzle/v3/); seven, the one in use (Rando v4).
 
 import { readConfig } from './puzzle/config.js';
 import { Gen, Fail } from './puzzle/gen.js';
@@ -59,6 +61,9 @@ import { Gen as Gen1, Fail as Fail1 } from './puzzle/v1/gen.js';
 import { LOOKS as LOOKS1, Rng as Rng1 } from './puzzle/v1/world.js';
 import { Gen as Gen2, Fail as Fail2 } from './puzzle/v2/gen.js';
 import { LOOKS as LOOKS2, Rng as Rng2 } from './puzzle/v2/world.js';
+import { Gen as Gen3, Fail as Fail3 } from './puzzle/v3/gen.js';
+import { LOOKS as LOOKS3, Rng as Rng3 } from './puzzle/v3/world.js';
+import { StepError as StepError3 } from './puzzle/v3/model.js';
 
 export { readConfig };
 
@@ -66,6 +71,7 @@ const SEED_CHARS = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';   // Crockford's base 32
 
 // The generators, newest first: a code's version is its seed's length less three.
 export const GENERATORS = [
+  { version: 4, name: 'Rando v4', looks: 'ABCDE' },
   { version: 3, name: 'Rando v3', looks: 'ABCDE' },
   { version: 2, name: 'Rando v2', looks: 'ABCDE' },
   { version: 1, name: 'Rando v1', looks: 'ABCD' },
@@ -74,7 +80,8 @@ export const GENERATORS = [
 const MAKERS = {
   1: { Gen: Gen1, Fail: Fail1, LOOKS: LOOKS1, Rng: Rng1, salt: 'wbp2:' },
   2: { Gen: Gen2, Fail: Fail2, LOOKS: LOOKS2, Rng: Rng2, salt: 'wbp3:' },
-  3: { Gen, Fail, LOOKS, Rng, salt: 'wbp4:' },
+  3: { Gen: Gen3, Fail: Fail3, LOOKS: LOOKS3, Rng: Rng3, salt: 'wbp4:', StepError: StepError3 },
+  4: { Gen, Fail, LOOKS, Rng, salt: 'wbp5:', StepError },
 };
 export const LATEST = GENERATORS[0].version;
 
@@ -82,7 +89,7 @@ export const LATEST = GENERATORS[0].version;
 
 export function parseCode(code) {
   const s = String(code || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
-  const m = /^([1-3])([A-E])([0-9A-Z]{4,6})$/.exec(s);
+  const m = /^([1-3])([A-E])([0-9A-Z]{4,7})$/.exec(s);
   if (!m) return null;
   const seed = m[3].replace(/O/g, '0').replace(/[IL]/g, '1');
   if ([...seed].some((c) => !SEED_CHARS.includes(c))) return null;
@@ -132,18 +139,19 @@ export function generatePuzzle(configText, code, why = []) {
   const cfg = typeof configText === 'string' ? readConfig(configText) : configText;
   const M = MAKERS[c.version];
   const rng = new M.Rng(mulberry32(hash(M.salt + c.code)));
-  for (let attempt = 0; attempt < 80; attempt++) {
+  // (Rando v4's longer chains take more tries to find)
+  for (let attempt = 0, tries = c.version >= 4 ? 120 : 80; attempt < tries; attempt++) {
     const g = new M.Gen(cfg, c, rng);
     // (from Rando v3: a code that has not made a mission in half its tries makes one with no
     // monster in the field)
-    if (c.version >= 3) g.calm = attempt >= 40;
+    if (c.version >= 3) g.calm = attempt >= (c.version >= 4 ? 60 : 40);
     try {
       g.run();
       return finish(c, g);
     } catch (e) {
       // (from Rando v3, a monster let out by a change of ground found while the generator looks
       // ahead, as well as a step that does not play, is an attempt turned down)
-      if (!(e instanceof M.Fail) && !(c.version >= 3 && e instanceof StepError)) throw e;
+      if (!(e instanceof M.Fail) && !(M.StepError && e instanceof M.StepError)) throw e;
       why.push(e.message);
     }
   }
