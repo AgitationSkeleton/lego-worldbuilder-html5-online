@@ -482,6 +482,12 @@ export class OnlineUI {
   // but the main menu; the race's panel over it, after a race. (A generated mission's goal
   // popups offer a new one as well: newRandomMission, src/main.js.)
   randomLeft(how) {
+    // (the editor's Test Play left: back to the editor)
+    if (this.editor && this.editor.testing) {
+      if (this.panel) this.panel.hidden = true;
+      this.editor.left();
+      return;
+    }
     this.showMenu();
     if (how.race && this.races && this.races.code) this.races.open();
   }

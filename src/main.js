@@ -15,6 +15,7 @@ import { fileUrl } from './files.js';
 import { installOffline } from './online/offline.js';
 import { android, checkAndroid, applyOrientation } from './online/android.js';
 import { Screensaver } from './online/screensaver.js';
+import { Editor } from './online/editor.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -123,6 +124,9 @@ async function main() {
     ui.history.onChange = () => { if (!ui.randomPanel.hidden) ui.renderSeeds(); };
     ui.random.onStarted = (g) => { ui.history.played(g.code); ui.scores.announce(g); };
     ui.scores.listeners.push((kind, ms, mission) => { if (mission.startsWith('R-')) ui.history.reached(mission.slice(2), kind, ms); });
+    // the level editor (src/online/editor.js): its Test Play's goals reached
+    ui.editor = new Editor(ui);
+    ui.scores.listeners.push((kind, ms, mission) => { if (mission === 'C-DRAFT') ui.editor.reached(kind, ms); });
     // the main menu (src/online/menu.js) comes first, but for the tests' runs
     ui.menu = new MainMenu(ui);
   }

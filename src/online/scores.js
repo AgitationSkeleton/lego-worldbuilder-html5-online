@@ -159,7 +159,8 @@ export class Scores {
     const w = L.gp(level, 'worldnum'), l = L.gp(level, 'levelnum');
     // a generated mission has a table of its own, by its code
     const random = this.random && this.random.active;
-    const mission = random ? 'R-' + random.code : w + '.' + l;
+    // (a custom level is its own: "C-" and its number, or the editor's Test Play)
+    const mission = random ? (random.custom ? random.code : 'R-' + random.code) : w + '.' + l;
     this.attempt = { mission, start: this.rt.millis(), tutorial: !random && (this.tutorial() || w > 7) };
   }
 
@@ -184,8 +185,9 @@ export class Scores {
     const ms = Math.round(this.rt.millis() - a.start);
     a[kind] = ms;
     for (const f of this.listeners) f(kind, ms, a.mission);
-    // a generated mission is timed for a race on it, but not kept, asked about or tabled
-    if (a.mission.startsWith('R-')) return;
+    // a generated mission is timed for a race on it, but not kept, asked about or tabled; nor is
+    // a level being made, in the editor's Test Play
+    if (a.mission.startsWith('R-') || a.mission === 'C-DRAFT') return;
     const mine = this.bests[a.mission] || (this.bests[a.mission] = {});
     const prev = mine[kind];
     if (prev === undefined || ms < prev) mine[kind] = ms;

@@ -7,6 +7,7 @@
 
 import * as L from '../director/lingo.js';
 import { generatePuzzle, parseCode, showCode, randomCode } from './puzzle.js';
+import { validate, toMapText, cleanText } from './levelformat.js';
 
 export class RandomMissions {
   constructor(rt) {
@@ -118,6 +119,32 @@ export class RandomMissions {
     const main = rt.movieHandlers.golevel.script;
     rt.call(rt.scriptSelf(main), main, 'golevel', world, mission);
     if (this.onStarted) this.onStarted(g);
+    return null;
+  }
+
+  // Plays a custom level (src/online/levelformat.js; checked already), as `mission` ("C-" and
+  // its number, or "C-DRAFT" for the editor's Test play), in the world its sky is: the game's
+  // own text made from it, in a slot of that world, as a generated mission is.  Answers what
+  // went wrong, or null.
+  playLevel(level, mission, title) {
+    if (!this.canPlay()) return 'A level starts from a world map.';
+    const errs = validate(level);
+    if (errs.length) return 'This level cannot be played: ' + errs[0] + '.';
+    const rt = this.rt;
+    const glob = rt.globals.glob;
+    const world = level.sky, slot = 12;
+    const member = rt.builtins.member(`map${world}.${slot}`);
+    const names = L.gi(L.gp(glob, 'mission_names'), world);
+    this.active = {
+      code: mission, custom: true, level, world, mission: slot,
+      saved: { text: L.gp(member, 'text'), name: L.gi(names, slot) },
+    };
+    L.sp(member, 'text', toMapText(level));
+    L.si(names, slot, title || cleanText(level.name) || 'Custom level');
+    if (!this.away) this.away = { mission, race: false, locked: false };
+    const main = rt.movieHandlers.golevel.script;
+    rt.call(rt.scriptSelf(main), main, 'golevel', world, slot);
+    if (this.onLevelStarted) this.onLevelStarted(level, mission);
     return null;
   }
 

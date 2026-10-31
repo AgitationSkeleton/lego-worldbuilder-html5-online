@@ -375,3 +375,49 @@ html.dark #race .racelist .empty, html.dark #race .racerow .count, html.dark #ra
 html.dark #race .mapnote { color: #cacaca; }
 html.dark #race .chatlog .system { color: #afafaf; }
 html.dark { color-scheme: dark; }
+
+/* The level editor (src/online/editor.js): a bar of tools along the top, the palette on the left,
+   the map in the middle, the level's and the painted item's properties on the right. */
+#editor { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; background: #fff; color: #000; font: 13px Arial, sans-serif; }
+#editor[hidden] { display: none; }
+#editor .bar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; padding: 6px 8px; border-bottom: 2px solid #000; }
+#editor .group { display: flex; gap: 4px; align-items: center; }
+#editor button.tool { min-height: 28px; padding: 2px 9px; border: 0; border-radius: 4px; background: #99ff66; color: #000; font: 400 11px 'WB 04b_08', monospace; text-transform: uppercase; cursor: pointer; }
+#editor button.tool[aria-pressed="true"] { background: #33bb22; color: #fff; }
+#editor .body { flex: 1; display: grid; grid-template-columns: 220px minmax(0, 1fr) 250px; min-height: 0; }
+#editor .palette, #editor .props { overflow-y: auto; padding: 6px 8px; }
+#editor .palette { border-right: 2px solid #000; }
+#editor .props { border-left: 2px solid #000; }
+#editor h4 { margin: 8px 0 4px; font: 400 11px 'WB 04b_08', monospace; text-transform: uppercase; color: #777; }
+#editor .swatches { display: flex; flex-wrap: wrap; gap: 3px; }
+#editor .swatch { width: 36px; height: 36px; padding: 2px; border: 2px solid transparent; border-radius: 4px; background: #eee; cursor: pointer; }
+#editor .swatch[aria-pressed="true"] { border-color: #33bb22; background: #dfffd0; }
+#editor .swatch canvas { width: 30px; height: 30px; image-rendering: pixelated; }
+#editor .view { position: relative; min-width: 0; min-height: 0; }
+#editor canvas.grid { width: 100%; height: 100%; display: block; cursor: crosshair; outline: none; touch-action: none; }
+#editor .status { position: absolute; left: 6px; bottom: 6px; padding: 2px 6px; border-radius: 3px; background: rgba(0, 0, 0, 0.6); color: #fff; pointer-events: none; }
+#editor .field { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin: 3px 0; }
+#editor .field input[type=text] { width: 140px; }
+#editor .field input[type=number] { width: 64px; }
+#editor .grows { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: center; font-size: 11px; }
+#editor .grow button { width: 20px; padding: 0; }
+#editor .checks { margin: 0; padding-left: 16px; }
+#editor .checks .bad { color: #b00; }
+#editor .checks .good { color: #1a6e00; }
+#editor .openmenu { position: absolute; top: 44px; left: 50%; transform: translateX(-50%); width: min(560px, 94vw); max-height: 75vh; overflow-y: auto;
+  padding: 10px 14px; border: 3px solid #000; border-radius: 10px; background: #fff; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3); z-index: 2; }
+#editor .openmenu .row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 3px 0; }
+#editor .openmenu .row.campaign span { width: 190px; }
+#editor .openmenu .pick { flex: 1; text-align: left; }
+@media (max-width: 800px) {
+  #editor .body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(260px, 1fr) auto; }
+  #editor .palette { border-right: 0; border-bottom: 2px solid #000; max-height: 24vh; }
+  #editor .props { border-left: 0; border-top: 2px solid #000; max-height: 30vh; }
+}
+html.dark #editor { background: #2e2e2e; color: #e2e2e2; }
+html.dark #editor .bar, html.dark #editor .palette, html.dark #editor .props, html.dark #editor .openmenu { border-color: #e2e2e2; }
+html.dark #editor .swatch { background: #444; }
+html.dark #editor .swatch[aria-pressed="true"] { background: #2f4a24; }
+html.dark #editor .openmenu { background: #2e2e2e; }
+html.dark #editor .checks .bad { color: #ff8a80; }
+html.dark #editor .checks .good { color: #7ddc5c; }
