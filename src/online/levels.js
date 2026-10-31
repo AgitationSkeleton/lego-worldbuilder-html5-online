@@ -7,6 +7,7 @@
 
 import { el, dialog } from './dom.js';
 import { clock } from './scores.js';
+import { toFile, fileName, saveFile } from './levelfile.js';
 
 const KEPT = 'lego-wb-online:custom';
 const BROWSER = 'lego-wb-online:browser';
@@ -175,7 +176,9 @@ export class CustomLevels {
           el('div', { class: 'choices' },
             el('button', { type: 'button', class: 'choice primary', text: 'Play', onclick: () => this.play(id) }),
             likeButton, keepButton,
-            el('button', { type: 'button', class: 'choice', text: 'Race it', onclick: () => this.race(id) })))),
+            el('button', { type: 'button', class: 'choice', text: 'Race it', onclick: () => this.race(id) }),
+            l.level ? el('button', { type: 'button', class: 'choice', text: 'Export', title: 'The level as a file, to keep or pass on', onclick: () => this.exportLevel(l) }) : null,
+            l.level && this.ui.editor ? el('button', { type: 'button', class: 'choice', text: 'Edit a copy', title: 'A copy of it in the Level editor, to make your own from', onclick: () => { this.panel.hidden = true; this.ui.editor.openCopy(Object.assign({}, l.level, { name: l.level.name })); } }) : null))),
       table, this.back());
     this.showTimes(id, table);
   }
@@ -282,6 +285,14 @@ export class CustomLevels {
     if (!this.kept[id]) await this.keep(id);
     this.panel.hidden = true;
     if (this.ui.races) this.ui.races.hostWith('C-' + id);
+  }
+  async exportLevel(l) {
+    try {
+      const how = await saveFile(toFile(l.level, { author: l.author, from: 'C-' + l.id }), fileName(l.level));
+      this.note.textContent = { downloaded: 'Saved as ' + fileName(l.level) + '.', shared: 'Shared.', copied: 'Copied as text.', cancelled: '' }[how];
+    } catch (e) {
+      this.note.textContent = 'It could not be saved here.';
+    }
   }
   name(id) {
     const l = this.cached(id);

@@ -490,3 +490,15 @@ html.dark #customs tr.me td { background: #2f4a24; }
 #ss-pause:active { background: rgba(51, 187, 34, 0.75); }
 #ss-pause[hidden] { display: none; }
 @media not (pointer: coarse) { #ss-pause { display: none; } }
+
+/* the level editor: plans in hand with their pictures; saved; import and export */
+#editor .field.plan { justify-content: flex-start; }
+#editor .field.plan .icon { width: 22px; height: 22px; flex: none; object-fit: contain; }
+#editor .field.plan input { margin-left: auto; }
+#editor .saved { margin-left: auto; font-size: 12px; color: #1a6e00; }
+#editor .saved.bad { color: #b00; font-weight: bold; }
+#editor .openmenu textarea { width: 100%; box-sizing: border-box; font: 12px monospace; margin: 6px 0; }
+#editor .openmenu .note { min-height: 1em; margin: 4px 0; font-weight: bold; }
+html.dark #editor .saved { color: #7ddc5c; }
+html.dark #editor .saved.bad { color: #ff8a80; }
+html.dark #editor .openmenu textarea { background: #2e2e2e; color: #e2e2e2; border-color: #e2e2e2; }

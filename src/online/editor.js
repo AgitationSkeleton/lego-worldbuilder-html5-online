@@ -13,6 +13,7 @@ import { TERRAIN, KINDS, BRICKS, LIMITS, parseMap, validate, cleanText } from '.
 import { el } from './dom.js';
 import { IsoView, groundMember } from './isoview.js';
 import { snapshot } from './snapshot.js';
+import { toFile, fromText, fileName, saveFile, chooseFile } from './levelfile.js';
 
 const DRAFTS = 'lego-wb-online:levels';
 const SHOT = 'lego-wb-online:levelshot';    // the picture of the level last test-played
@@ -289,10 +290,12 @@ export class Editor {
     this.props = el('div', { class: 'props' });
     this.checks = el('ul', { class: 'checks' });
     this.status = el('div', { class: 'status' });
+    this.savedNote = el('span', { class: 'saved', 'aria-live': 'polite' });
     this.root = el('div', { id: 'editor', hidden: '' },
       el('div', { class: 'bar' },
         el('div', { class: 'group' },
           btn('Close', () => this.close()), btn('New', () => this.askNew()), btn('Open…', () => this.openMenu()),
+          btn('Import…', () => this.importMenu(), 'A level from a file, or its text'), btn('Export…', () => this.exportMenu(), 'This level as a file, to keep or pass on'),
           btn('Test play', () => this.testPlay(), 'Play it in the game'),
           this.uploadButton = btn('Upload', () => this.upload(), 'Send it to be played by everyone (beaten in Test Play first)')),
         el('div', { class: 'group' }, btn('Undo', () => this.doUndo(), 'Undo (Ctrl+Z)'), btn('Redo', () => this.doRedo(), 'Redo (Ctrl+Y)'),
@@ -300,9 +303,14 @@ export class Editor {
         el('div', { class: 'group' }, ...this.toolButtons),
         el('label', { class: 'group' }, 'Size ', this.sizeInput, this.sizeLabel),
         el('label', { class: 'group' }, this.roundBox, ' Round'),
-        el('label', { class: 'group' }, this.filledBox, ' Filled')),
+        el('label', { class: 'group' }, this.filledBox, ' Filled'),
+        this.savedNote),
       el('div', { class: 'body' }, this.palette, el('div', { class: 'view' }, this.canvas, this.status), this.props));
     document.body.append(this.root);
+    // (saved as the page is put away or left, whatever was being done)
+    const away = () => { if (!this.root.hidden || this.testing) this.save(); };
+    window.addEventListener('pagehide', away);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') away(); });
     this.buildPalette();
     this.wire();
   }
@@ -319,6 +327,18 @@ export class Editor {
     this.renderProps();
   }
 
+  // (a plan's picture, as the game's plans bar shows it: small, for Plans in hand)
+  planIcon(k) {
+    this.planIcons = this.planIcons || {};
+    if (this.planIcons[k] !== undefined) return this.planIcons[k];
+    const cls = KINDS.vehicle.includes(k) ? 'vehicle' : 'building';
+    let url = null;
+    const c = document.createElement('canvas');
+    c.width = c.height = 40;
+    if (this.fitImage(c.getContext('2d'), cls + '.' + k + '.plan', 0, 0, 40, 0.02)) url = c.toDataURL();
+    this.planIcons[k] = url;
+    return url;
+  }
   // (a ground's swatch: its tile as the game draws it, the block and what stands on it)
   groundSwatch(g, ch, s) {
     if (TERRAIN[ch] === 'hole') {
@@ -385,7 +405,10 @@ export class Editor {
     const inv = el('div', { class: 'inv' });
     for (const k of plannable) {
       const n = this.inventory[k] || 0;
-      inv.append(field(k.replace(/_/g, ' '), num(n, 0, LIMITS.inHand, (v) => { this.remember(); if (v) this.inventory[k] = v; else delete this.inventory[k]; this.refresh(); })));
+      const box = num(n, 0, LIMITS.inHand, (v) => { this.remember(); if (v) this.inventory[k] = v; else delete this.inventory[k]; this.refresh(); });
+      box.dataset.key = k;
+      const icon = this.planIcon(k);
+      inv.append(el('label', { class: 'field plan' }, icon ? el('img', { src: icon, alt: '', class: 'icon' }) : el('span', { class: 'icon' }), el('span', { text: k.replace(/_/g, ' ') }), box));
     }
     // (kept open, or shut, as it was left: the panel is made anew at each change)
     const plans = el('details', { open: this.plansOpen ? '' : null }, el('summary', { text: 'Plans in hand (' + Object.values(this.inventory).reduce((a, n) => a + n, 0) + ')' }), inv);
@@ -776,11 +799,82 @@ export class Editor {
 
   // ---------- drafts, opening, test play ----------
 
+  // Saved as it is made, in this browser (offline too): at every change, and as the page is put
+  // away or left.  Said so beside the tools, or that it could not be (the browser's room full).
   save() {
     if (!this.grid) return;
     const was = this.drafts[this.id];
     this.drafts[this.id] = { level: this.level(), at: Date.now(), beaten: this.beaten, uploaded: was && was.uploaded };
-    saveDrafts(this.drafts);
+    const ok = saveDrafts(this.drafts);
+    if (this.savedNote) {
+      const t = new Date();
+      this.savedNote.textContent = ok ? 'Saved in this browser ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0')
+        : 'Not saved: this browser has no more room. Export it to keep it!';
+      this.savedNote.classList.toggle('bad', !ok);
+    }
+  }
+
+  // ---------- import, export ----------
+
+  menu(title, ...rows) {
+    for (const m of this.root.querySelectorAll('.openmenu')) m.remove();
+    const menu = el('div', { class: 'openmenu', role: 'dialog', 'aria-label': title });
+    const close = () => menu.remove();
+    menu.append(el('h4', { text: title }), ...rows.map((r) => (typeof r === 'function' ? r(close) : r)),
+      el('button', { type: 'button', class: 'close', text: 'Close', onclick: close }));
+    menu.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') close(); });
+    this.root.append(menu);
+    return menu;
+  }
+  exportMenu() {
+    const level = this.level();
+    const text = toFile(level, { author: this.ui.settings && this.ui.settings.name });
+    const note = el('p', { class: 'note', 'aria-live': 'polite' });
+    this.menu('Export ' + level.name,
+      el('p', { text: 'The level as a file: to keep (it is saved in this browser as you go, but a browser’s storage can be cleared), to move to another device, or to give to a friend to Import.' }),
+      el('div', { class: 'row' },
+        el('button', { type: 'button', class: 'tool', text: 'Save the file', onclick: async () => {
+          try {
+            const how = await saveFile(text, fileName(level));
+            note.textContent = { downloaded: 'Saved as ' + fileName(level) + '.', shared: 'Shared.', copied: 'Copied as text: paste it somewhere to keep it.', cancelled: '' }[how];
+          } catch (e) { note.textContent = 'It could not be saved: Copy the text instead.'; }
+        } }),
+        el('button', { type: 'button', class: 'tool', text: 'Copy the text', onclick: async () => {
+          try { await navigator.clipboard.writeText(text); note.textContent = 'Copied: paste it into a message or a note to keep it.'; } catch (e) { note.textContent = 'It could not be copied here.'; }
+        } })),
+      note);
+  }
+  importMenu() {
+    const note = el('p', { class: 'note', 'aria-live': 'polite' });
+    const box = el('textarea', { rows: '5', spellcheck: 'false', 'aria-label': 'A level’s text', placeholder: 'Or paste a level’s text here (an exported file’s, or a map’s as the game writes them)' });
+    const take = (text, close) => {
+      if (text === null) return;
+      try {
+        const r = fromText(text);
+        this.save();
+        this.load(r.level);
+        this.save();
+        this.renderProps();
+        close();
+        this.status.textContent = 'Imported ' + r.level.name + (r.author ? ' by ' + r.author : '') + (r.problems.length ? ': not playable yet (see Checks)' : '');
+      } catch (e) {
+        note.textContent = e.message;
+      }
+    };
+    this.menu('Import a level',
+      el('p', { text: 'It comes in as a new level of yours; the one open now stays in Open.' }),
+      (close) => el('div', { class: 'row' }, el('button', { type: 'button', class: 'tool', text: 'From a file…', onclick: async () => take(await chooseFile(), close) })),
+      box,
+      (close) => el('div', { class: 'row' }, el('button', { type: 'button', class: 'tool', text: 'Import the text', onclick: () => take(box.value, close) })),
+      note);
+  }
+  // A level from elsewhere (the custom levels' Edit a Copy): a new one of the player's.
+  openCopy(level) {
+    this.open();
+    this.save();
+    this.load(JSON.parse(JSON.stringify(level)));
+    this.save();
+    this.renderProps();
   }
   askNew() {
     this.save();
@@ -932,5 +1026,5 @@ function loadDrafts() {
   }
 }
 function saveDrafts(d) {
-  try { localStorage.setItem(DRAFTS, JSON.stringify(d)); } catch (e) { /* kept for the visit */ }
+  try { localStorage.setItem(DRAFTS, JSON.stringify(d)); return true; } catch (e) { return false; }
 }
