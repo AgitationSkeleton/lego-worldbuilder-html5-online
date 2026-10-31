@@ -7,9 +7,12 @@
 // (src/online/autoplay.js), at the game's own speed, the view following the unit it is
 // moving; when the mission is done, or the player gets nowhere with it, the next.
 //
-// The game is not the player's while it runs: clicks, keys and the wheel on it do nothing,
-// but for the game's Menu button and its menu (Escape opens it too, src/online/controls.js),
+// The game is not the player's while it runs: clicks and keys on it do nothing, but for the
+// game's menu (Escape, or the pause button on a touch screen, opens it: src/online/controls.js),
 // whose End Mission ends Screensaver Mode for the main menu, as the settings' Main Menu does.
+// The view is the watcher's, as in CrystAlien Conflict Online's: dragged (any button, a finger),
+// zoomed (the wheel, two fingers), moved by the arrow keys; the camera then leaves it be a while
+// before following the unit again.
 
 import * as L from '../director/lingo.js';
 import { autoplay, liveTicks } from './autoplay.js';
@@ -19,6 +22,7 @@ import { el } from './dom.js';
 // How long a mission is watched after it is done, and at most
 const AFTER = 5000;
 const AT_MOST = 25 * 60 * 1000;
+const TAKEOVER = 8000;        // how long the camera leaves the view where the watcher put it
 
 export class Screensaver {
   constructor(ui, canvas) {
@@ -27,6 +31,7 @@ export class Screensaver {
     this.canvas = canvas;
     this.on = false;
     this.atMost = AT_MOST;      // (a test may watch a mission for less)
+    this.takeover = TAKEOVER;   // (and wait less to follow again)
     this.blockInput();
     // (on a touch screen, which has no Escape: a pause button for the game's menu, as
     // CrystAlien Conflict Online's Screensaver has; hidden while the menu is open, which has
@@ -96,6 +101,11 @@ export class Screensaver {
         const glob = rt.started && rt.globals.glob;
         // (the unit followed stays the one chosen: the game chooses another at times, or none)
         if (glob && this.focused && L.gi(glob, L.sym('highlighted_object')) !== this.focused && !L.t(L.gp(this.focused, 'pdead'))) this.highlight(this.focused);
+        // (the view left alone a while after the watcher moved it: back to following the unit)
+        if (this.viewUntil && !this.watching()) {
+          this.viewUntil = 0;
+          if (this.focused && !L.t(L.gp(this.focused, 'pdead'))) { try { L.mc(L.gp(glob, 'map_display'), 'centervehicle', this.focused); } catch (e) { /* gone */ } }
+        }
         const popup = glob && L.gp(glob, 'goal_popup_menu');
         // (on the stage: put away, it waits just off it)
         const stage = rt.data.stage || {};
@@ -136,6 +146,16 @@ export class Screensaver {
 
   wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
+  // The watcher has moved the view: the camera lets the unit go (the game's own following of
+  // it, centerVehicle, put off), and takes it up again when the view has been left alone a while.
+  takeOver() {
+    this.viewUntil = performance.now() + this.takeover;
+    const glob = this.rt.started && this.rt.globals.glob;
+    const md = glob && L.gp(glob, 'map_display');
+    try { if (md instanceof L.LInstance) L.sp(md, 'pcentergoal', undefined); } catch (e) { /* none */ }
+  }
+  watching() { return performance.now() < (this.viewUntil || 0); }
+
   // The unit the computer is moving: chosen, as a click on it chooses it (its panel shown),
   // and the view following it as it goes.
   follow(u) {
@@ -154,7 +174,7 @@ export class Screensaver {
       if (!u) return;
       L.mc(u, 'everyoneelse', L.sym('highlight'), 0);
       L.mc(u, 'highlight', 1);
-      L.mc(md, 'centervehicle', u);
+      if (!this.watching()) L.mc(md, 'centervehicle', u);
       L.mc(u, 'showmenu');
     } catch (e) {
       // (a unit just made or just taken apart: the next)
@@ -183,20 +203,68 @@ export class Screensaver {
       return false;
     };
     const stop = (e) => { e.preventDefault(); e.stopImmediatePropagation(); };
-    for (const type of ['pointerdown', 'pointerup', 'pointermove', 'mousedown', 'mouseup', 'mousemove', 'click', 'dblclick', 'contextmenu', 'auxclick', 'wheel', 'touchstart', 'touchmove', 'touchend']) {
+    // The view the watcher's to move, as in CrystAlien Conflict Online's: a drag (any button, a
+    // finger) moves the map, two fingers or the wheel zoom it, the arrow keys (and W, A, S, D)
+    // move it; never a click on the game.  The camera lets the unit go a while after (takeOver).
+    const drags = new Map();          // pointerId -> {x, y} (stage pixels), and a carry
+    let carry = [0, 0], pinch = null;
+    const stageOf = (e) => (this.rt.renderer && this.rt.renderer.toStage(e.clientX, e.clientY)) || [0, 0];
+    const pan = (e) => {
+      const d = drags.get(e.pointerId);
+      if (!d) return;
+      const [x, y] = stageOf(e);
+      if (drags.size >= 2) {
+        // (two fingers: the zoom by how far apart they are, about the middle of them)
+        d.x = x; d.y = y;
+        const [a, b] = [...drags.values()];
+        const dist = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinch && pinch.d > 0 && dist > 0 && this.rt.layout) this.rt.layout.zoomBy(dist / pinch.d, (a.x + b.x) / 2, (a.y + b.y) / 2);
+        pinch = { d: dist };
+        this.takeOver();
+        return;
+      }
+      const z = (this.rt.layout && this.rt.layout.zoom) || 1;
+      carry[0] += (x - d.x) / z;
+      carry[1] += (y - d.y) / z;
+      d.x = x; d.y = y;
+      const mx = Math.trunc(carry[0]), my = Math.trunc(carry[1]);
+      carry[0] -= mx; carry[1] -= my;
+      if ((mx || my) && this.ui.controls) { this.ui.controls.move(mx, my); this.takeOver(); }
+    };
+    const onCanvas = (e) => e.target === this.canvas;
+    for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'pointermove', 'mousedown', 'mouseup', 'mousemove', 'click', 'dblclick', 'contextmenu', 'auxclick', 'wheel', 'touchstart', 'touchmove', 'touchend']) {
       window.addEventListener(type, (e) => {
-        if (!this.on || e.target !== this.canvas) return;
+        if (!this.on) return;
+        // (a drag goes on wherever the pointer goes, once begun on the game)
+        if ((type === 'pointermove' || type === 'pointerup' || type === 'pointercancel') && drags.has(e.pointerId)) {
+          if (type === 'pointermove') pan(e);
+          else { drags.delete(e.pointerId); pinch = null; carry = [0, 0]; }
+          stop(e);
+          return;
+        }
+        if (!onCanvas(e)) return;
         const pt = e.touches && e.touches[0] ? e.touches[0] : e.changedTouches && e.changedTouches[0] ? e.changedTouches[0] : e;
-        if (/^(pointer|mouse|click|dbl)/.test(type) && type !== 'pointermove' && type !== 'mousemove' && allowed(pt)) return;
-        if ((type === 'pointermove' || type === 'mousemove') && allowed(pt)) return;
+        if (/^(pointer|mouse|click|dbl)/.test(type) && allowed(pt)) return;
+        // (the wheel zooms, as the page has it: src/main.js)
+        if (type === 'wheel') { this.takeOver(); return; }
+        if (type === 'pointerdown') {
+          const [x, y] = stageOf(e);
+          drags.set(e.pointerId, { x, y });
+          pinch = null;
+          try { this.canvas.setPointerCapture(e.pointerId); } catch (err) { /* (not to be had) */ }
+        }
         stop(e);
       }, { capture: true, passive: false });
     }
-    // (keys: Escape for the game's menu, the page's own fields and panels; nothing else)
+    // (keys: Escape for the game's menu, the arrows and W, A, S, D for the view, the page's own
+    // fields and panels; nothing else)
+    const VIEW_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
+    const VIEW_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD']);
     for (const type of ['keydown', 'keyup']) {
       window.addEventListener(type, (e) => {
         if (!this.on || e.key === 'Escape') return;
         if (e.target instanceof Element && e.target.closest('input, textarea, select, button, a[href], .panel, #menu')) return;
+        if (VIEW_KEYS.has(e.key) || (VIEW_CODES.has(e.code) && !e.ctrlKey && !e.altKey && !e.metaKey)) { this.takeOver(); return; }
         stop(e);
       }, true);
     }

@@ -366,7 +366,11 @@ export class Editor {
 
   // The properties: the level's, and those of the item to be painted (or the one picked).
   renderProps() {
-    const field = (label, input) => el('label', { class: 'field' }, el('span', { text: label }), input);
+    // (made anew at each change: where it was scrolled to, and the box being changed, kept)
+    const scrolled = this.props ? this.props.scrollTop : 0;
+    const active = document.activeElement;
+    const focusKey = this.props && active && this.props.contains(active) ? active.dataset.key : null;
+    const field = (label, input) => { if (input.dataset && !input.dataset.key) input.dataset.key = label; return el('label', { class: 'field' }, el('span', { text: label }), input); };
     const num = (value, min, max, f) => { const i = el('input', { type: 'number', min: String(min), max: String(max), value: String(value) }); i.addEventListener('change', () => { const n = Math.max(min, Math.min(max, Math.round(Number(i.value) || min))); i.value = n; f(n); }); return i; };
     const select = (value, options, f) => { const s = el('select', null, ...options.map(([v, t]) => el('option', { value: v, text: t, selected: v === value ? '' : undefined }))); s.addEventListener('change', () => f(s.value)); return s; };
     const name = el('input', { type: 'text', maxlength: String(LIMITS.name), value: this.name || '' });
@@ -383,7 +387,10 @@ export class Editor {
       const n = this.inventory[k] || 0;
       inv.append(field(k.replace(/_/g, ' '), num(n, 0, LIMITS.inHand, (v) => { this.remember(); if (v) this.inventory[k] = v; else delete this.inventory[k]; this.refresh(); })));
     }
-    parts.push(el('details', null, el('summary', { text: 'Plans in hand (' + Object.values(this.inventory).reduce((a, n) => a + n, 0) + ')' }), inv));
+    // (kept open, or shut, as it was left: the panel is made anew at each change)
+    const plans = el('details', { open: this.plansOpen ? '' : null }, el('summary', { text: 'Plans in hand (' + Object.values(this.inventory).reduce((a, n) => a + n, 0) + ')' }), inv);
+    plans.addEventListener('toggle', () => { this.plansOpen = plans.open; });
+    parts.push(plans);
     // what is painted
     const p = this.paint;
     if (p.kind === 'item') {
@@ -408,6 +415,11 @@ export class Editor {
     }
     parts.push(el('h4', { text: 'Checks' }), this.checks);
     this.props.replaceChildren(...parts);
+    this.props.scrollTop = scrolled;
+    if (focusKey) {
+      const again = [...this.props.querySelectorAll('[data-key]')].find((e) => e.dataset.key === focusKey);
+      if (again) again.focus({ preventScroll: true });
+    }
     this.renderChecks();
   }
   renderChecks() {
