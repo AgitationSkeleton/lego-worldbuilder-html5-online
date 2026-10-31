@@ -178,6 +178,8 @@ export class Scores {
   reached(kind) {
     const a = this.attempt;
     if (!a || a.tutorial || this.tutorial()) return;
+    // (the computer's, in Screensaver Mode: no time counts, none is kept, nothing is told)
+    if (this.ui.screensaver && this.ui.screensaver.on) return;
     if (a[kind]) return;
     const ms = Math.round(this.rt.millis() - a.start);
     a[kind] = ms;
