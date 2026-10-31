@@ -14,6 +14,7 @@
 import * as L from '../director/lingo.js';
 import { autoplay, liveTicks } from './autoplay.js';
 import { GENERATORS } from './puzzle.js';
+import { el } from './dom.js';
 
 // How long a mission is watched after it is done, and at most
 const AFTER = 5000;
@@ -27,6 +28,16 @@ export class Screensaver {
     this.on = false;
     this.atMost = AT_MOST;      // (a test may watch a mission for less)
     this.blockInput();
+    // (on a touch screen, which has no Escape: a pause button for the game's menu, as
+    // CrystAlien Conflict Online's Screensaver has; hidden while the menu is open, which has
+    // its own Continue)
+    this.pause = el('button', { type: 'button', id: 'ss-pause', title: 'Pause', 'aria-label': 'Pause', text: '≡', hidden: '',
+      onpointerdown: (e) => { e.preventDefault(); e.stopPropagation(); if (this.ui.controls) this.ui.controls.toggleGameMenu(); this.showPause(); } });
+    document.body.append(this.pause);
+  }
+  showPause() {
+    const controls = this.ui.controls;
+    this.pause.hidden = !this.on || !!(controls && controls.gameMenuOpen) || this.rt.labelAt(this.rt.frame) !== 'play';
   }
 
   // A new code, of any difficulty, look and generator.
@@ -45,6 +56,11 @@ export class Screensaver {
     this.ui.enterGame({ map: false });
     this.ui.panel.hidden = true;
     document.documentElement.classList.add('screensaver');
+    // (the map the whole screen: the game's panel and plans bar not drawn, layout.hidden)
+    if (this.rt.layout) this.rt.layout.hideUI = true;
+    this.rt.needsDraw = true;
+    clearInterval(this.pauseTimer);
+    this.pauseTimer = setInterval(() => this.showPause(), 250);
     // (the screen kept on while it is watched)
     try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then((l) => { this.lock = l; }, () => {}); } catch (e) { /* none */ }
     this.loop(this.run);
@@ -56,6 +72,10 @@ export class Screensaver {
     if (!this.on) return;
     this.on = false;
     document.documentElement.classList.remove('screensaver');
+    if (this.rt.layout) this.rt.layout.hideUI = false;
+    this.rt.needsDraw = true;
+    clearInterval(this.pauseTimer);
+    this.pause.hidden = true;
     if (this.lock) { try { this.lock.release(); } catch (e) { /* none */ } this.lock = null; }
     this.highlight(null);
   }

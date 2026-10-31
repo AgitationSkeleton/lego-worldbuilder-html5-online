@@ -114,6 +114,8 @@ export class Renderer {
       // (a page that draws a bigger stage, or zooms out, says which sprites the movie has
       // put out of sight past the edges of its own stage)
       if (rt.layout && rt.layout.parked && rt.layout.parked(s)) continue;
+      // (nor one the page has the interface hide: Screensaver Mode's, layout.hidden)
+      if (rt.layout && rt.layout.hidden && rt.layout.hidden(s)) continue;
       const z = rt.zoomOf(s);
       // (not Director's: a page may draw a sprite a little off where it is, gliding it
       // between the frames; see layout.drawOffset)

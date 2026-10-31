@@ -41,6 +41,7 @@ anchorRange(130, 140, 0.5, 0.5);  // the menu
 const MAP_LAYER = new Set([1, 16, 29, 54, 56]);
 for (const [a, b] of [[57, 69], [111, 128], [143, 173]]) for (let c = a; c <= b; c++) MAP_LAYER.add(c);
 const MAP_CHANNELS = 200;
+const MENU = new Set([130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140]);   // the game's menu (anchored as the menu, above)
 const CLICK_SPIKE = 16;        // the arrow a click on the map shows (click spike behavior)
 const HIGHLIGHT = 29;          // the arrow over the unit chosen (Highlight arrow behavior)
 // the map display's pool of sprites runs from channel 200 to 4000 (tools/merge.py): this
@@ -313,6 +314,14 @@ export function makeLayout(rt, options = {}) {
     // zoomed out brings that point into view: such a sprite is left undrawn.
     parked(s) {
       return (s.locH === 1000 && s.locV === 1000) || (s.locH === 10000 && s.locV === 10000);
+    },
+    // Screensaver Mode's (src/online/screensaver.js): on the play screen, only the map, the
+    // game's menu and the goal popups; the right-hand panel, the plans bar, the scroll arrows
+    // and the unit info bubble neither drawn nor clicked.
+    hideUI: false,
+    hidden(s) {
+      if (!this.hideUI || s.channel >= MAP_CHANNELS || MAP_LAYER.has(s.channel) || MENU.has(s.channel)) return false;
+      return rt.labelAt(rt.frame) === 'play';
     },
     // Moves the map between the game's frames (a finger dragging it, a zoom), by move().
     // Everything on the map is placed from the map's corner, but only on the game's next

@@ -267,6 +267,26 @@
   #menu nav { flex: none; width: 100%; }
   #menu .art, html.dark #menu .art.dark { display: none; }
 }
+/* a phone on its side: everything on one screen, no scrolling (the choices three abreast,
+   the logos and the picture smaller) */
+@media (orientation: landscape) and (max-height: 640px) {
+  #menu { padding: 6px; }
+  #menu .bubble { width: min(920px, 100%); padding: 8px 14px 6px; }
+  #menu .logos { flex-wrap: nowrap; align-items: center; gap: 4px 12px; }
+  #menu .logo1 { width: auto; height: clamp(30px, 11vh, 48px); }
+  #menu .logo2 { width: auto; height: clamp(16px, 6vh, 26px); margin: 0; }
+  #menu .online { margin: 0; padding: 2px 8px; font-size: 11px; }
+  #menu .body { flex-direction: row; align-items: center; gap: 12px; margin-top: 6px; }
+  #menu nav { flex: 1 1 auto; width: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  #menu .btn { min-height: clamp(30px, 10vh, 40px); padding: 3px 6px; font-size: 12px; line-height: 1.3; }
+  #menu .status { grid-column: 1 / -1; min-height: 0; margin: 0; font-size: 12px; }
+  #menu .status:empty { display: none; }
+  #menu .art { flex: 0 1 auto; width: auto; max-width: 34%; max-height: calc(100vh - 150px); }
+  #menu .footnote { margin-top: 6px; font-size: 10px; line-height: 1.25; }
+}
+@media (orientation: landscape) and (max-height: 640px) and (max-width: 700px) {
+  #menu .art, html.dark #menu .art.dark { display: none; }
+}
 
 
 /* The random missions' Seed History: each played here, its goal's and bonus goal's flags
@@ -458,3 +478,14 @@ html.dark #customs .customlist .mine { border-color: #e2e2e2; }
 html.dark #customs input[type=search] { background: #2e2e2e; color: #e2e2e2; border-color: #e2e2e2; }
 html.dark #customs td { border-bottom-color: #464646; }
 html.dark #customs tr.me td { background: #2f4a24; }
+
+/* Screensaver Mode's pause button (src/online/screensaver.js): a touch screen's, which has no
+   Escape, for the game's menu; as CrystAlien Conflict Online's */
+#ss-pause {
+  position: fixed; right: calc(max(8px, env(safe-area-inset-right)) + 48px); bottom: max(8px, env(safe-area-inset-bottom)); z-index: 8;
+  width: 52px; height: 52px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.75); background: rgba(20, 20, 24, 0.55);
+  color: #fff; font: 26px/1 system-ui, sans-serif; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); touch-action: manipulation; cursor: pointer;
+}
+#ss-pause:active { background: rgba(51, 187, 34, 0.75); }
+#ss-pause[hidden] { display: none; }
+@media not (pointer: coarse) { #ss-pause { display: none; } }

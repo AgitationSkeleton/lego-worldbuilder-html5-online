@@ -230,14 +230,25 @@ export class Controls {
       const popup = md && L.gp(glob, 'main_menu_popup');
       if (!(popup instanceof L.LInstance) || this.classic()) return;
       e.preventDefault();
-      try {
-        this.sfx('sfx_interface_click_button');
-        if (this.gameMenuOpen) L.mc(popup, 'button', L.sym('continue'));
-        else L.mc(md, 'generic_button', L.sym('menu'), L.sym('mouseDown'));
-      } catch (err) {
-        this.rt.reportError(err);
-      }
-      this.rt.needsDraw = true;
+      this.toggleGameMenu();
     }, true);
+  }
+
+  // The game's own menu opened as its Menu button opens it, or closed as its Continue does
+  // (Escape; Screensaver Mode's pause button on a touch screen).  False if there is none.
+  toggleGameMenu() {
+    const md = this.mapDisplay();
+    const glob = this.rt.globals.glob;
+    const popup = md && L.gp(glob, 'main_menu_popup');
+    if (!(popup instanceof L.LInstance) || this.classic()) return false;
+    try {
+      this.sfx('sfx_interface_click_button');
+      if (this.gameMenuOpen) L.mc(popup, 'button', L.sym('continue'));
+      else L.mc(md, 'generic_button', L.sym('menu'), L.sym('mouseDown'));
+    } catch (err) {
+      this.rt.reportError(err);
+    }
+    this.rt.needsDraw = true;
+    return true;
   }
 }
