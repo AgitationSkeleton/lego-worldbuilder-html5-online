@@ -11,6 +11,7 @@
 
 import { TERRAIN, KINDS, BRICKS, LIMITS, parseMap, validate, cleanText } from './levelformat.js';
 import { el } from './dom.js';
+import { IsoView, groundMember } from './isoview.js';
 import { snapshot } from './snapshot.js';
 
 const DRAFTS = 'lego-wb-online:levels';
@@ -55,6 +56,7 @@ export class Editor {
     this.clip = null;         // {w, h, cells}
     this.floating = null;     // a paste being placed: {x, y, w, h, cells}
     this.drafts = loadDrafts();
+    this.iso = new IsoView(this.rt);
     this.build();
   }
 
@@ -317,6 +319,24 @@ export class Editor {
     this.renderProps();
   }
 
+  // (a ground's swatch: its tile as the game draws it, the block and what stands on it)
+  groundSwatch(g, ch, s) {
+    if (TERRAIN[ch] === 'hole') {
+      // (no block: the top of one, dark)
+      const face = this.iso.face();
+      if (!face) return;
+      const t = this.tinted(face.canvas, '#1e1e28');
+      const k = Math.min(s / t.width, s / t.height) * 1.2;
+      g.drawImage(t, (s - t.width * k) / 2, (s - t.height * k) / 2 + s * 0.15, t.width * k, t.height * k);
+      return;
+    }
+    const m = this.iso.member(groundMember(ch)) || this.iso.member('terrain.normal');
+    const src = m && this.rt.renderer.inked(m, { member: m, ink: 36, blend: 100, foreColor: 255, backColor: 0 });
+    if (!src) { this.drawGround(g, ch, 0, 0, s); return; }
+    const k = Math.min(s / src.width, s / src.height);
+    g.imageSmoothingEnabled = true;
+    g.drawImage(src, (s - src.width * k) / 2, (s - src.height * k) / 2, src.width * k, src.height * k);
+  }
   buildPalette() {
     const sw = (title, draw, paint) => {
       const c = el('canvas', { width: '30', height: '30' });
@@ -329,7 +349,7 @@ export class Editor {
     const section = (title, ...kids) => el('section', null, el('h4', { text: title }), el('div', { class: 'swatches' }, ...kids));
     const parts = [];
     for (const [group, chars] of GROUND) {
-      parts.push(section(group, ...chars.map((ch) => sw(NAMES[TERRAIN[ch]] || TERRAIN[ch].replace(/street(\d+)/, 'Street $1'), (g, s) => this.drawGround(g, ch, 0, 0, s), () => ({ kind: 'ground', ch })))));
+      parts.push(section(group, ...chars.map((ch) => sw(NAMES[TERRAIN[ch]] || TERRAIN[ch].replace(/street(\d+)/, 'Street $1'), (g, s) => this.groundSwatch(g, ch, s), () => ({ kind: 'ground', ch })))));
     }
     const unit = (cls, kind) => sw(kind.replace(/_/g, ' '), (g, s) => this.drawItem(g, { t: 'unit', cls, kind }, 0, 0, s), () => ({ kind: 'item', item: { t: 'unit', cls, kind } }));
     parts.push(section('Vehicles', ...KINDS.vehicle.map((k) => unit('vehicle', k))));
@@ -486,12 +506,35 @@ export class Editor {
       g.fillStyle = '#fff'; g.font = 'bold ' + Math.round(s * 0.35) + 'px sans-serif'; g.fillText(String(it.id), x + 2, y + s * 0.35);
     }
   }
+  // The level as the game draws it (src/online/isoview.js), at the game's own size: drawn anew
+  // only when what it shows has changed (a shape being drawn, a paste being placed, shown in it).
+  picture2() {
+    const grid = this.grid.map((r) => r.slice());
+    const items = new Map(this.items);
+    const put = (x, y, ch, item, ground) => {
+      if (!this.inside(x, y)) return;
+      if (ground) grid[y][x] = ch;
+      if (item !== undefined) { if (item) items.set(x + ',' + y, item); else items.delete(x + ',' + y); }
+    };
+    if (this.preview) for (const [x, y, p] of this.preview) put(x, y, p.ch, p.kind === 'item' ? p.item : p.kind === 'erase' ? null : undefined, p.kind === 'ground');
+    if (this.floating) {
+      const f = this.floating;
+      for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) put(f.x + x, f.y + y, f.cells[y][x].ch, f.cells[y][x].item || null, true);
+    }
+    const key = grid.map((r) => r.join('')).join('/') + '|' + JSON.stringify([...items]);
+    if (key !== this.picKey || !this.pic) {
+      this.picKey = key;
+      this.pic = this.iso.render(grid, items);
+    }
+    return this.pic;
+  }
   fit() {
-    if (!this.canvas.clientWidth) return;
+    if (!this.canvas.clientWidth || !this.grid) return;
+    const pic = this.picture2();
     const cw = this.canvas.clientWidth, ch = this.canvas.clientHeight;
-    this.zoom = Math.max(0.3, Math.min(2.5, Math.min((cw - 40) / (this.W * CELL), (ch - 40) / (this.H * CELL))));
-    this.ox = (cw - this.W * CELL * this.zoom) / 2;
-    this.oy = (ch - this.H * CELL * this.zoom) / 2;
+    this.zoom = Math.max(0.15, Math.min(2, Math.min((cw - 30) / pic.canvas.width, (ch - 30) / pic.canvas.height)));
+    this.ox = (cw - pic.canvas.width * this.zoom) / 2;
+    this.oy = (ch - pic.canvas.height * this.zoom) / 2;
   }
   draw() {
     if (!this.grid || this.root.hidden) return;
@@ -500,46 +543,70 @@ export class Editor {
     if (c.width !== Math.round(cw * dpr) || c.height !== Math.round(ch * dpr)) { c.width = Math.round(cw * dpr); c.height = Math.round(ch * dpr); }
     const g = c.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.imageSmoothingEnabled = false;
-    g.fillStyle = '#111';
+    g.fillStyle = '#5a8fd0';
     g.fillRect(0, 0, cw, ch);
-    const s = CELL * this.zoom;
-    const tile = (x, y, chr, item, alpha) => {
-      const px = this.ox + x * s, py = this.oy + y * s;
-      if (px > cw || py > ch || px + s < 0 || py + s < 0) return;
+    // (the sky the level is played under, as the game's backdrop)
+    const sky = this.skyImage();
+    if (sky) {
+      const f = Math.max(cw / sky.width, ch / sky.height);
+      g.imageSmoothingEnabled = true;
+      g.drawImage(sky, (cw - sky.width * f) / 2, (ch - sky.height * f) / 2, sky.width * f, sky.height * f);
+    }
+    const pic = this.picture2();
+    g.imageSmoothingEnabled = this.zoom < 1;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(pic.canvas, this.ox, this.oy, pic.canvas.width * this.zoom, pic.canvas.height * this.zoom);
+    // (marks on tiles: their ground's own shape, tinted)
+    const face = this.iso.face();
+    const mark = (x, y, color, alpha) => {
+      const sp = this.iso.groundOf(x, y);
+      if (!sp || !face) return;
+      const t = this.tinted(face.canvas, color);
       g.globalAlpha = alpha;
-      this.drawGround(g, chr, px, py, s);
-      if (item) this.drawItem(g, item, px, py, s);
+      g.drawImage(t, this.ox + (sp.lx + face.dx - pic.x0) * this.zoom, this.oy + (sp.ly + face.dy - pic.y0) * this.zoom, t.width * this.zoom, t.height * this.zoom);
       g.globalAlpha = 1;
     };
-    for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) tile(x, y, this.grid[y][x], this.items.get(x + ',' + y), 1);
-    // (the preview of a shape being drawn, or of a paste)
-    if (this.preview) for (const [x, y, p] of this.preview) if (this.inside(x, y)) tile(x, y, p.kind === 'ground' ? p.ch : this.grid[y][x], p.kind === 'item' ? p.item : null, 0.7);
+    if (this.showGrid) for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) if ((x + y) % 2) mark(x, y, '#000', 0.06);
+    if (this.preview) for (const [x, y] of this.preview) mark(x, y, '#ffffff', 0.25);
+    const sel = this.selected();
+    if (sel) for (let y = sel[1]; y <= sel[3]; y++) for (let x = sel[0]; x <= sel[2]; x++) mark(x, y, '#3a8bff', 0.4);
     if (this.floating) {
       const f = this.floating;
-      for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) if (this.inside(f.x + x, f.y + y)) tile(f.x + x, f.y + y, f.cells[y][x].ch, f.cells[y][x].item, 0.75);
+      for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) mark(f.x + x, f.y + y, '#ffd23c', 0.35);
     }
-    // the grid
-    g.strokeStyle = 'rgba(0,0,0,0.25)';
-    g.lineWidth = 1;
-    g.beginPath();
-    for (let x = 0; x <= this.W; x++) { g.moveTo(Math.round(this.ox + x * s) + 0.5, this.oy); g.lineTo(Math.round(this.ox + x * s) + 0.5, this.oy + this.H * s); }
-    for (let y = 0; y <= this.H; y++) { g.moveTo(this.ox, Math.round(this.oy + y * s) + 0.5); g.lineTo(this.ox + this.W * s, Math.round(this.oy + y * s) + 0.5); }
-    g.stroke();
-    const box = (ax, ay, bx, by, color, dash) => {
-      g.strokeStyle = color; g.lineWidth = 2; g.setLineDash(dash || []);
-      g.strokeRect(this.ox + ax * s + 1, this.oy + ay * s + 1, (bx - ax + 1) * s - 2, (by - ay + 1) * s - 2);
-      g.setLineDash([]);
-    };
-    const sel = this.selected();
-    if (sel) box(...sel, '#fff', [5, 4]);
-    if (this.floating) box(this.floating.x, this.floating.y, this.floating.x + this.floating.w - 1, this.floating.y + this.floating.h - 1, '#ffd23c', [5, 4]);
     if (this.hover && this.inside(...this.hover) && !this.floating) {
       const [hx, hy] = this.hover;
       const r = ['brush', 'erase', 'line', 'rect', 'ellipse'].includes(this.tool) ? this.size - 1 : 0, lo = -Math.floor(r / 2);
-      box(hx + lo, hy + lo, hx + lo + r, hy + lo + r, 'rgba(255,255,255,0.8)');
+      for (let y = hy + lo; y <= hy + lo + r; y++) for (let x = hx + lo; x <= hx + lo + r; x++) if (this.inside(x, y)) mark(x, y, '#ffffff', 0.45);
     }
-    if (this.center) { const [cx, cy] = this.center; g.strokeStyle = '#ff5'; g.beginPath(); g.arc(this.ox + (cx + 0.5) * s, this.oy + (cy + 0.5) * s, s * 0.45, 0, 6.3); g.stroke(); }
+    if (this.center) mark(this.center[0], this.center[1], '#ff3', 0.55);
+  }
+  // (a tile's top filled with a colour, for marking it)
+  tinted(shape, color) {
+    this.tints = this.tints || new Map();
+    let t = this.tints.get(color);
+    if (t) return t;
+    t = document.createElement('canvas');
+    t.width = shape.width; t.height = shape.height;
+    const tg = t.getContext('2d');
+    tg.drawImage(shape, 0, 0);
+    tg.globalCompositeOperation = 'source-in';
+    tg.fillStyle = color;
+    tg.fillRect(0, 0, t.width, t.height);
+    this.tints.set(color, t);
+    return t;
+  }
+  // The level's sky (its world's backdrop), as the game shows it behind the map.
+  skyImage() {
+    this.skies = this.skies || {};
+    if (this.skies[this.sky] !== undefined) return this.skies[this.sky];
+    let img = null;
+    for (const name of ['sky' + this.sky]) {
+      const m = this.rt.nameIndex && this.rt.nameIndex.get(name);
+      if (m && m.drawable) { img = m.drawable(); break; }
+    }
+    this.skies[this.sky] = img;
+    return img;
   }
   refresh() {
     this.save();
@@ -549,10 +616,19 @@ export class Editor {
 
   // ---------- the pointer and the keys ----------
 
+  // The tile under the pointer, as the game finds the tile clicked (its ground's shape); off the
+  // map, the place it would be (for a line or a shape dragged past the edge).
   tileAt(e) {
     const r = this.canvas.getBoundingClientRect();
-    const s = CELL * this.zoom;
-    return [Math.floor((e.clientX - r.left - this.ox) / s), Math.floor((e.clientY - r.top - this.oy) / s)];
+    const pic = this.picture2();
+    const px = (e.clientX - r.left - this.ox) / this.zoom, py = (e.clientY - r.top - this.oy) / this.zoom;
+    return this.iso.tileAt(px, py) || this.iso.nearest(px, py);
+  }
+  // Where a tile is on the page (the middle of its ground's top), for the tests.
+  screenOf(x, y) {
+    const r = this.canvas.getBoundingClientRect();
+    const [px, py] = this.iso.middle(x, y);
+    return [r.left + this.ox + px * this.zoom, r.top + this.oy + py * this.zoom];
   }
   wire() {
     const c = this.canvas;

@@ -69,7 +69,16 @@ let cfgText = '';
 for (const c of data.casts) for (const m of Object.values(c.members)) if (m.name === 'config' && !cfgText) cfgText = m.text;
 const cfg = readConfig(cfgText);
 for (const cls of ['vehicle', 'building', 'monster']) for (const k of KINDS[cls]) ok(cfg[k] && cfg[k].cls === cls, k + ' is a ' + cls + ' of the game\'s');
-for (const [k, v] of Object.entries(cfg)) if (['vehicle', 'building', 'monster'].includes(v.cls)) ok(KINDS[v.cls].includes(k), 'the game\'s ' + v.cls + ' ' + k + ' may be placed');
+// (all but those the game has no pictures for, or no script: on the map they would be unseen, or
+// not made at all; no campaign map has them)
+const UNSEEN = ['defender2', 'defender3', 'bluebird'];
+for (const [k, v] of Object.entries(cfg)) if (['vehicle', 'building', 'monster'].includes(v.cls)) {
+  if (UNSEEN.includes(k)) ok(!KINDS[v.cls].includes(k), 'the game\'s ' + v.cls + ' ' + k + ' (no pictures) may not be placed');
+  else ok(KINDS[v.cls].includes(k), 'the game\'s ' + v.cls + ' ' + k + ' may be placed');
+}
+const pictures = new Set();
+for (const c of data.casts) for (const m of Object.values(c.members)) if (m.name) pictures.add(m.name.toLowerCase());
+for (const k of UNSEEN) ok(![...pictures].some((n) => n.startsWith('vehicle.' + k + '.') && !/description|parent/.test(n)), k + ' has no pictures in the game');
 
 // refused, whole: anything not of the shape
 const base = () => ({ v: 1, name: 'Test', sky: 1, rows: ['......', '......', '......', '......'], items: [{ x: 0, y: 0, t: 'unit', cls: 'vehicle', kind: 'buggy' }, { x: 5, y: 3, t: 'goal', want: 'buggy' }, { x: 4, y: 3, t: 'bonus', want: 'anything' }], inventory: {} });

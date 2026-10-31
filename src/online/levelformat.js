@@ -34,10 +34,12 @@ const WATER = new Set(['w', 'x', 'r']);
 const LAND_UNDER = '.', WATER_UNDER = 'w';
 
 // What may be put on the map and in hand: the game's own units, buildings and monsters (its
-// "config" text; tools/verify checks these against it).
+// "config" text; tools/verify checks these against it).  Not its defender2 and bluebird, which
+// have no pictures (the game would have them on the map unseen), nor defender3, which has no
+// script either (the game cannot make one): no campaign map has them.
 export const KINDS = {
   vehicle: ['buggy', 'dirtbuggy', 'forklift', 'dumptruck', 'steamshovel', 'dozer', 'treebot', 'repairbot', 'duck', 'frog', 'fish', 'snail',
-    'tugboat', 'freighter', 'speedboat', 'defender', 'defender2', 'defender3', 'freezebot', 'bluebird'],
+    'tugboat', 'freighter', 'speedboat', 'defender', 'freezebot'],
   building: ['house', 'gas_station', 'robot_lab', 'guard_tower', 'factory', 'windmill', 'garage', 'nursery', 'marina'],
   monster: ['crab', 'lion', 'scorpion', 'trex', 'gator', 'shark', 'water_crab', 'boulder'],
 };

@@ -408,7 +408,7 @@ html.dark { color-scheme: dark; }
 #editor .palette, #editor .props { overflow-y: auto; padding: 6px 8px; }
 #editor .palette { border-right: 2px solid #000; }
 #editor .props { border-left: 2px solid #000; }
-#editor h4 { margin: 8px 0 4px; font: 400 11px 'WB 04b_08', monospace; text-transform: uppercase; color: #777; }
+#editor h4 { margin: 8px 0 4px; font: 400 11px/1.35 'WB 04b_08', monospace; text-transform: uppercase; color: #777; }
 #editor .swatches { display: flex; flex-wrap: wrap; gap: 3px; }
 #editor .swatch { width: 36px; height: 36px; padding: 2px; border: 2px solid transparent; border-radius: 4px; background: #eee; cursor: pointer; }
 #editor .swatch[aria-pressed="true"] { border-color: #33bb22; background: #dfffd0; }
