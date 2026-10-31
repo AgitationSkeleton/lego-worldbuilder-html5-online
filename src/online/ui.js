@@ -465,6 +465,8 @@ export class OnlineUI {
   }
   // Back to the main menu, leaving a mission being played.
   showMenu() {
+    // (Screensaver Mode ends here: src/online/screensaver.js)
+    if (this.screensaver) this.screensaver.stop();
     this.panel.hidden = true;
     const rt = this.rt;
     const glob = rt.started && rt.globals.glob;

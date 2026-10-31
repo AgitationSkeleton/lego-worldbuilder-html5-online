@@ -14,6 +14,7 @@ import { Controls } from './online/controls.js';
 import { fileUrl } from './files.js';
 import { installOffline } from './online/offline.js';
 import { android, checkAndroid, applyOrientation } from './online/android.js';
+import { Screensaver } from './online/screensaver.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -64,6 +65,9 @@ async function main() {
     // The online game fills the window (src/online/layout.js), at the interface size its
     // settings ask for (src/online/ui.js).
     const ui = new OnlineUI(rt, canvas);
+    // (Screensaver Mode, src/online/screensaver.js: made first, so that while it runs it has the
+    // clicks and keys before anything else does)
+    ui.screensaver = new Screensaver(ui, canvas);
     rt.layout = makeLayout(rt, { maxScale: () => ui.maxScale(), smooth: () => ui.settings.smoothUnits, dark: () => ui.settings.dark });
     rt.layout.install(scripts.scripts);
     // and a finger does what the mouse did (src/online/touch.js); two pinch the map's zoom

@@ -33,6 +33,8 @@ export class MainMenu {
       button('Random mission', '', () => this.ui.openRandom()),
       button('Race', '', () => this.ui.races && this.ui.races.open()),
       button('Score tables', '', () => this.ui.openTables()),
+      // (generated missions played by the computer, to watch: src/online/screensaver.js)
+      button('Screensaver mode', '', () => this.ui.screensaver && this.ui.screensaver.start()),
       button('Settings', '', () => this.ui.open()),
     ];
     this.status = el('p', { class: 'status', 'aria-live': 'polite', text: 'Loading…' });
