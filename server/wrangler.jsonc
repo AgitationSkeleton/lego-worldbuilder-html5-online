@@ -46,7 +46,10 @@
 	"vars": {
 		// Pages that may use the server (app://game is the desktop app, client/; https://localhost
 		// the Android app, mobile/; a trailing :* allows any port, for testing locally).
-		"ALLOWED_ORIGINS": "https://wbonline.viosarcade.xyz,app://game,https://localhost,http://localhost:*,http://127.0.0.1:*"
+		"ALLOWED_ORIGINS": "https://wbonline.viosarcade.xyz,app://game,https://localhost,http://localhost:*,http://127.0.0.1:*",
+		// Custom levels: where they are shown to the moderator (#worldbuilder), and who that is.
+		"LEVELS_CHANNEL": "1555740328240357427",
+		"LEVELS_ADMIN": "748343958190555217"
 	},
 	// The server's address.  viosarcade.xyz must be a zone on this Cloudflare account; the
 	// address and its certificate are made on the first deploy.

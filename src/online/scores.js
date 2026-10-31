@@ -166,6 +166,7 @@ export class Scores {
 
   missionName(mission) {
     if (mission.startsWith('R-')) return 'Random ' + showCode(mission.slice(2));
+    if (mission.startsWith('C-')) return this.ui.customs ? this.ui.customs.name(mission.slice(2)) : 'Custom level ' + mission.slice(2);
     const [w, l] = mission.split('.').map(Number);
     try {
       const names = this.glob('mission_names');

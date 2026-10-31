@@ -12,6 +12,7 @@ import { handleScores } from './scores.js';
 import { handleRaces } from './race.js';
 import { handleLobby } from './lobby.js';
 import { handleRandom } from './random.js';
+import { handleLevels } from './levels.js';
 
 export { Race } from './race.js';
 export { Lobby } from './lobby.js';
@@ -29,6 +30,8 @@ export default {
       if (lobbies) return lobbies;
       const random = await handleRandom(request, env, url, ctx);
       if (random) return random;
+      const levels = await handleLevels(request, env, url, ctx);
+      if (levels) return levels;
       if (url.pathname === '/health') return json(env, request, { ok: true, time: Date.now() });
       if (url.pathname === '/') return text(env, request, 'World Builder Online server. The game is at https://wbonline.viosarcade.xyz/\n');
       return json(env, request, { error: 'not found' }, 404);

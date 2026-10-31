@@ -179,6 +179,7 @@ export function validate(level) {
   const allowed = new Set(['v', 'name', 'sky', 'rows', 'items', 'inventory', 'center']);
   for (const k of Object.keys(level)) if (!allowed.has(k)) return bad('unknown field ' + String(k).slice(0, 20));
   if (typeof level.name !== 'string' || !cleanText(level.name)) bad('it needs a name');
+  else if (level.name.length > LIMITS.name) bad('a name of at most ' + LIMITS.name + ' letters');
   if (!Number.isInteger(level.sky) || level.sky < 1 || level.sky > 7) bad('no such sky');
   const rows = level.rows;
   if (!Array.isArray(rows) || rows.length < LIMITS.minH || rows.length > LIMITS.maxH) return bad('the map is ' + LIMITS.minH + ' to ' + LIMITS.maxH + ' tiles high');

@@ -149,7 +149,8 @@ export class RandomMissions {
   }
 
   // Starts a mission from wherever the game is (a race starts everyone's at once, `race`
-  // true): a campaign one, "6.3", or a generated one, "R-6DK2Q9".  The mission being
+  // true): a campaign one, "6.3", a generated one, "R-6DK2Q9", or a custom level had already
+  // ("C-12": src/online/levels.js, cached).  The mission being
   // played, if any, is left first.  Answers what went wrong, or null.
   go(mission, race = false) {
     const rt = this.rt;
@@ -164,6 +165,14 @@ export class RandomMissions {
     if (mission.startsWith('R-')) {
       this.away = { mission, race, locked: false };
       const problem = this.play(mission.slice(2));
+      if (problem) this.away = null;
+      return problem;
+    }
+    if (mission.startsWith('C-')) {
+      const c = this.ui && this.ui.customs && this.ui.customs.cached(mission.slice(2));
+      if (!c) return 'That custom level is not here: it could not be had from the server.';
+      this.away = { mission, race, locked: false };
+      const problem = this.playLevel(c.level, mission, c.name);
       if (problem) this.away = null;
       return problem;
     }

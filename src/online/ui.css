@@ -421,3 +421,40 @@ html.dark #editor .swatch[aria-pressed="true"] { background: #2f4a24; }
 html.dark #editor .openmenu { background: #2e2e2e; }
 html.dark #editor .checks .bad { color: #ff8a80; }
 html.dark #editor .checks .good { color: #7ddc5c; }
+
+/* Custom levels (src/online/levels.js): the uploaded levels, each a card with its map */
+#customs .bubble { width: min(820px, 100%); }
+#customs [hidden] { display: none !important; }
+#customs .tabs { margin-bottom: 6px; }
+#customs input[type=search] { flex: 1 1 160px; min-width: 0; padding: 4px 8px; border: 2px solid #000; border-radius: 6px; font: inherit; }
+#customs button.choice.small { min-height: 24px; padding: 2px 10px; font-size: 11px; }
+#customs .customlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; margin-top: 8px; min-height: 120px; max-height: min(58vh, 520px); overflow-y: auto; align-content: start; }
+#customs .customlist .empty { grid-column: 1 / -1; color: #555; }
+#customs .customcard { display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 6px; border: 2px solid #000; border-radius: 8px; background: #fff; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+#customs .customcard:hover, #customs .customcard:focus-visible { background: #e6ffd9; }
+#customs .customcard img, #customs .customcard .noimg { width: 100%; aspect-ratio: 3 / 2; object-fit: contain; border-radius: 4px; background: #1a4f8a; image-rendering: pixelated; }
+#customs .customcard b { font: 400 12px 'WB 04b_08', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#customs .customcard .by, #customs .customcard .stats { color: #555; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#customs .customlist .mine { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 4px 8px; border: 2px solid #000; border-radius: 6px; }
+#customs .customlist .mine b { font: 400 12px 'WB 04b_08', monospace; }
+#customs .customlist .mine.rejected, #customs .customlist .mine.unpublished { opacity: 0.6; }
+#customs .customdetail { margin-top: 6px; }
+#customs .customhead { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+#customs .customhead img { width: 100%; max-height: 46vh; object-fit: contain; border-radius: 6px; background: #1a4f8a; image-rendering: pixelated; }
+#customs .customhead h3 { margin: 0 0 4px; font: 400 15px 'WB 04b_08', monospace; }
+#customs .customhead .choices { flex-wrap: wrap; }
+#customs .tables { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 0; max-height: 30vh; overflow-y: auto; }
+#customs table { width: 100%; border-collapse: collapse; font-size: 14px; }
+#customs td { padding: 2px 6px; border-bottom: 1px solid #ddd; font-variant-numeric: tabular-nums; }
+#customs td:first-child { width: 2em; color: #777; }
+#customs tr.me td { background: #e6ffd9; font-weight: bold; }
+@media (max-width: 600px) {
+  #customs .customhead, #customs .tables { grid-template-columns: 1fr; }
+}
+html.dark #customs .customcard { background: #2e2e2e; border-color: #e2e2e2; }
+html.dark #customs .customcard:hover, html.dark #customs .customcard:focus-visible { background: #2f4a24; }
+html.dark #customs .customcard .by, html.dark #customs .customcard .stats, html.dark #customs .customlist .empty { color: #b8b8b8; }
+html.dark #customs .customlist .mine { border-color: #e2e2e2; }
+html.dark #customs input[type=search] { background: #2e2e2e; color: #e2e2e2; border-color: #e2e2e2; }
+html.dark #customs td { border-bottom-color: #464646; }
+html.dark #customs tr.me td { background: #2f4a24; }

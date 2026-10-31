@@ -16,6 +16,7 @@ import { installOffline } from './online/offline.js';
 import { android, checkAndroid, applyOrientation } from './online/android.js';
 import { Screensaver } from './online/screensaver.js';
 import { Editor } from './online/editor.js';
+import { CustomLevels } from './online/levels.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -100,9 +101,10 @@ async function main() {
     rt.builtins.showmainmenu = () => ui.showMenu();
     // (a generated mission's goal popups have its own choices: tools/merge.py, random_bubbles;
     // not in a race, which has its own end)
-    rt.builtins.randommission = () => (ui.random && ui.random.active && !(ui.races && ui.races.racing && ui.races.racing.started) ? 1 : 0);
+    rt.builtins.randommission = () => (ui.random && ui.random.active && !ui.random.active.custom && !(ui.races && ui.races.racing && ui.races.racing.started) ? 1 : 0);
     rt.builtins.newrandommission = () => { setTimeout(() => ui.playAnother(), 0); };
     ui.random = new RandomMissions(rt);
+    ui.random.ui = ui;
     ui.random.install(scripts.scripts);
     ui.random.onLeft = (how) => ui.randomLeft(how);
     ui.scores = new Scores(rt, ui, params);
@@ -126,6 +128,8 @@ async function main() {
     ui.scores.listeners.push((kind, ms, mission) => { if (mission.startsWith('R-')) ui.history.reached(mission.slice(2), kind, ms); });
     // the level editor (src/online/editor.js): its Test Play's goals reached
     ui.editor = new Editor(ui);
+    // the custom levels (src/online/levels.js): uploaded, approved, played by anyone
+    ui.customs = new CustomLevels(ui);
     ui.scores.listeners.push((kind, ms, mission) => { if (mission === 'C-DRAFT') ui.editor.reached(kind, ms); });
     // the main menu (src/online/menu.js) comes first, but for the tests' runs
     ui.menu = new MainMenu(ui);

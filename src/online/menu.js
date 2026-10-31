@@ -34,6 +34,7 @@ export class MainMenu {
       button('Race', '', () => this.ui.races && this.ui.races.open()),
       button('Score tables', '', () => this.ui.openTables()),
       // (levels made here, src/online/editor.js)
+      button('Custom levels', '', () => this.ui.customs && this.ui.customs.open()),
       button('Level editor', '', () => this.ui.editor && this.ui.editor.open()),
       // (generated missions played by the computer, to watch: src/online/screensaver.js)
       button('Screensaver mode', '', () => this.ui.screensaver && this.ui.screensaver.start()),

@@ -26,8 +26,8 @@ import { json, sha256Hex, clientIp, cleanName, decentName } from './http.js';
 import { censor } from '../../src/online/profanity.js';
 import { discord, plain, clock } from './discord.js';
 
-// a campaign mission, "<world>.<mission>", or a generated one, "R-" and its code (src/online/random.js)
-const MISSION = /^([1-7]\.([1-9]|1[0-2])|R-[1-7][A-L][0-9A-HJKMNP-TV-Z]{4,7})$/;
+// a campaign mission, "<world>.<mission>", or a generated one, "R-" and its code (src/online/random.js), or a custom level, "C-" and its number (levels.js)
+const MISSION = /^([1-7]\.([1-9]|1[0-2])|R-[1-7][A-L][0-9A-HJKMNP-TV-Z]{4,7}|C-[1-9][0-9]{0,8})$/;
 const KINDS = new Set(['goal', 'bonus']);
 // No mission is won in under three seconds: the first unit has to move.  (Each mission's own
 // least, from the shortest route there, is for later.)
@@ -52,7 +52,7 @@ async function table(env, mission, kind, limit) {
 async function overall(env, limit) {
   const { results } = await env.DB.prepare(
     `WITH best AS (
-       SELECT lower(name) AS who, mission, kind, MIN(ms) AS ms FROM results WHERE mission NOT LIKE 'R-%'
+       SELECT lower(name) AS who, mission, kind, MIN(ms) AS ms FROM results WHERE mission NOT LIKE 'R-%' AND mission NOT LIKE 'C-%'
        GROUP BY lower(name), mission, kind),
      names AS (
        SELECT lower(name) AS who, name, ROW_NUMBER() OVER (PARTITION BY lower(name) ORDER BY created DESC) AS r FROM results)
@@ -67,7 +67,7 @@ async function overall(env, limit) {
 
 async function player(env, name) {
   const { results } = await env.DB.prepare(
-    `SELECT mission, kind, MIN(ms) AS ms FROM results WHERE lower(name) = lower(?1) AND mission NOT LIKE 'R-%'
+    `SELECT mission, kind, MIN(ms) AS ms FROM results WHERE lower(name) = lower(?1) AND mission NOT LIKE 'R-%' AND mission NOT LIKE 'C-%'
      GROUP BY mission, kind`).bind(name).all();
   const out = {};
   for (const r of results || []) (out[r.mission] || (out[r.mission] = {}))[r.kind] = r.ms;
@@ -90,6 +90,11 @@ async function save(request, env, ctx) {
   if (!MISSION.test(mission) || !KINDS.has(kind) || !Number.isInteger(ms)) return json(env, request, { error: 'fields' }, 400);
   if (ms < MIN_MS || ms > MAX_MS) return json(env, request, { error: 'time' }, 400);
   if (!name || !decentName(name)) return json(env, request, { error: 'name' }, 400);
+  // (a custom level's times only once it is out: not one pending, rejected or taken down)
+  if (mission.startsWith('C-')) {
+    const level = await env.DB.prepare("SELECT 1 AS x FROM levels WHERE id = ?1 AND status = 'approved'").bind(Number(mission.slice(2))).first().catch(() => null);
+    if (!level) return json(env, request, { error: 'mission' }, 400);
+  }
   const ipHash = (await sha256Hex((env.IP_SALT || 'worldbuilder') + '|' + clientIp(request))).slice(0, 32);
   const now = Date.now();
   const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM results WHERE ip_hash = ?1 AND created > ?2').bind(ipHash, now - 3600000).first();

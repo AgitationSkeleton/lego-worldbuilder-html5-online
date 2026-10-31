@@ -20,6 +20,7 @@ import * as L from '../director/lingo.js';
 import { el, dialog, focusField, shareUrl } from './dom.js';
 import { WORLD_NAMES, clock, scoreServer } from './scores.js';
 import { parseCode, showCode } from './puzzle.js';
+import { toMapText } from './levelformat.js';
 
 const TOKEN = 'lego-wb-online:race-token';
 
@@ -353,6 +354,7 @@ export class Races {
     if (!mission) return 'not chosen yet';
     const s = this.ui.scores;
     if (mission.startsWith('R-')) return 'Random ' + showCode(mission.slice(2));
+    if (mission.startsWith('C-')) return 'Custom: ' + (this.ui.customs ? this.ui.customs.name(mission.slice(2)) : mission);
     const [w, l] = mission.split('.').map(Number);
     return WORLD_NAMES[w - 1] + ', ' + l + '. ' + (s ? s.missionName(mission) : 'Mission ' + l);
   }
@@ -401,7 +403,8 @@ export class Races {
     // a race: its players, its mission, its chat
     this.worldSelect = el('select', { 'aria-label': 'World' },
       ...WORLD_NAMES.map((n, i) => el('option', { value: String(i + 1), text: n })),
-      el('option', { value: 'R', text: 'A random mission' }));
+      el('option', { value: 'R', text: 'A random mission' }),
+      el('option', { value: 'C', text: 'A custom level (kept offline)' }));
     this.missionSelect = el('select', { 'aria-label': 'Mission' });
     this.randomInput = el('input', { type: 'text', maxlength: '10', spellcheck: 'false', autocapitalize: 'characters', 'aria-label': 'Random mission code', placeholder: 'Code' });
     this.worldSelect.addEventListener('change', () => this.fillMissions());
@@ -504,6 +507,9 @@ export class Races {
       if (mission.startsWith('R-')) {
         const g = this.ui.random && this.ui.random.make(mission.slice(2));
         text = g ? g.text : '';
+      } else if (mission.startsWith('C-')) {
+        const c = this.ui.customs && this.ui.customs.cached(mission.slice(2));
+        text = c ? toMapText(c.level) : '';
       } else {
         const [w, l] = mission.split('.');
         const m = this.rt.builtins.member('map' + w + '.' + l);
@@ -573,6 +579,16 @@ export class Races {
     const w = this.worldSelect.value;
     const random = w === 'R';
     this.missionSelect.hidden = random;
+    if (w === 'C') {
+      // (the custom levels kept offline here: src/online/levels.js)
+      const kept = this.ui.customs ? Object.values(this.ui.customs.kept).sort((a, b) => b.at - a.at) : [];
+      this.randomInput.hidden = this.newRandom.hidden = true;
+      this.missionSelect.replaceChildren(...(kept.length ? kept.map((k) => el('option', { value: 'C-' + k.id, text: k.name + ' (by ' + k.author + ')' }))
+        : [el('option', { value: '', text: 'None kept: Custom levels, Keep offline' })]));
+      if (this.wanted && this.wanted.startsWith('C-')) this.missionSelect.value = this.wanted;
+      this.pickMission();
+      return;
+    }
     this.randomInput.hidden = !random;
     this.newRandom.hidden = !random;
     if (!random) {
@@ -593,6 +609,7 @@ export class Races {
   pickMission() {
     if (!this.room || this.room.host !== this.you || this.room.phase !== 'lobby') return;
     let mission = this.missionSelect.value;
+    if (this.worldSelect.value === 'C' && !mission) return;
     if (this.worldSelect.value === 'R') {
       const c = parseCode(this.randomInput.value);
       if (!c || !this.ui.random.make(c.code)) {
@@ -626,6 +643,14 @@ export class Races {
     if (this.previewFor !== r.mission) {
       this.previewFor = r.mission;
       this.drawPreview(r.mission);
+      // (a custom level: had from the server, unless it is kept here, before the race starts)
+      if (r.mission && r.mission.startsWith('C-') && this.ui.customs && !this.ui.customs.cached(r.mission.slice(2))) {
+        const m = r.mission;
+        this.ui.customs.fetchLevel(m.slice(2)).then((l) => {
+          if (!l) this.note('That custom level could not be had: you cannot play this race.');
+          else if (this.room && this.room.mission === m) { this.drawPreview(m); this.render(); }
+        });
+      }
     }
     this.list.replaceChildren(...this.standings().map((p) => el('li', { class: p.id === this.you ? 'me' : '' },
       el('span', { class: 'name' }, el('span', { class: 'dot', style: 'background:' + this.colour(p.id) }), p.name + (p.id === r.host ? ' (host)' : '') + (p.connected ? '' : ' (away)')),
@@ -661,6 +686,17 @@ export class Races {
     const done = () => this.note('Copied: ' + url.href);
     if (navigator.clipboard) navigator.clipboard.writeText(url.href).then(done, () => this.note(url.href));
     else this.note(url.href);
+  }
+
+  // From the custom levels: a race hosted with one (src/online/levels.js), or this race's
+  // mission changed to it if this player hosts one in its lobby.
+  hostWith(mission) {
+    this.wanted = mission;
+    this.worldSelect.value = 'C';
+    this.fillMissions();
+    if (this.room && this.room.host === this.you && this.room.phase === 'lobby') { this.open(); return; }
+    if (!this.code) this.create('public').catch(() => this.note('The race server could not be reached.'));
+    this.open();
   }
 
   open() {

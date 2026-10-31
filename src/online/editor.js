@@ -11,8 +11,10 @@
 
 import { TERRAIN, KINDS, BRICKS, LIMITS, parseMap, validate, cleanText } from './levelformat.js';
 import { el } from './dom.js';
+import { snapshot } from './snapshot.js';
 
 const DRAFTS = 'lego-wb-online:levels';
+const SHOT = 'lego-wb-online:levelshot';    // the picture of the level last test-played
 const CELL = 26;
 const UNDO_MAX = 300;
 const WATER = new Set(['w', 'x', 'r']);
@@ -71,6 +73,7 @@ export class Editor {
     this.inventory = Object.assign({}, level.inventory);
     this.center = level.center || null;
     this.beaten = null;
+    this.uploadMsg = null;
     this.undo = [];
     this.redo = [];
     this.sel = null;
@@ -288,7 +291,8 @@ export class Editor {
       el('div', { class: 'bar' },
         el('div', { class: 'group' },
           btn('Close', () => this.close()), btn('New', () => this.askNew()), btn('Open…', () => this.openMenu()),
-          btn('Test play', () => this.testPlay(), 'Play it in the game')),
+          btn('Test play', () => this.testPlay(), 'Play it in the game'),
+          this.uploadButton = btn('Upload', () => this.upload(), 'Send it to be played by everyone (beaten in Test Play first)')),
         el('div', { class: 'group' }, btn('Undo', () => this.doUndo(), 'Undo (Ctrl+Z)'), btn('Redo', () => this.doRedo(), 'Redo (Ctrl+Y)'),
           btn('Cut', () => this.cut(), 'Cut (Ctrl+X)'), btn('Copy', () => this.copy(), 'Copy (Ctrl+C)'), btn('Paste', () => this.paste(), 'Paste (Ctrl+V)')),
         el('div', { class: 'group' }, ...this.toolButtons),
@@ -390,7 +394,11 @@ export class Editor {
     const errs = validate(this.level());
     const notes = errs.map((e) => el('li', { class: 'bad', text: e }));
     if (!errs.length) notes.push(el('li', { class: 'good', text: this.beaten ? 'Beaten in Test Play: ready to upload' : 'Playable: beat it in Test Play (goal and bonus) to upload it' }));
+    const up = this.drafts[this.id] && this.drafts[this.id].uploaded;
+    if (up && up.json === JSON.stringify(this.level())) notes.push(el('li', { class: 'good', text: 'Uploaded as C-' + up.id + (up.status === 'pending' ? ': waiting to be looked at' : '') }));
     this.checks.replaceChildren(...notes);
+    if (this.uploadMsg) notes.push(el('li', { class: this.uploadMsg.bad ? 'bad' : 'good', text: this.uploadMsg.text }));
+    if (this.uploadButton) this.uploadButton.disabled = !!errs.length || !this.beaten || !!this.uploading;
   }
 
   // ---------- drawing ----------
@@ -682,7 +690,8 @@ export class Editor {
 
   save() {
     if (!this.grid) return;
-    this.drafts[this.id] = { level: this.level(), at: Date.now(), beaten: this.beaten };
+    const was = this.drafts[this.id];
+    this.drafts[this.id] = { level: this.level(), at: Date.now(), beaten: this.beaten, uploaded: was && was.uploaded };
     saveDrafts(this.drafts);
   }
   askNew() {
@@ -736,9 +745,56 @@ export class Editor {
     if (!/^world \d$/.test(rt.labelAt(rt.frame) || '')) { rt.go('world 1'); if (rt.testMode) rt.step(1); }
     const go = () => {
       const problem = this.ui.random.playLevel(level, 'C-DRAFT');
-      if (problem) { this.testing = null; this.root.hidden = false; this.status.textContent = problem; }
+      if (problem) { this.testing = null; this.root.hidden = false; this.status.textContent = problem; return; }
+      // (its picture, once the game has laid the map out)
+      const json = this.testing.level;
+      setTimeout(() => this.shoot(json).catch(() => {}), 1500);
     };
     if (rt.testMode) go(); else setTimeout(go, 100);
+  }
+  // The level's picture, for the upload: the whole map as the game draws it (src/online/snapshot.js,
+  // as the generated missions' are), taken as its Test Play starts; kept with the level it is of.
+  async shoot(json) {
+    const t = this.testing;
+    if (!t || t.level !== json || this.rt.labelAt(this.rt.frame) !== 'play') return;
+    const blob = await snapshot(this.rt, 1200, 800);
+    if (!blob) return;
+    const data = await new Promise((done) => { const r = new FileReader(); r.onload = () => done(r.result); r.onerror = () => done(null); r.readAsDataURL(blob); });
+    if (!data) return;
+    this.shot = { json, data };
+    try { localStorage.setItem(SHOT, JSON.stringify(this.shot)); } catch (e) { /* kept for the visit */ }
+  }
+  picture(json) {
+    let shot = this.shot;
+    if (!shot) try { shot = JSON.parse(localStorage.getItem(SHOT) || 'null'); } catch (e) { shot = null; }
+    if (!shot || shot.json !== json) return null;
+    return fetch(shot.data).then((r) => r.blob());
+  }
+  // Upload: a level beaten in Test Play (goal and bonus), to be looked at, then played by all.
+  async upload() {
+    const level = this.level();
+    if (validate(level).length || !this.beaten) { this.renderChecks(); return; }
+    const customs = this.ui.customs;
+    if (!customs) return;
+    if (!this.ui.settings.name) { this.say('Your name first: the settings have it.'); this.ui.open(); return; }
+    this.uploading = true;
+    this.say('Uploading…');
+    try {
+      const image = await this.picture(JSON.stringify(level));
+      if (!image) throw new Error('Its picture is taken in Test Play: play it once more, then Upload.');
+      const r = await customs.upload(level, this.beaten, image);
+      const d = this.drafts[this.id];
+      if (d) { d.uploaded = { id: r.id, status: r.status, json: JSON.stringify(level) }; saveDrafts(this.drafts); }
+      this.say(r.status === 'approved' ? 'Uploaded: C-' + r.id + ' is out, in Custom levels.' : 'Uploaded as C-' + r.id + ': it is out once it has been looked at (Custom levels, Your uploads).');
+    } catch (e) {
+      this.say(e.message, true);
+    }
+    this.uploading = false;
+    this.renderChecks();
+  }
+  say(text, bad) {
+    this.uploadMsg = text ? { text, bad } : null;
+    this.renderChecks();
   }
   // (from the scores: a goal reached in Test Play)
   reached(kind, ms) {
