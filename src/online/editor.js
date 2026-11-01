@@ -306,6 +306,27 @@ export class Editor {
         el('label', { class: 'group' }, this.filledBox, ' Filled'),
         this.savedNote),
       el('div', { class: 'body' }, this.palette, el('div', { class: 'view' }, this.canvas, this.status), this.props));
+    this.bar = this.root.querySelector('.bar');
+    // On a phone (a touch screen, or a narrow window): the map the whole screen, and one row of
+    // buttons over it; the tools, the palette and the level's properties come up from the foot of
+    // the screen, one at a time, and go once something is chosen in them.  Two fingers move and
+    // zoom the map; Pan has one finger move it too.
+    this.paintPreview = el('canvas', { width: '30', height: '30', 'aria-hidden': 'true' });
+    this.toolLabel = el('span', { text: 'Brush' });
+    const sym = (text, label, f) => el('button', { type: 'button', class: 'tool sym', text, title: label, 'aria-label': label, onclick: f });
+    this.panButton = sym('\u270b', 'Pan: one finger moves the map (two fingers always do)', () => this.setPan(!this.panMode));
+    this.mbar = el('div', { class: 'mbar' },
+      sym('\u2715', 'Close', () => this.close()), sym('\u21b6', 'Undo', () => this.doUndo()), sym('\u21b7', 'Redo', () => this.doRedo()), this.panButton,
+      el('button', { type: 'button', class: 'tool sheetbtn', 'data-sheet': 'tools', onclick: () => this.sheet('tools') }, this.toolLabel, el('span', { class: 'up', text: ' \u25b4' })),
+      el('button', { type: 'button', class: 'tool sheetbtn paintbtn', 'data-sheet': 'paint', 'aria-label': 'What is painted', onclick: () => this.sheet('paint') }, this.paintPreview, el('span', { class: 'up', text: ' \u25b4' })),
+      el('button', { type: 'button', class: 'tool sheetbtn', 'data-sheet': 'level', onclick: () => this.sheet('level') }, 'Level', el('span', { class: 'up', text: ' \u25b4' })));
+    this.root.prepend(this.mbar);
+    // (a tool, a swatch or an action chosen in a sheet puts it away: not the size or a box ticked)
+    this.bar.addEventListener('click', (e) => { if (e.target instanceof Element && e.target.closest('button')) this.sheet(null); });
+    const compact = window.matchMedia('(pointer: coarse), (max-width: 899px)');
+    const fit = () => { this.root.classList.toggle('compact', compact.matches); this.sheet(null); requestAnimationFrame(() => { this.fit(); this.draw(); }); };
+    if (compact.addEventListener) compact.addEventListener('change', fit);
+    fit();
     document.body.append(this.root);
     // (saved as the page is put away or left, whatever was being done)
     const away = () => { if (!this.root.hidden || this.testing) this.save(); };
@@ -314,14 +335,38 @@ export class Editor {
     this.buildPalette();
     this.wire();
   }
+  // (a phone's sheets: 'tools', 'paint', 'level', or none)
+  sheet(name) {
+    if (name && this.openSheet === name) name = null;
+    this.openSheet = name;
+    const of = { tools: this.bar, paint: this.palette, level: this.props };
+    for (const [k, e] of Object.entries(of)) if (e) e.classList.toggle('open', k === name);
+    if (this.mbar) for (const b of this.mbar.querySelectorAll('.sheetbtn')) b.setAttribute('aria-expanded', String(b.dataset.sheet === name));
+  }
+  setPan(on) {
+    this.panMode = on;
+    if (this.panButton) this.panButton.setAttribute('aria-pressed', String(on));
+  }
   setTool(t) {
     this.tool = t;
+    if (this.toolLabel) {
+      const b = this.toolButtons.find((x) => x.dataset.tool === t);
+      this.toolLabel.textContent = b ? b.textContent : t;
+    }
     if (t !== 'select' && this.floating) this.floating = null;
     for (const b of this.toolButtons) b.setAttribute('aria-pressed', String(b.dataset.tool === t));
     this.draw();
   }
   choose(paint, button) {
     this.paint = paint;
+    // (the phone's paint button shows it)
+    if (this.paintPreview && button) {
+      const g = this.paintPreview.getContext('2d');
+      g.clearRect(0, 0, 30, 30);
+      const from = button.querySelector('canvas');
+      if (from) g.drawImage(from, 0, 0, 30, 30);
+    }
+    if (this.openSheet === 'paint') this.sheet(null);
     if (this.tool === 'pick' || this.tool === 'select' || this.tool === 'erase') this.setTool('brush');
     for (const b of this.palette.querySelectorAll('.swatch')) b.setAttribute('aria-pressed', String(b === button));
     this.renderProps();
@@ -372,7 +417,8 @@ export class Editor {
       parts.push(section(group, ...chars.map((ch) => sw(NAMES[TERRAIN[ch]] || TERRAIN[ch].replace(/street(\d+)/, 'Street $1'), (g, s) => this.groundSwatch(g, ch, s), () => ({ kind: 'ground', ch })))));
     }
     const unit = (cls, kind) => sw(kind.replace(/_/g, ' '), (g, s) => this.drawItem(g, { t: 'unit', cls, kind }, 0, 0, s), () => ({ kind: 'item', item: { t: 'unit', cls, kind } }));
-    parts.push(section('Vehicles', ...KINDS.vehicle.map((k) => unit('vehicle', k))));
+    // (the player's units: the game calls them all vehicles, robots and animals too)
+    parts.push(section('Units', ...KINDS.vehicle.map((k) => unit('vehicle', k))));
     parts.push(section('Buildings', ...KINDS.building.map((k) => unit('building', k))));
     parts.push(section('Monsters', ...KINDS.monster.map((k) => unit('monster', k))));
     parts.push(section('Items',
@@ -669,16 +715,54 @@ export class Editor {
     const c = this.canvas;
     let drag = null;
     c.addEventListener('contextmenu', (e) => e.preventDefault());
+    // Fingers: one draws with the tool (or moves the map, with Pan); two move and zoom it.  A
+    // finger's stroke waits a moment (or till it moves) before it begins, in case a second comes;
+    // a stroke under way when one does is taken back.
+    const fingers = new Map();
+    let pending = null, gesture = null;
+    const start = () => {
+      if (!pending) return;
+      const p = pending;
+      pending = null;
+      clearTimeout(p.timer);
+      begin(p.e);
+    };
+    const twoFingers = () => {
+      const [a, b] = [...fingers.values()];
+      return { cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) || 1 };
+    };
     c.addEventListener('pointerdown', (e) => {
+      if (this.openSheet) { this.sheet(null); e.preventDefault(); return; }
       c.focus();
-      c.setPointerCapture(e.pointerId);
+      try { c.setPointerCapture(e.pointerId); } catch (err) { /* (not to be had) */ }
+      if (e.pointerType !== 'touch') { begin(e); return; }
+      fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (fingers.size >= 2) {
+        // (two fingers: what one began is not done)
+        if (pending) { clearTimeout(pending.timer); pending = null; }
+        if (drag) {
+          if (drag.stroke || drag.shape || drag.fill) { if (drag.stroke || drag.fill) { this.doUndo(); this.redo.pop(); } this.preview = null; }
+          if (drag.select) this.sel = null;
+          drag = null;
+        }
+        const r = c.getBoundingClientRect(), g = twoFingers();
+        gesture = { g, zoom: this.zoom, ox: this.ox, oy: this.oy, left: r.left, top: r.top };
+        this.draw();
+        return;
+      }
+      if (gesture) return;
+      const snap = { clientX: e.clientX, clientY: e.clientY, button: 0, pointerId: e.pointerId, pointerType: 'touch' };
+      pending = { e: snap, x: e.clientX, y: e.clientY, timer: setTimeout(start, 120) };
+    });
+    const begin = (e) => {
       const [x, y] = this.tileAt(e);
+      if (this.panMode && e.button === 0) { drag = { pan: true, sx: e.clientX, sy: e.clientY, ox: this.ox, oy: this.oy }; return; }
       if (e.button === 1 || e.button === 2 || (e.button === 0 && this.space)) { drag = { pan: true, sx: e.clientX, sy: e.clientY, ox: this.ox, oy: this.oy }; return; }
       if (e.button !== 0) return;
       if (this.floating) { this.floating.x = x; this.floating.y = y; this.drop(); return; }
       const t = this.tool;
       if (t === 'pick') { this.pickAt(x, y); return; }
-      if (t === 'fill') { this.remember(); this.fill(x, y); this.refresh(); return; }
+      if (t === 'fill') { this.remember(); this.fill(x, y); this.refresh(); if (e.pointerType === 'touch') drag = { fill: true }; return; }
       if (t === 'select') {
         const s = this.selected();
         if (s && x >= s[0] && x <= s[2] && y >= s[1] && y <= s[3]) {
@@ -706,8 +790,27 @@ export class Editor {
       drag = { shape: true, x0: x, y0: y };
       this.preview = [];
       this.draw();
-    });
+    };
     c.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'touch' && fingers.has(e.pointerId)) {
+        fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (gesture && fingers.size >= 2) {
+          // (the map point under the fingers' middle stays under it, at the zoom they make)
+          const g = twoFingers(), g0 = gesture.g;
+          const z = Math.max(0.15, Math.min(4, gesture.zoom * g.d / g0.d));
+          const mx = (g0.cx - gesture.left - gesture.ox) / gesture.zoom, my = (g0.cy - gesture.top - gesture.oy) / gesture.zoom;
+          this.zoom = z;
+          this.ox = g.cx - gesture.left - mx * z;
+          this.oy = g.cy - gesture.top - my * z;
+          this.draw();
+          return;
+        }
+        if (gesture) return;
+        if (pending) {
+          if (Math.hypot(e.clientX - pending.x, e.clientY - pending.y) < 8) return;
+          start();
+        }
+      }
       const [x, y] = this.tileAt(e);
       this.hover = [x, y];
       if (this.floating && !drag) { this.floating.x = x; this.floating.y = y; this.draw(); return; }
@@ -729,10 +832,16 @@ export class Editor {
       }
     });
     const up = (e) => {
+      if (e.pointerType === 'touch') {
+        fingers.delete(e.pointerId);
+        if (gesture) { if (!fingers.size) gesture = null; return; }
+        if (pending) start();
+      }
       if (!drag) return;
       const d = drag;
       drag = null;
       if (d.moving) { this.drop(); return; }
+      if (d.fill) return;
       if (d.stroke) { this.refresh(); return; }
       if (d.shape) {
         const [x, y] = this.tileAt(e);
@@ -743,7 +852,12 @@ export class Editor {
       this.draw();
     };
     c.addEventListener('pointerup', up);
-    c.addEventListener('pointercancel', () => { drag = null; this.preview = null; this.draw(); });
+    c.addEventListener('pointercancel', (e) => {
+      fingers.delete(e.pointerId);
+      if (!fingers.size) gesture = null;
+      if (pending) { clearTimeout(pending.timer); pending = null; }
+      drag = null; this.preview = null; this.draw();
+    });
     c.addEventListener('pointerleave', () => { this.hover = null; this.draw(); });
     c.addEventListener('wheel', (e) => {
       e.preventDefault();
@@ -1009,6 +1123,12 @@ export class Editor {
     }
     for (const f of this.later) f();
     this.later = [];
+    // (the phone's paint button: what is painted, from the start)
+    if (this.paintPreview) {
+      const sw = this.palette.querySelector('.swatch[aria-pressed="true"] canvas') || this.palette.querySelector('.swatch canvas');
+      const g = this.paintPreview.getContext('2d');
+      if (sw) { g.clearRect(0, 0, 30, 30); g.drawImage(sw, 0, 0, 30, 30); }
+    }
     requestAnimationFrame(() => { this.fit(); this.renderProps(); this.draw(); });
     this.canvas.focus();
   }
