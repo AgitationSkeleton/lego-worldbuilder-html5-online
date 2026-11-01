@@ -14,7 +14,7 @@ const BROWSER = 'lego-wb-online:browser';
 const SKIES = ['World One', 'World Two', 'World Three', 'Ocean World', 'Prehistoric World', 'WB2 World One', 'WB2 World Two'];
 const STATUS = { pending: 'waiting to be looked at', approved: 'out', rejected: 'turned down', unpublished: 'taken down' };
 const UPLOAD_ERRORS = {
-  closed: 'Uploads are closed just now.', banned: 'Uploads from here are not taken.', later: 'Enough uploads for today: try again tomorrow.',
+  closed: 'Uploads are closed just now.', banned: 'Uploads from here are not taken.', later: 'Not so fast: try again in a moment.',
   already: 'That level is up already.', name: 'Your name first (Settings), a decent one.', 'beat it first': 'Beat it in Test Play first, goal and bonus.',
   image: 'Its picture could not be made.', level: 'The server turned the level down',
 };
@@ -318,7 +318,12 @@ export class CustomLevels {
     } catch (e) {
       throw new Error('The level server could not be reached.');
     }
-    if (!r.ok) throw new Error((UPLOAD_ERRORS[b.error] || 'The upload was turned down') + (b.why ? ': ' + b.why.join('; ') : '.'));
+    if (!r.ok && b.error === 'wait') {
+      const s = Math.max(1, Number(b.seconds) || 1);
+      const m = Math.ceil(s / 60);
+      throw new Error('A moment between uploads: try again in ' + (s < 60 ? s + (s === 1 ? ' second' : ' seconds') : m + (m === 1 ? ' minute' : ' minutes')) + '.');
+    }
+    if (!r.ok) throw new Error((UPLOAD_ERRORS[b.error] || 'The upload was turned down').replace(/\.$/, '') + (b.why ? ': ' + b.why.join('; ') : '') + '.');
     return b;
   }
 }

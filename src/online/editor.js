@@ -450,9 +450,9 @@ export class Editor {
     const notes = errs.map((e) => el('li', { class: 'bad', text: e }));
     if (!errs.length) notes.push(el('li', { class: 'good', text: this.beaten ? 'Beaten in Test Play: ready to upload' : 'Playable: beat it in Test Play (goal and bonus) to upload it' }));
     const up = this.drafts[this.id] && this.drafts[this.id].uploaded;
-    if (up && up.json === JSON.stringify(this.level())) notes.push(el('li', { class: 'good', text: 'Uploaded as C-' + up.id + (up.status === 'pending' ? ': waiting to be looked at' : '') }));
-    this.checks.replaceChildren(...notes);
+    if (up && up.json === JSON.stringify(this.level()) && !(this.uploadMsg && !this.uploadMsg.bad)) notes.push(el('li', { class: 'good', text: 'Uploaded as C-' + up.id + (up.status === 'pending' ? ': waiting to be looked at' : '') }));
     if (this.uploadMsg) notes.push(el('li', { class: this.uploadMsg.bad ? 'bad' : 'good', text: this.uploadMsg.text }));
+    this.checks.replaceChildren(...notes);
     if (this.uploadButton) this.uploadButton.disabled = !!errs.length || !this.beaten || !!this.uploading;
   }
 
@@ -983,6 +983,8 @@ export class Editor {
     const t = this.testing;
     if (!t) return;
     t[kind] = ms;
+    // (and its picture, if Test Play was left too soon for it before: the map is still there)
+    if (!this.shot || this.shot.json !== t.level) this.shoot(t.level).catch(() => {});
   }
   // (the Test Play left: back to the editor, beaten if goal and bonus were reached in it)
   left() {

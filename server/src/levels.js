@@ -18,7 +18,7 @@
 // The moderator's, through Alien Commander's buttons (its bot.py forwards a press here with the
 // LEVELS_KEY secret; only LEVELS_ADMIN's presses count):
 //   POST /levels/admin            JSON {user_id, custom_id}: wbmap:approve|reject|unpublish|ban:ID,
-//                                 wbmap:cfg:auto|uploads|day-|day+|author-|author+, wbmap:unban:WHO,
+//                                 wbmap:cfg:auto|uploads|cool-|cool+, wbmap:unban:WHO,
 //                                 wbmap:panel.  Answers {update: {embeds, components}} (the message
 //                                 pressed, as it now is) or {reply}.
 //   POST /levels/panel            the settings panel posted in the channel (LEVELS_KEY)
@@ -28,8 +28,8 @@
 // passed (src/online/levelformat.js, toMapText).  The database is only ever given its values as
 // bound parameters.  Names are cleaned and their profanity starred out.  A picture must be a PNG
 // or JPEG of at most 1 MB.  The level must have been beaten by its author, goal and bonus (the
-// times say so: the game sends them only from its Test Play), and uploads are limited by address,
-// browser and day.  Then the moderator sees it, unless it is set to approve them by itself.
+// times say so: the game sends them only from its Test Play), and one author (an address, a
+// browser) waits a while between uploads (the cooldown); there is no cap on how many.  Then the moderator sees it, unless it is set to approve them by itself.
 
 import { json, sha256Hex, clientIp, cleanName, decentName } from './http.js';
 import { censor } from '../../src/online/profanity.js';
@@ -41,7 +41,8 @@ const MIN_MS = 3000;
 const MAX_MS = 7 * 24 * 3600 * 1000;
 const PAGE = 30;
 const SKIES = ['World One', 'World Two', 'World Three', 'Ocean World', 'Prehistoric World', 'WB2 World One', 'WB2 World Two'];
-const DEFAULTS = { auto: '0', uploads: '1', day: '40', author: '3' };
+const DEFAULTS = { auto: '0', uploads: '1', cooldown: '120' };
+const COOLDOWNS = [0, 30, 60, 120, 300, 600, 1800, 3600];   // seconds, the panel's steps
 const BROWSER = /^[A-Za-z0-9_-]{12,64}$/;
 
 // The tables, made the first time they are wanted (the database is only reached through the
@@ -120,6 +121,10 @@ function card(row, level, extra) {
       : [b('Approve', 3, 'approve'), b('Ban author', 2, 'ban')];
   return { embeds: [embed], components: [{ type: 1, components: buttons }] };
 }
+function wait(s) {
+  if (!s) return 'none';
+  return s < 60 ? s + ' s' : s < 3600 ? Math.round(s / 60) + ' min' : Math.round(s / 3600) + ' h';
+}
 function clockOf(ms) {
   if (!Number.isFinite(ms)) return '?';
   const t = Math.floor(ms / 1000);
@@ -139,17 +144,16 @@ async function panel(env) {
     fields: [
       { name: 'Approved by themselves', value: on(c.auto), inline: true },
       { name: 'Uploads', value: on(c.uploads), inline: true },
-      { name: 'Uploads a day, in all', value: c.day === '0' ? 'no limit' : c.day, inline: true },
-      { name: 'A day, one author', value: c.author === '0' ? 'no limit' : c.author, inline: true },
+      { name: 'Wait between one author\'s uploads', value: wait(Number(c.cooldown)), inline: true },
       { name: 'Banned', value: bans.length ? bans.map((x) => (x.name || '?') + ' (' + x.who.split(':')[0] + ')').join(', ').slice(0, 1000) : 'nobody' },
     ],
-    footer: { text: 'Only the moderator\'s presses count. A limit of 0 is none.' },
+    footer: { text: 'Only the moderator\'s presses count. There is no cap on uploads, only the wait between one author\'s.' },
   };
   const b = (label, style, id) => ({ type: 2, style, label, custom_id: 'wbmap:cfg:' + id });
   const rows = [
     { type: 1, components: [b(c.auto === '1' ? 'Stop approving by themselves' : 'Approve by themselves', c.auto === '1' ? 4 : 3, 'auto'),
       b(c.uploads === '1' ? 'Close uploads' : 'Open uploads', c.uploads === '1' ? 4 : 3, 'uploads')] },
-    { type: 1, components: [b('A day −', 2, 'day-'), b('A day +', 2, 'day+'), b('One author −', 2, 'author-'), b('One author +', 2, 'author+')] },
+    { type: 1, components: [b('Wait less', 2, 'cool-'), b('Wait more', 2, 'cool+')] },
   ];
   if (bans.length) {
     rows.push({ type: 1, components: [{ type: 3, custom_id: 'wbmap:unban', placeholder: 'Unban…', options: bans.slice(0, 25).map((x) => ({ label: ((x.name || '?') + ' · ' + x.who.split(':')[0]).slice(0, 100), value: x.who.slice(0, 100) })) }] });
@@ -215,15 +219,12 @@ async function upload(request, env, ctx) {
   // (banned: by address, browser or name)
   const ban = await env.DB.prepare('SELECT who FROM level_bans WHERE who IN (?1, ?2, ?3)').bind('ip:' + ip, 'browser:' + browser, 'name:' + author.toLowerCase()).first();
   if (ban) return json(env, request, { error: 'banned' }, 403);
-  const now = Date.now(), day = now - 86400000;
-  const dayLimit = Number(c.day), authorLimit = Number(c.author);
-  if (dayLimit > 0) {
-    const all = await env.DB.prepare('SELECT COUNT(*) AS n FROM levels WHERE created > ?1').bind(day).first();
-    if (all && all.n >= dayLimit) return json(env, request, { error: 'later' }, 429);
-  }
-  if (authorLimit > 0) {
-    const mine = await env.DB.prepare('SELECT COUNT(*) AS n FROM levels WHERE created > ?1 AND (ip_hash = ?2 OR browser = ?3)').bind(day, ip, browser).first();
-    if (mine && mine.n >= authorLimit) return json(env, request, { error: 'later' }, 429);
+  const now = Date.now();
+  // (the cooldown: one author's last upload, by address or browser, a while ago)
+  const cooldown = Math.max(0, Number(c.cooldown) || 0) * 1000;
+  if (cooldown > 0) {
+    const last = await env.DB.prepare('SELECT MAX(created) AS t FROM levels WHERE ip_hash = ?1 OR browser = ?2').bind(ip, browser).first();
+    if (last && last.t && now - last.t < cooldown) return json(env, request, { error: 'wait', seconds: Math.ceil((cooldown - (now - last.t)) / 1000) }, 429);
   }
   // (the level as kept: exactly the fields the format has, its name cleaned, nothing else)
   const kept = JSON.stringify({ v: 1, name: cleanText(censor(level.name)), sky: level.sky, rows: level.rows,
@@ -275,21 +276,21 @@ async function admin(request, env) {
     const now = await env.DB.prepare('SELECT * FROM levels WHERE id = ?1').bind(row.id).first();
     return json(env, request, { update: card(now, JSON.parse(now.level), note) });
   }
-  if ((m = /^wbmap:cfg:(auto|uploads|day-|day\+|author-|author\+)$/.exec(id))) {
+  if ((m = /^wbmap:cfg:(auto|uploads|cool-|cool\+)$/.exec(id))) {
     const c = await config(env);
     const k = m[1];
     if (k === 'auto' || k === 'uploads') await setConfig(env, k, c[k] === '1' ? '0' : '1');
     else {
-      const key = k.startsWith('day') ? 'day' : 'author';
-      const steps = key === 'day' ? [0, 5, 10, 20, 40, 80, 160, 320] : [0, 1, 2, 3, 5, 10, 20];
-      const cur = Number(c[key]);
-      let i = steps.findIndex((s) => s >= cur);
-      if (i < 0) i = steps.length - 1;
-      i = Math.max(0, Math.min(steps.length - 1, i + (k.endsWith('+') ? 1 : -1)));
-      await setConfig(env, key, steps[i]);
+      const cur = Number(c.cooldown);
+      let i = COOLDOWNS.findIndex((s) => s >= cur);
+      if (i < 0) i = COOLDOWNS.length - 1;
+      i = Math.max(0, Math.min(COOLDOWNS.length - 1, i + (k.endsWith('+') ? 1 : -1)));
+      await setConfig(env, 'cooldown', COOLDOWNS[i]);
     }
     return json(env, request, { update: await panel(env) });
   }
+  // (an older panel's buttons, from when there were caps: the panel as it is now)
+  if (/^wbmap:cfg:(day|author)[-+]$/.test(id)) return json(env, request, { update: await panel(env) });
   if (id === 'wbmap:unban' && values.length) {
     await env.DB.prepare('DELETE FROM level_bans WHERE who = ?1').bind(values[0]).run();
     return json(env, request, { update: await panel(env) });

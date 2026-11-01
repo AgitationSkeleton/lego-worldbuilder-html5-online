@@ -54,8 +54,9 @@ const fieldOf = (b, n) => b.update.embeds[0].fields.find((x) => x.name === n).va
 ok(p.status === 200 && p.body.update, 'the moderator opens the settings panel');
 if (fieldOf(p.body, 'Approved by themselves') === 'on') await press('wbmap:cfg:auto');
 if (fieldOf(p.body, 'Uploads') === 'off') await press('wbmap:cfg:uploads');
-for (let i = 0; i < 8; i++) await press('wbmap:cfg:author+');
-for (let i = 0; i < 8; i++) await press('wbmap:cfg:day+');
+// (no wait between uploads, for the run: the cooldown is tried below)
+for (let i = 0; i < 8; i++) p = await press('wbmap:cfg:cool-');
+ok(fieldOf(p.body, 'Wait between one author\'s uploads') === 'none', 'the cooldown set to none for the run');
 
 // what is not a level
 let r = await upload({ level: '{"v":1,"name":"x"' });
@@ -138,13 +139,20 @@ ok(/unpublished/.test(r.body.update.embeds[0].description), 'Unpublish takes it 
 r = await get('/levels/' + id);
 ok(r.status === 404, 'and it cannot be had');
 
-// limits, auto-approve, closing, banning
-for (let i = 0; i < 8; i++) await press('wbmap:cfg:author-');
-p = await press('wbmap:cfg:author+');
-ok(fieldOf(p.body, 'A day, one author') === '1', 'one author\'s limit set to 1 a day');
+// no cap on how many: one author, several in a row
+const many = [];
+for (let k = 0; k < 4; k++) many.push((await upload({ level: JSON.stringify(level({ name: 'Many ' + k + ' ' + tag, rows: level().rows.map((x, i) => i === 7 ? '.'.repeat(k) + 'T' + x.slice(k + 1) : x) })) })).status);
+ok(many.every((st) => st === 200), 'no cap: one author uploads four in a row: ' + many.join(' '));
+// the cooldown, a while between one author's uploads
+p = await press('wbmap:cfg:cool+');
+ok(fieldOf(p.body, 'Wait between one author\'s uploads') === '30 s', 'the cooldown set to 30 s');
 r = await upload({ level: JSON.stringify(level({ name: 'Second ' + tag, rows: level().rows.map((x, i) => i === 3 ? 'T' + x.slice(1) : x) })) });
-ok(r.status === 429, 'a second upload the same day is turned away');
-for (let i = 0; i < 8; i++) await press('wbmap:cfg:author+');
+ok(r.status === 429 && r.body.error === 'wait' && r.body.seconds > 0 && r.body.seconds <= 30, 'an upload within it waits: ' + JSON.stringify(r.body));
+r = await upload({ level: JSON.stringify(level({ name: 'Other ' + tag, rows: level().rows.map((x, i) => i === 3 ? 'M' + x.slice(1) : x) })) }, { ip: '10.77.' + (parseInt(tag, 36) % 250) + '.9' });
+ok(r.status === 429, 'from another address but the same browser too');
+for (let i = 0; i < 8; i++) p = await press('wbmap:cfg:cool-');
+r = await press('wbmap:cfg:day+');
+ok(r.body.update, 'an older panel\'s cap buttons only show the panel as it is now');
 p = await press('wbmap:cfg:auto');
 ok(fieldOf(p.body, 'Approved by themselves') === 'on', 'set to approve them by themselves');
 r = await upload({ level: JSON.stringify(level({ name: 'Third ' + tag, rows: level().rows.map((x, i) => i === 4 ? 'T' + x.slice(1) : x) })) });
