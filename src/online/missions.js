@@ -148,6 +148,23 @@ export class RandomMissions {
     return null;
   }
 
+  // The mission's title in the game (its "mission name text", which the game makes "Mission" and
+  // the slot's number, then the name): RANDOM MISSION for a generated one (its name is its code),
+  // CUSTOM LEVEL and its number for a custom level (TEST PLAY in the editor) -- not the number
+  // of the campaign's slot it is played in.
+  retitle() {
+    const a = this.active;
+    if (!a) return;
+    const rt = this.rt;
+    const m = rt.builtins.member('mission name text');
+    if (!m) return;
+    // (in capitals, as the game's own MISSION; a generated mission's name is its code already)
+    const head = a.custom ? (a.code === 'C-DRAFT' ? 'TEST PLAY' : 'CUSTOM LEVEL ' + a.code) : 'RANDOM MISSION';
+    const names = L.gp(rt.globals.glob, 'mission_names');
+    const name = names ? L.gi(L.gi(names, a.world), a.mission) : '';
+    L.sp(m, 'text', head + String.fromCharCode(13) + (typeof name === 'string' ? name : ''));
+  }
+
   // Starts a mission from wherever the game is (a race starts everyone's at once, `race`
   // true): a campaign one, "6.3", a generated one, "R-6DK2Q9", or a custom level had already
   // ("C-12": src/online/levels.js, cached).  The mission being

@@ -127,6 +127,8 @@ export class Scores {
         const start = s.handlers.startlevel;
         s.handlers.startlevel = function (...args) {
           const r = start.apply(this, args);
+          // (a generated mission's or a custom level's title, not the slot's number it borrows)
+          if (self.random && self.random.retitle) self.random.retitle();
           self.started();
           return r;
         };
