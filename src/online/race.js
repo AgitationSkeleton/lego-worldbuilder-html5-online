@@ -406,7 +406,7 @@ export class Races {
       el('option', { value: 'R', text: 'A random mission' }),
       el('option', { value: 'C', text: 'A custom level (kept offline)' }));
     this.missionSelect = el('select', { 'aria-label': 'Mission' });
-    this.randomInput = el('input', { type: 'text', maxlength: '10', spellcheck: 'false', autocapitalize: 'characters', 'aria-label': 'Random mission code', placeholder: 'Code' });
+    this.randomInput = el('input', { type: 'text', maxlength: '11', spellcheck: 'false', autocapitalize: 'characters', 'aria-label': 'Random mission code', placeholder: 'Code' });
     this.worldSelect.addEventListener('change', () => this.fillMissions());
     for (const e of [this.missionSelect, this.randomInput]) e.addEventListener('change', () => this.pickMission());
     this.newRandom = el('button', { type: 'button', class: 'choice', text: 'New code', onclick: () => {

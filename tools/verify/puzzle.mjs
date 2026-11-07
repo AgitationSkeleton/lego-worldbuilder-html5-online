@@ -8,6 +8,7 @@
 
 import { readFileSync } from 'node:fs';
 import { generatePuzzle, readConfig, LATEST } from '../../src/online/puzzle.js';
+import { withNewConfig } from '../../src/online/newunits.js';
 
 const args = process.argv.slice(2);
 const N = Number(args[0]) || 50;
@@ -18,6 +19,11 @@ const V1 = VERSION === 1;
 const data = JSON.parse(readFileSync(new URL('../../data/merged.json', import.meta.url), 'utf8'));
 let text = '';
 for (const c of data.casts) for (const m of Object.values(c.members)) if (m.name === 'config' && !text) text = m.text;
+// (with the units made whole since, as the game has them: src/online/newunits.js)
+try {
+  const units = JSON.parse(readFileSync(new URL('../../assets/online/units/units.json', import.meta.url), 'utf8'));
+  if (units.config) text = withNewConfig(text, units.config);
+} catch (e) { /* (none made yet) */ }
 const config = readConfig(text);
 
 if (SHOW) {

@@ -62,6 +62,9 @@ import { LOOKS as LOOKS1, Rng as Rng1 } from './puzzle/v1/world.js';
 import { Gen as Gen2, Fail as Fail2 } from './puzzle/v2/gen.js';
 import { LOOKS as LOOKS2, Rng as Rng2 } from './puzzle/v2/world.js';
 import { Gen as Gen3, Fail as Fail3 } from './puzzle/v3/gen.js';
+import { Gen as Gen4, Fail as Fail4 } from './puzzle/v4/gen.js';
+import { LOOKS as LOOKS4, Rng as Rng4 } from './puzzle/v4/world.js';
+import { StepError as StepError4 } from './puzzle/v4/model.js';
 import { LOOKS as LOOKS3, Rng as Rng3 } from './puzzle/v3/world.js';
 import { StepError as StepError3 } from './puzzle/v3/model.js';
 
@@ -71,6 +74,7 @@ const SEED_CHARS = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';   // Crockford's base 32
 
 // The generators, newest first: a code's version is its seed's length less three.
 export const GENERATORS = [
+  { version: 5, name: 'Rando v5', looks: 'ABCDE' },
   { version: 4, name: 'Rando v4', looks: 'ABCDE' },
   { version: 3, name: 'Rando v3', looks: 'ABCDE' },
   { version: 2, name: 'Rando v2', looks: 'ABCDE' },
@@ -81,15 +85,18 @@ const MAKERS = {
   1: { Gen: Gen1, Fail: Fail1, LOOKS: LOOKS1, Rng: Rng1, salt: 'wbp2:' },
   2: { Gen: Gen2, Fail: Fail2, LOOKS: LOOKS2, Rng: Rng2, salt: 'wbp3:' },
   3: { Gen: Gen3, Fail: Fail3, LOOKS: LOOKS3, Rng: Rng3, salt: 'wbp4:', StepError: StepError3 },
-  4: { Gen, Fail, LOOKS, Rng, salt: 'wbp5:', StepError },
+  4: { Gen: Gen4, Fail: Fail4, LOOKS: LOOKS4, Rng: Rng4, salt: 'wbp5:', StepError: StepError4 },
+  5: { Gen, Fail, LOOKS, Rng, salt: 'wbp6:', StepError },
 };
 export const LATEST = GENERATORS[0].version;
+// the units of the config the game itself never had (src/online/newunits.js)
+const NEW_KINDS = ['cargo_copter', 'airport'];
 
 // ---------- codes ----------
 
 export function parseCode(code) {
   const s = String(code || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
-  const m = /^([1-3])([A-E])([0-9A-Z]{4,7})$/.exec(s);
+  const m = /^([1-3])([A-E])([0-9A-Z]{4,8})$/.exec(s);
   if (!m) return null;
   const seed = m[3].replace(/O/g, '0').replace(/[IL]/g, '1');
   if ([...seed].some((c) => !SEED_CHARS.includes(c))) return null;
@@ -136,7 +143,10 @@ function mulberry32(a) {
 export function generatePuzzle(configText, code, why = []) {
   const c = parseCode(code);
   if (!c) return null;
-  const cfg = typeof configText === 'string' ? readConfig(configText) : configText;
+  let cfg = typeof configText === 'string' ? readConfig(configText) : configText;
+  // (the generators before v5 see the game's config as it was: not the units made whole since,
+  // which they never had, so that their codes make the missions they always made)
+  if (c.version < 5) cfg = Object.fromEntries(Object.entries(cfg).filter(([k]) => !NEW_KINDS.includes(k)));
   const M = MAKERS[c.version];
   const rng = new M.Rng(mulberry32(hash(M.salt + c.code)));
   // (Rando v4's longer chains take more tries to find)

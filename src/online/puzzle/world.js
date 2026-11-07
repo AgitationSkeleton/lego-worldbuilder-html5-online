@@ -28,27 +28,29 @@ export class Rng {
 }
 
 // What each look is made of.  Walls are what nothing crosses; trees what a treebot can
-// take up; rocks the obstacles that stay.
+// take up; rocks the obstacles that stay.  sky: of the ground nothing crosses between a map's
+// parts, how much is left a hole -- as the game's own worlds have it (world 1 all holes, world 5
+// mostly, worlds 6 and 7 half and half); parts: what the rest is (Rando v5).
 export const LOOKS = {
   A: {
-    name: 'grass', slot: [1, 12], trees: ['T'], rocks: ['M'], walls: ['@', '@', '@', 'M'],
+    name: 'grass', slot: [1, 12], trees: ['T'], rocks: ['M'], walls: ['@', '@', '@', 'M'], sky: 0.95, parts: ['M'],
     monsters: ['crab', 'lion', 'gator', 'shark', 'water_crab'], swamp: true,
   },
   B: {
-    name: 'prehistoric', slot: [5, 12], trees: ['T', '?'], rocks: ['M', '^'], walls: ['@', '@', '^', 'M'],
+    name: 'prehistoric', slot: [5, 12], trees: ['T', '?'], rocks: ['M', '^'], walls: ['@', '@', '^', 'M'], sky: 0.85, parts: ['M'],
     monsters: ['trex', 'scorpion', 'lion', 'gator', 'crab', 'shark'], swamp: true,
   },
   C: {
-    name: 'jungle', slot: [6, 12], trees: ['!', "'", '?'], rocks: ['%', '&', '$', '*'], walls: ['@', '@', '%', '&', '*'],
+    name: 'jungle', slot: [6, 12], trees: ['!', "'", '?'], rocks: ['%', '&', '$', '*'], walls: ['@', '@', '%', '&', '*'], sky: 0.3, parts: ['%', '&', '$', '*'],
     monsters: ['lion', 'gator', 'crab', 'water_crab', 'shark', 'scorpion'], swamp: true,
   },
   D: {
-    name: 'city', slot: [7, 12], trees: ['!', "'"], rocks: ['M', '>'], walls: ['@', '@', '@', '-'],
+    name: 'city', slot: [7, 12], trees: ['!', "'"], rocks: ['M', '>'], walls: ['@', '@', '@', '-'], sky: 0.15, parts: ['>'],
     monsters: ['crab', 'lion', 'shark', 'water_crab', 'gator'], swamp: false, city: true,
   },
   // (World Builder's Ocean World: islands in the sea, reefs, whirlpools, sharks)
   E: {
-    name: 'ocean', slot: [4, 12], trees: ['T'], rocks: ['M'], walls: ['r', 'r', '@'],
+    name: 'ocean', slot: [4, 12], trees: ['T'], rocks: ['M'], walls: ['r', 'r', '@'], sky: 0.95, parts: ['M'],
     monsters: ['shark', 'water_crab', 'gator', 'crab'], swamp: false, ocean: true,
   },
 };

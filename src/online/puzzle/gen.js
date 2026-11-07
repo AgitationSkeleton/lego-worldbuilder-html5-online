@@ -1,4 +1,8 @@
-// Rando v4's generator (Rando v1's, v2's and v3's are kept in src/online/puzzle/v1/, v2/ and v3/):
+// Rando v5's generator (Rando v1's to v4's are kept in src/online/puzzle/v1/ to v4/): as v4's, with
+// the units the game never finished made whole (src/online/newunits.js) among its own: the
+// Bluebird flies over the water a swimmer crosses, and the Cargo Copter carries bricks over a river
+// as a boat does.
+//
 // a mission's layout, the puzzles on its way, its goal and bonus goal, and
 // the solution to all of them, each step played on a live model of the rules as it is
 // written (src/online/puzzle/model.js).
@@ -35,8 +39,11 @@ import { World, LOOKS, SOLID, walk, key, man } from './world.js';
 const CARRIERS = ['forklift', 'forklift', 'buggy', 'dirtbuggy', 'dumptruck'];
 const ROCK_CROSSERS = ['dirtbuggy', 'dumptruck', 'repairbot'];
 const BOATS = ['tugboat', 'freighter'];
-const SWIMMERS = ['duck', 'frog'];
-const GOAL_BUILDINGS = ['house', 'gas_station', 'robot_lab', 'guard_tower', 'factory', 'windmill', 'garage', 'nursery'];
+// (over a river: a boat, or the Cargo Copter, which flies its bricks across; not through a
+// whirlpool, which it goes round)
+const FERRIES = ['tugboat', 'freighter', 'cargo_copter'];
+const SWIMMERS = ['duck', 'frog', 'bluebird'];
+const GOAL_BUILDINGS = ['house', 'gas_station', 'robot_lab', 'guard_tower', 'factory', 'windmill', 'garage', 'nursery', 'airport'];   // (v5: the Airport too)
 const COLORS = ['red', 'yellow', 'green', 'blue', 'white'];
 
 // How thick each link's strip is, at least and at most.
@@ -462,7 +469,7 @@ export class Gen {
 // ---------- energy ----------
 
 // What recharges each kind of unit: buildings, and the repairbot.
-const RECHARGERS = { gas_station: 'normal', robot_lab: 'normal', marina: 'water', repairbot: 'normal' };
+const RECHARGERS = { gas_station: 'normal', robot_lab: 'normal', marina: 'water', repairbot: 'normal', airport: 'normal' };   // (v5: the Airport, for the flyers)
 
 // If a unit would come back from a trip with too little energy, it recharges first: beside
 // a building that recharges it (or a repairbot), made for it if there is none.  Answers
@@ -540,7 +547,7 @@ Gen.prototype.waterSite = function (a, u) {
 // What opens each kind of link.
 export const OPENERS = {
   rock: ROCK_CROSSERS, fill: ['steamshovel'], trees: ['treebot'], boulders: ['dozer'], factory: ['factory'],
-  ferry: BOATS, whirl: BOATS, swim: SWIMMERS, swamp: ['defender'], guard: ['freezebot'],
+  ferry: FERRIES, whirl: BOATS, swim: SWIMMERS, swamp: ['defender'], guard: ['freezebot'],
 };
 
 // How often each kind of link comes, by the look: what the games' own worlds are made of
@@ -1404,7 +1411,8 @@ GOAL_RUN.reach = function (g) {
   } else {
     // one made for it, well away from the goal, so that bringing it is a trip of its own:
     // an animal, mostly
-    const kinds = this.rng.chance(0.5) ? ['duck', 'frog', 'snail'] : ['buggy', 'forklift', 'dirtbuggy', 'dozer', 'steamshovel', 'treebot', 'freezebot', 'repairbot', 'defender', 'dumptruck'];
+    // (v5: the Bluebird and the Cargo Copter among them)
+    const kinds = this.rng.chance(0.5) ? ['duck', 'frog', 'snail', 'bluebird'] : ['buggy', 'forklift', 'dirtbuggy', 'dozer', 'steamshovel', 'treebot', 'freezebot', 'repairbot', 'defender', 'dumptruck', 'cargo_copter'];
     const what = this.rng.pick(kinds);
     let site = null, area = a;
     const far = this.farSite(what, n);
@@ -1651,7 +1659,8 @@ GOAL_RUN.water = function (g) {
   let u;
   if (swimmers.length && this.rng.chance(0.5)) u = this.rng.pick(swimmers).name;
   else {
-    const what = this.rng.weighted([['duck', 3], ['frog', 3], ['fish', 2], ['speedboat', 1], ['tugboat', 1], ['freighter', 0.5]]);
+    // (v5: the flyers too, over the water)
+    const what = this.rng.weighted([['duck', 3], ['frog', 3], ['fish', 2], ['bluebird', 1.5], ['speedboat', 1], ['tugboat', 1], ['freighter', 0.5], ['cargo_copter', 0.75]]);
     const far = this.cfg[what].terrain.includes('normal') ? this.farSite(what, n) : null;
     u = far ? this.make(what, far[2], [far[0], far[1]], { partial: true, fetchPlan: true })
       : this.make(what, a, pond.yard, { partial: true, fetchPlan: false });
@@ -2340,8 +2349,10 @@ Gen.prototype.infill = function () {
     // treebot takes up would be a way between them past what the mission puts there: rocks, or
     // a hole)
     if (new Set([...touches].filter((t) => t.startsWith('a'))).size > 1 || [...touches].some((t) => t.startsWith('x'))) {
-      if (rng.chance(0.4)) continue;
-      for (const [a, b] of part) w.set(a, b, rng.pick(look.rocks));
+      // (a hole mostly, as the look's world has it: the game's grassland keeps its parts apart with
+      // the sky alone, never a mountain range; its prehistoric world with a mountain now and then)
+      if (rng.chance(look.sky !== undefined ? look.sky : 0.4)) continue;
+      for (const [a, b] of part) w.set(a, b, rng.pick(look.parts || look.rocks));
       if (this.stillPlays(() => { for (const [a, b] of part) w.set(a, b, '@'); })) filled += part.length;
       continue;
     }

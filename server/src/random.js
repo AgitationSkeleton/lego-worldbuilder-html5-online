@@ -18,7 +18,7 @@ import { discordFile, plain } from './discord.js';
 
 // (Rando v1's codes have a seed of four characters, Rando v2's of five, Rando v3's of six,
 // Rando v4's of seven: src/online/puzzle.js)
-const CODE = /^([1-3])([A-E])([0-9A-HJKMNP-TV-Z]{4,7})$/;
+const CODE = /^([1-3])([A-E])([0-9A-HJKMNP-TV-Z]{4,8})$/;
 const WORD = /^[a-z0-9_ ]{1,32}$/;
 const MAX_IMAGE = 3 * 1024 * 1024;
 const PER_HOUR = 20;
