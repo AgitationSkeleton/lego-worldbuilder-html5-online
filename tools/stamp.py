@@ -33,18 +33,30 @@ START, END = '<!-- stamp: tools/stamp.py -->', '<!-- /stamp -->'
 
 
 def staged():
+    """Each file's version: the git blob hash of its contents as they are in the working tree -- the
+    committed one for a file unchanged, a new one for a file edited or not yet committed (the new
+    units' pictures), so that a page served from a working copy has every changed file at a new URL
+    (the service worker, sw.js, keeps files by their URL)."""
     out = subprocess.run(['git', 'ls-files', '-s'], cwd=ROOT, capture_output=True, text=True, check=True).stdout
     blobs = {}
     for line in out.splitlines():
         meta, path = line.split('\t', 1)
         blobs[path] = meta.split()[1][:10]
+    # (and the ones edited, or new and not ignored: hashed as they are)
+    changed = subprocess.run(['git', 'ls-files', '-m', '-o', '--exclude-standard'], cwd=ROOT, capture_output=True, text=True, check=True).stdout.split('\n')
+    changed = [p for p in changed if p and os.path.isfile(os.path.join(ROOT, p))]
+    if changed:
+        h = subprocess.run(['git', 'hash-object', '--stdin-paths'], cwd=ROOT, input='\n'.join(changed), capture_output=True, text=True, check=True).stdout.split()
+        for p, x in zip(changed, h):
+            blobs[p] = x[:10]
     return blobs
 
 
 def stamped(html, blobs):
     modules = sorted(p for p in blobs if p.startswith('src/') and p.endswith('.js'))
     imports = {'./' + p: './' + p + '?v=' + blobs[p] for p in modules}
-    files = {p: blobs[p] for p in FETCHED if p in blobs}
+    # (and the new units' pictures: src/online/newunits.js)
+    files = {p: blobs[p] for p in blobs if p in FETCHED or p.startswith('assets/online/units/')}
     block = '\n'.join([
         START,
         '<script type="importmap">' + json.dumps({'imports': imports}, separators=(',', ':')) + '</script>',
