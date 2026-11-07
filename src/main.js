@@ -17,6 +17,7 @@ import { android, checkAndroid, applyOrientation } from './online/android.js';
 import { Screensaver } from './online/screensaver.js';
 import { Editor } from './online/editor.js';
 import { CustomLevels } from './online/levels.js';
+import { addNewUnits, loadNewUnitPictures, setConsistentPortraits, flyerOf } from './online/newunits.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -62,6 +63,8 @@ async function main() {
   };
   // (the movie's media by their contents, as the page names them: src/files.js)
   const assetUrl = (name) => fileUrl('assets/' + game + '/' + name, root);
+  // (the units the game never finished, made whole: src/online/newunits.js)
+  if (game === 'merged') await addNewUnits(data, root);
   const rt = new Runtime({ game, data, scripts, canvas, assetBase: new URL('assets/' + game + '/', root).href, assetUrl, options });
   if (game === 'merged') {
     // The online game fills the window (src/online/layout.js), at the interface size its
@@ -70,7 +73,7 @@ async function main() {
     // (Screensaver Mode, src/online/screensaver.js: made first, so that while it runs it has the
     // clicks and keys before anything else does)
     ui.screensaver = new Screensaver(ui, canvas);
-    rt.layout = makeLayout(rt, { maxScale: () => ui.maxScale(), smooth: () => ui.settings.smoothUnits, dark: () => ui.settings.dark });
+    rt.layout = makeLayout(rt, { maxScale: () => ui.maxScale(), smooth: () => ui.settings.smoothUnits, dark: () => ui.settings.dark, flyer: flyerOf });
     rt.layout.install(scripts.scripts);
     // and a finger does what the mouse did (src/online/touch.js); two pinch the map's zoom
     // in a mission, the interface's size elsewhere
@@ -138,6 +141,15 @@ async function main() {
   window.__step = (n) => rt.step(n);
   const menu = rt.layout && window.__online.menu;
   await rt.load((p) => { if (menu) menu.progress(p); else say('Loading… ' + Math.round(p * 100) + '%'); });
+  if (game === 'merged') {
+    await loadNewUnitPictures(rt, root);
+    // (the Consistent Info Panel Portraits setting: as saved, and as changed)
+    const ui = window.__online;
+    if (ui) {
+      if (ui.settings.consistentPortraits) await setConsistentPortraits(rt, root, true);
+      ui.onSetting = (key, on) => { if (key === 'consistentPortraits') setConsistentPortraits(rt, root, on); };
+    }
+  }
   say('');
   if (menu) {
     const ui = window.__online;

@@ -28,12 +28,15 @@ export const DEFAULTS = {
   deselectRight: true,      // a right click puts down the unit chosen
   smoothKeys: true,         // held arrow keys move the map smoothly
   smoothUnits: true,        // units and monsters glide between the game's frames (layout.js)
+  // pictures: the info panel's portraits of the buggy, the dirtbuggy and the freighter rendered from
+  // their map models, not the game's other builds (newunits.js, setConsistentPortraits)
+  consistentPortraits: false,
   // the Android app (mobile/): which way round the screen is, one of ORIENTATIONS (android.js)
   orientation: 'landscape',
 };
 
 const VOLUMES = ['music', 'sound', 'ui'];
-const SWITCHES = ['dark', 'menuPauses', 'panRight', 'panMiddle', 'deselectRight', 'smoothKeys', 'smoothUnits'];
+const SWITCHES = ['dark', 'menuPauses', 'panRight', 'panMiddle', 'deselectRight', 'smoothKeys', 'smoothUnits', 'consistentPortraits'];
 
 // The Android app's screen: landscape or portrait (each either way up), or turned with the
 // phone, as its rotation setting has it.

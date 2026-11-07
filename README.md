@@ -111,3 +111,22 @@ pulled from there (the `html5` remote).
 [Gamelab](https://en.wikipedia.org/wiki/Gamelab) for The LEGO Group. LEGO is a trademark
 of The LEGO Group, which does not sponsor, authorise or endorse this project; this is an
 unofficial, non-commercial port.
+
+**[JappaWakka](https://github.com/JappaWakka)**'s Stud.io recreations of World Builder's units and buildings, shared in
+[their answer](https://bricks.stackexchange.com/a/16711) to
+[World Builder Game Units](https://bricks.stackexchange.com/questions/15211/world-builder-game-units)
+on Bricks Stack Exchange, were rendered (with the
+[World Builder sprite renderer](https://github.com/AgitationSkeleton/legoworldbuilder_renderer))
+for:
+
+- **the two units the game never finished**, the **Bluebird** and the **Cargo Copter**: their
+  pictures on the map, their info panel portraits and their plan icons, from JappaWakka's models
+  of them;
+- **the "consistent info panel portraits" setting**: portraits of the **Buggy**, the
+  **Dirtbuggy**, the **Freighter** and **World Builder 2's buildings** made from JappaWakka's
+  models of what they look like on the map, where the game's own portraits show other builds
+  (the Buggy and Dirtbuggy portraits are of other vehicles; the Freighter's is the Tugboat's).
+
+The **Airport** that recharges the Cargo Copter (the game has its script and nothing else) is our
+own: the control tower of hand-built models after the airport of LEGO set 4028, *World of
+Bricks*, the set the Cargo Copter comes from, rendered as the game's robot lab is.

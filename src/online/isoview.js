@@ -51,6 +51,12 @@ export function itemSprites(it, terrain) {
   else if (it.t === 'bonus') key = 'goal:bonus';
   else if (it.t === 'whirl') key = 'whirlpool:generic';
   // (the bonus goal is hidden until the goal is reached: here, as the goal is drawn)
+  // (a unit the game's maps never had, the new ones among them: drawn as the game draws every
+  // vehicle and monster, its main sprite (10, 18) from the tile's place: vehicle.generic's placeSprites)
+  if (!SPRITES[key] && it.t === 'unit' && it.cls !== 'building') return [{ m: it.cls + '.' + it.kind + '.right', dx: 10, dy: 18, dz: 6, ink: 36, blend: 100 }];
+  // (and a building the maps never had -- the Airport: its one sprite at the tile's place, as the
+  // game's buildings are, its registration point standing it on the tile)
+  if (!SPRITES[key] && it.t === 'unit' && it.cls === 'building') return [{ m: 'building.' + it.kind, dx: 0, dy: 0, dz: 6, ink: 36, blend: 100 }];
   const list = SPRITES[key] && SPRITES[key].length ? SPRITES[key]
     : key === 'goal:bonus' && SPRITES['goal:goal'] ? SPRITES['goal:goal'].map((s) => (s.m === 'goal.goal' ? Object.assign({}, s, { m: 'goal.bonus' }) : s)) : null;
   if (!list) return null;

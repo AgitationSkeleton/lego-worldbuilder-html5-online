@@ -1,0 +1,266 @@
+{
+ "bitmaps": [
+  {
+   "name": "vehicle.bluebird.right",
+   "file": "vehicle.bluebird.right.png",
+   "width": 31,
+   "height": 26,
+   "regX": 15,
+   "regY": 21
+  },
+  {
+   "name": "vehicle.bluebird.left",
+   "file": "vehicle.bluebird.left.png",
+   "width": 31,
+   "height": 25,
+   "regX": 15,
+   "regY": 20
+  },
+  {
+   "name": "vehicle.bluebird.up",
+   "file": "vehicle.bluebird.up.png",
+   "width": 21,
+   "height": 26,
+   "regX": 10,
+   "regY": 21
+  },
+  {
+   "name": "vehicle.bluebird.down",
+   "file": "vehicle.bluebird.down.png",
+   "width": 21,
+   "height": 24,
+   "regX": 10,
+   "regY": 20
+  },
+  {
+   "name": "vehicle.bluebird.hero",
+   "file": "vehicle.bluebird.hero.png",
+   "width": 107,
+   "height": 100,
+   "regX": 53,
+   "regY": 50
+  },
+  {
+   "name": "vehicle.bluebird.plan",
+   "file": "vehicle.bluebird.plan.png",
+   "width": 24,
+   "height": 20,
+   "regX": 12,
+   "regY": 10
+  },
+  {
+   "name": "vehicle.cargo_copter.right",
+   "file": "vehicle.cargo_copter.right.png",
+   "width": 47,
+   "height": 30,
+   "regX": 23,
+   "regY": 25
+  },
+  {
+   "name": "vehicle.cargo_copter.left",
+   "file": "vehicle.cargo_copter.left.png",
+   "width": 47,
+   "height": 30,
+   "regX": 23,
+   "regY": 25
+  },
+  {
+   "name": "vehicle.cargo_copter.up",
+   "file": "vehicle.cargo_copter.up.png",
+   "width": 34,
+   "height": 32,
+   "regX": 17,
+   "regY": 26
+  },
+  {
+   "name": "vehicle.cargo_copter.down",
+   "file": "vehicle.cargo_copter.down.png",
+   "width": 34,
+   "height": 37,
+   "regX": 17,
+   "regY": 28
+  },
+  {
+   "name": "vehicle.cargo_copter.hero",
+   "file": "vehicle.cargo_copter.hero.png",
+   "width": 107,
+   "height": 100,
+   "regX": 53,
+   "regY": 50
+  },
+  {
+   "name": "vehicle.cargo_copter.plan",
+   "file": "vehicle.cargo_copter.plan.png",
+   "width": 29,
+   "height": 19,
+   "regX": 14,
+   "regY": 9
+  },
+  {
+   "name": "building.airport",
+   "file": "building.airport.png",
+   "width": 33,
+   "height": 66,
+   "regX": 4,
+   "regY": 31
+  },
+  {
+   "name": "building.airport.hero",
+   "file": "building.airport.hero.png",
+   "width": 71,
+   "height": 127,
+   "regX": 35,
+   "regY": 63
+  },
+  {
+   "name": "building.airport.plan",
+   "file": "building.airport.plan.png",
+   "width": 11,
+   "height": 22,
+   "regX": 5,
+   "regY": 11
+  }
+ ],
+ "texts": [
+  {
+   "name": "vehicle.bluebird.description",
+   "text": [
+    [
+     "A little blue bird that flies over land and water, and never gets its feet wet.",
+     4
+    ],
+    [
+     "\r",
+     4
+    ],
+    [
+     "Terrain: ",
+     6
+    ],
+    [
+     "Normal,\rWater\r",
+     4
+    ],
+    [
+     "Speed: ",
+     6
+    ],
+    [
+     "Fast\r",
+     4
+    ],
+    [
+     "Actions: ",
+     6
+    ],
+    [
+     "None",
+     4
+    ]
+   ]
+  },
+  {
+   "name": "vehicle.cargo_copter.description",
+   "text": [
+    [
+     "This chopper flies bricks over land and water. Use the spacebar to pick up and drop off loads.",
+     4
+    ],
+    [
+     "\r",
+     4
+    ],
+    [
+     "Terrain: ",
+     6
+    ],
+    [
+     "Normal,\rWater\r",
+     4
+    ],
+    [
+     "Speed: ",
+     6
+    ],
+    [
+     "Fast\r",
+     4
+    ],
+    [
+     "Actions: ",
+     6
+    ],
+    [
+     "Pick Up,\rDrop Off\r",
+     4
+    ],
+    [
+     "Capacity: ",
+     6
+    ],
+    [
+     "15",
+     4
+    ]
+   ]
+  },
+  {
+   "name": "building.airport.description",
+   "text": [
+    [
+     "The Airport recharges aircraft. Just fly up next to the Airport to recharge.",
+     4
+    ],
+    [
+     "\r",
+     4
+    ],
+    [
+     "Actions: ",
+     6
+    ],
+    [
+     "\rAutomatically \rrefuels aircraft.",
+     4
+    ]
+   ]
+  }
+ ],
+ "config": {
+  "vehicle": "#cargo_copter= [#name:\"Cargo Copter\", #speed: 3, #energy:[#move:1.2], #terrain: [#normal,#street,#normal_undiggable,#water,#water_undiggable,#water_reefs], #carries: 15, #recipe:[#blue:20, #white:10, #energy:1]]",
+  "building": "#airport=[#name:\"Airport\", #recipe:[#white:30, #blue:10, #red:5], #terrain:[#normal,#street], #recharges:[#cargo_copter]]"
+ },
+ "kinds": [
+  "bluebird",
+  "cargo_copter",
+  "airport"
+ ],
+ "consistent": [
+  {
+   "name": "vehicle.buggy.hero",
+   "file": "consistent/vehicle.buggy.hero.png"
+  },
+  {
+   "name": "vehicle.dirtbuggy.hero",
+   "file": "consistent/vehicle.dirtbuggy.hero.png"
+  },
+  {
+   "name": "vehicle.freighter.hero",
+   "file": "consistent/vehicle.freighter.hero.png"
+  }
+ ],
+ "flyers": {
+  "vehicle.bluebird": {
+   "w": 22,
+   "h": 13,
+   "dy": 13,
+   "sway": 2
+  },
+  "vehicle.cargo_copter": {
+   "w": 33,
+   "h": 19,
+   "dy": 18,
+   "sway": 2
+  }
+ }
+}

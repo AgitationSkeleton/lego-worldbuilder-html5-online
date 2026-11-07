@@ -1,0 +1,130 @@
+{
+ "_about": "The units the game never finished (src/online/newunits.js): their config lines by the config's part they go in ([vehicle], [building]: the game's own format), their info panel descriptions (parts, each with the style of the game's: 4 the text, 6 a label), and the kinds the level editor and the generator may use. The Bluebird and Cargo Copter fly (over land and water, as the Bluebird's own config in the game has it), the Cargo Copter recharging at the Airport, a building the game has the script of and nothing else (the Bluebird, an animal, is never recharged: no animal is, in the game). Their pictures come from the World Builder sprite renderer: python tools/new_units.py RENDERER_OUT_FOLDER.",
+ "units": {
+  "bluebird": {
+   "sprite": "vehicle.bluebird",
+   "config": null,
+   "description": [
+    [
+     "A little blue bird that flies over land and water, and never gets its feet wet.",
+     4
+    ],
+    [
+     "\r",
+     4
+    ],
+    [
+     "Terrain: ",
+     6
+    ],
+    [
+     "Normal,\rWater\r",
+     4
+    ],
+    [
+     "Speed: ",
+     6
+    ],
+    [
+     "Fast\r",
+     4
+    ],
+    [
+     "Actions: ",
+     6
+    ],
+    [
+     "None",
+     4
+    ]
+   ],
+   "folder": "bluebird"
+  },
+  "cargo_copter": {
+   "sprite": "vehicle.cargo_copter",
+   "config": {
+    "vehicle": "#cargo_copter= [#name:\"Cargo Copter\", #speed: 3, #energy:[#move:1.2], #terrain: [#normal,#street,#normal_undiggable,#water,#water_undiggable,#water_reefs], #carries: 15, #recipe:[#blue:20, #white:10, #energy:1]]"
+   },
+   "description": [
+    [
+     "This chopper flies bricks over land and water. Use the spacebar to pick up and drop off loads.",
+     4
+    ],
+    [
+     "\r",
+     4
+    ],
+    [
+     "Terrain: ",
+     6
+    ],
+    [
+     "Normal,\rWater\r",
+     4
+    ],
+    [
+     "Speed: ",
+     6
+    ],
+    [
+     "Fast\r",
+     4
+    ],
+    [
+     "Actions: ",
+     6
+    ],
+    [
+     "Pick Up,\rDrop Off\r",
+     4
+    ],
+    [
+     "Capacity: ",
+     6
+    ],
+    [
+     "15",
+     4
+    ]
+   ],
+   "folder": "cargocopter"
+  },
+  "airport": {
+   "sprite": "building.airport",
+   "folder": "airport",
+   "pictures": [
+    "",
+    "hero",
+    "plan"
+   ],
+   "config": {
+    "building": "#airport=[#name:\"Airport\", #recipe:[#white:30, #blue:10, #red:5], #terrain:[#normal,#street], #recharges:[#cargo_copter]]"
+   },
+   "description": [
+    [
+     "The Airport recharges aircraft. Just fly up next to the Airport to recharge.",
+     4
+    ],
+    [
+     "\r",
+     4
+    ],
+    [
+     "Actions: ",
+     6
+    ],
+    [
+     "\rAutomatically \rrefuels aircraft.",
+     4
+    ]
+   ],
+   "reg_like": "building.robot_lab"
+  }
+ },
+ "consistent": {
+  "_about": "The info panel's portraits rendered from the map's own models (the renderer's consistent portraits, each in the box of the game's it replaces), shown instead of the game's when the Consistent Info Panel Portraits setting is on: the game's buggy and dirtbuggy portraits are of other builds than their map models, and its freighter's is the tugboat's.",
+  "vehicle.buggy.hero": "buggy/consistent/vehicle.buggy.hero.png",
+  "vehicle.dirtbuggy.hero": "dirtbuggy/consistent/vehicle.dirtbuggy.hero.png",
+  "vehicle.freighter.hero": "freighter/consistent/vehicle.freighter.hero.png"
+ }
+}

@@ -120,12 +120,18 @@ export class Renderer {
       // (not Director's: a page may draw a sprite a little off where it is, gliding it
       // between the frames; see layout.drawOffset)
       const off = rt.layout && rt.layout.drawOffset ? rt.layout.drawOffset(s) : null;
-      if (z === 1 && !off) {
+      // (not Director's either: something drawn under a sprite -- a flyer's shadow -- and a sway of
+      // its picture alone over it; see layout.underlay, layout.sway)
+      const under = rt.layout && rt.layout.underlay ? rt.layout.underlay(s) : null;
+      const sway = rt.layout && rt.layout.sway ? rt.layout.sway(s) : 0;
+      if (z === 1 && !off && !under && !sway) {
         this.drawSprite(ctx, s);
       } else {
         ctx.save();
         if (z !== 1) ctx.scale(z, z);
         if (off) ctx.translate(off[0], off[1]);
+        if (under) under(ctx);
+        if (sway) ctx.translate(0, sway);
         this.drawSprite(ctx, s);
         ctx.restore();
       }

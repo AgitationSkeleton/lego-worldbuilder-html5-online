@@ -304,7 +304,32 @@ export function makeLayout(rt, options = {}) {
       const k = 1 - this.glidePart();
       return k > 0 ? [(g.prev[0] - g.cur[0]) * k, (g.prev[1] - g.cur[1]) * k] : null;
     },
+    // The flyers (src/online/newunits.js, flyerOf): their shadow drawn under them on the ground, as
+    // the goal's is -- a hard ellipse of the ground a tenth darker -- the same whichever way they
+    // face; and they sway a little over it, as the goal arrow does.
+    underlay(s) {
+      const f = options.flyer && s.member ? options.flyer(s.member.name) : null;
+      if (!f) return null;
+      this.flyerSeen = performance.now();
+      return (ctx) => {
+        ctx.save();
+        ctx.globalAlpha = 0.1;
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.ellipse(s.locH, s.locV + f.dy, f.w / 2, f.h / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      };
+    },
+    sway(s) {
+      const f = options.flyer && s.member ? options.flyer(s.member.name) : null;
+      if (!f) return 0;
+      // (each its own phase, by its channel; a slow bob of a couple of pixels)
+      return Math.sin(performance.now() / 1000 * Math.PI * 2 / 1.6 + (s.channel || 0) * 1.7) * f.sway;
+    },
     wantsDraw() {
+      // (a flyer on the map: drawn on between the frames, so that it sways smoothly)
+      if (this.flyerSeen && performance.now() - this.flyerSeen < 300) return true;
       if (!this.glides.size || this.glidePart() >= 1) return false;
       for (const g of this.glides.values()) if (g.prev[0] !== g.cur[0] || g.prev[1] !== g.cur[1]) return true;
       return false;

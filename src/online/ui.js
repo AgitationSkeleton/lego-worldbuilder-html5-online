@@ -110,7 +110,7 @@ export class OnlineUI {
     const toggle = (key) => {
       const b = [true, false].map((on) => el('button', {
         type: 'button', class: 'choice', text: on ? 'On' : 'Off', 'data-on': String(on),
-        onclick: () => { this.settings[key] = on; this.save(); },
+        onclick: () => { this.settings[key] = on; this.save(); if (this.onSetting) this.onSetting(key, on); },
       }));
       this.switches[key] = b;
       return el('div', { class: 'choices' }, ...b);
@@ -143,7 +143,7 @@ export class OnlineUI {
       for (const o of this.randomLook.options) o.disabled = !!o.value && !looks.includes(o.value);
       if (this.randomLook.selectedOptions[0] && this.randomLook.selectedOptions[0].disabled) this.randomLook.value = '';
     });
-    this.codeInput = el('input', { type: 'text', maxlength: '10', spellcheck: 'false', autocapitalize: 'characters', 'aria-label': 'Mission code', placeholder: 'Code' });
+    this.codeInput = el('input', { type: 'text', maxlength: '11', spellcheck: 'false', autocapitalize: 'characters', 'aria-label': 'Mission code', placeholder: 'Code' });
     this.randomNote = el('p', { class: 'note', 'aria-live': 'polite' });
     // (the Android app is on the whole screen already: there, which way round it turns)
     const fullRow = isAndroidApp()
@@ -173,6 +173,10 @@ export class OnlineUI {
           row('Mouse 2 Deselect', toggle('deselectRight')),
           row('Smooth Arrow-Key/WASD Camera', toggle('smoothKeys'))] : []),
         row('Smooth Unit Movement', toggle('smoothUnits'))),
+      el('section', null,
+        el('h3', { text: 'Pictures' }),
+        el('p', { text: "The game's info panel shows the Buggy and the Dirtbuggy as other builds than the ones on the map, and the Freighter as the Tugboat. These show the map's own models instead." }),
+        row('Consistent Info Panel Portraits', toggle('consistentPortraits'))),
       el('section', null,
         el('h3', { text: 'Score tables' }),
         el('p', { text: 'Each mission is timed to its goal and to its bonus goal. Your best times are kept in this browser; these say whether they go on the tables everyone sees.' }),

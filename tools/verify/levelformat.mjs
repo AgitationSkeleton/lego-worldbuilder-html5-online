@@ -3,7 +3,7 @@
 // meaning to the game what the map's own does (the same ground, the same item on each tile, the
 // same plans in hand); its kinds against the game's config; and levels made to be refused.
 //   node tools/verify/levelformat.mjs
-import { readFileSync } from 'node:fs';
+import fs, { readFileSync } from 'node:fs';
 import { parseMap, toMapText, validate, KINDS, TERRAIN } from '../../src/online/levelformat.js';
 import { readConfig } from '../../src/online/puzzle/config.js';
 
@@ -68,10 +68,13 @@ ok(n === 84, 'all 84 campaign maps: ' + n);
 let cfgText = '';
 for (const c of data.casts) for (const m of Object.values(c.members)) if (m.name === 'config' && !cfgText) cfgText = m.text;
 const cfg = readConfig(cfgText);
-for (const cls of ['vehicle', 'building', 'monster']) for (const k of KINDS[cls]) ok(cfg[k] && cfg[k].cls === cls, k + ' is a ' + cls + ' of the game\'s');
+// (made whole since, their pictures and config in assets/online/units: src/online/newunits.js)
+const NEW = { bluebird: 'vehicle', cargo_copter: 'vehicle', airport: 'building' };
+for (const cls of ['vehicle', 'building', 'monster']) for (const k of KINDS[cls]) if (!(k in NEW)) ok(cfg[k] && cfg[k].cls === cls, k + ' is a ' + cls + ' of the game\'s');
+for (const [k, cls] of Object.entries(NEW)) ok(KINDS[cls].includes(k) && fs.existsSync('assets/online/units/' + cls + '.' + k + (cls === 'vehicle' ? '.right' : '') + '.png'), k + ', made whole, may be placed, its pictures there');
 // (all but those the game has no pictures for, or no script: on the map they would be unseen, or
 // not made at all; no campaign map has them)
-const UNSEEN = ['defender2', 'defender3', 'bluebird'];
+const UNSEEN = ['defender2', 'defender3'];
 for (const [k, v] of Object.entries(cfg)) if (['vehicle', 'building', 'monster'].includes(v.cls)) {
   if (UNSEEN.includes(k)) ok(!KINDS[v.cls].includes(k), 'the game\'s ' + v.cls + ' ' + k + ' (no pictures) may not be placed');
   else ok(KINDS[v.cls].includes(k), 'the game\'s ' + v.cls + ' ' + k + ' may be placed');
