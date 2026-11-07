@@ -147,6 +147,11 @@ export function generatePuzzle(configText, code, why = []) {
   // (the generators before v5 see the game's config as it was: not the units made whole since,
   // which they never had, so that their codes make the missions they always made)
   if (c.version < 5) cfg = Object.fromEntries(Object.entries(cfg).filter(([k]) => !NEW_KINDS.includes(k)));
+  // (the generators see the flyers kept off swamp, as Rando v5 was made with them: flying over it,
+  // which the game lets them since, opens no way a mission needs, and so makes no mission otherwise)
+  for (const k of ['bluebird', 'cargo_copter']) {
+    if (cfg[k] && cfg[k].terrain && cfg[k].terrain.includes('swamp')) cfg = Object.assign({}, cfg, { [k]: Object.assign({}, cfg[k], { terrain: cfg[k].terrain.filter((t) => t !== 'swamp') }) });
+  }
   const M = MAKERS[c.version];
   const rng = new M.Rng(mulberry32(hash(M.salt + c.code)));
   // (Rando v4's longer chains take more tries to find)

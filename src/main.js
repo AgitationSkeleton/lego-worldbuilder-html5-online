@@ -17,7 +17,7 @@ import { android, checkAndroid, applyOrientation } from './online/android.js';
 import { Screensaver } from './online/screensaver.js';
 import { Editor } from './online/editor.js';
 import { CustomLevels } from './online/levels.js';
-import { addNewUnits, loadNewUnitPictures, setConsistentPortraits, flyerOf } from './online/newunits.js';
+import { addNewUnits, loadNewUnitPictures, setConsistentPortraits, flyerOf, installFlyers } from './online/newunits.js';
 
 const GAMES = {
   wb1: { title: 'LEGO World Builder' },
@@ -75,6 +75,8 @@ async function main() {
     ui.screensaver = new Screensaver(ui, canvas);
     rt.layout = makeLayout(rt, { maxScale: () => ui.maxScale(), smooth: () => ui.settings.smoothUnits, dark: () => ui.settings.dark, flyer: flyerOf });
     rt.layout.install(scripts.scripts);
+    // (the flyers over swamp unharmed: src/online/newunits.js)
+    installFlyers(scripts.scripts);
     // and a finger does what the mouse did (src/online/touch.js); two pinch the map's zoom
     // in a mission, the interface's size elsewhere
     const inMission = () => rt.labelAt(rt.frame) === 'play' && rt.layout.minZoom() < 1;

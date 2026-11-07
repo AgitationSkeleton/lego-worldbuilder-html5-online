@@ -43,7 +43,7 @@
   "cargo_copter": {
    "sprite": "vehicle.cargo_copter",
    "config": {
-    "vehicle": "#cargo_copter= [#name:\"Cargo Copter\", #speed: 3, #energy:[#move:1.2], #terrain: [#normal,#street,#normal_undiggable,#water,#water_undiggable,#water_reefs], #carries: 15, #recipe:[#blue:20, #white:10, #energy:1]]"
+    "vehicle": "#cargo_copter= [#name:\"Cargo Copter\", #speed: 3, #energy:[#move:1.2], #terrain: [#normal,#street,#normal_undiggable,#water,#water_undiggable,#water_reefs,#swamp], #carries: 15, #recipe:[#blue:20, #white:10, #energy:1]]"
    },
    "description": [
     [
@@ -126,5 +126,12 @@
   "vehicle.buggy.hero": "buggy/consistent/vehicle.buggy.hero.png",
   "vehicle.dirtbuggy.hero": "dirtbuggy/consistent/vehicle.dirtbuggy.hero.png",
   "vehicle.freighter.hero": "freighter/consistent/vehicle.freighter.hero.png"
+ },
+ "config_patch": {
+  "_about": "Changes to the game's own config lines, made as it is loaded: the Bluebird flies over swamp as over everything else (the game's line, never finished, left swamp out); the flyers take no harm from it (src/online/newunits.js, installFlyers).",
+  "bluebird": [
+   "#terrain: [#normal,#street, #normal_undiggable, #water, #water_undiggable, #water_reefs], #recipe:[#blue:5",
+   "#terrain: [#normal,#street, #normal_undiggable, #water, #water_undiggable, #water_reefs, #swamp], #recipe:[#blue:5"
+  ]
  }
 }

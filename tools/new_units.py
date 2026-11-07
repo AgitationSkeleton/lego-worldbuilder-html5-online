@@ -79,7 +79,8 @@ def main():
         Image.open(p).convert('RGBA').save(os.path.join(OUT, 'consistent', name + '.png'))
         consistent.append({'name': name, 'file': 'consistent/' + name + '.png'})
     json.dump({'bitmaps': bitmaps, 'texts': texts, 'config': {k: '\n'.join(v) for k, v in config.items()}, 'kinds': kinds,
-               'consistent': consistent, 'flyers': flyers},
+               'consistent': consistent, 'flyers': flyers,
+               'config_patch': [v for k, v in (spec.get('config_patch') or {}).items() if not k.startswith('_')]},
               open(os.path.join(OUT, 'units.json'), 'w', encoding='utf-8'), indent=1)
     print('%d pictures of %s in assets/online/units, %d consistent portraits' % (len(bitmaps), ', '.join(kinds), len(consistent)))
 

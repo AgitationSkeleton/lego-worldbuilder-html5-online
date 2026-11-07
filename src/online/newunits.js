@@ -55,6 +55,8 @@ export async function addNewUnits(data, root) {
   for (const c of data.casts) for (const m of Object.values(c.members)) if (m.name && !byName.has(m.name)) byName.set(m.name, m);
   // the config: the new units' lines, each at the end of its part
   const config = byName.get('config');
+  // (the game's own lines changed where a new unit needs it: the Bluebird's terrain, over swamp too)
+  if (config) for (const [from, to] of manifest.config_patch || []) config.text = config.text.split(from).join(to);
   if (config && manifest.config) config.text = withNewConfig(config.text, manifest.config);
   // the descriptions, styled as the game's
   const tpl = byName.get(DESC_TEMPLATE);
@@ -153,6 +155,25 @@ export function flyerOf(memberName) {
   if (!manifest || !manifest.flyers || !memberName) return null;
   const m = /^(.*)\.(right|left|up|down)$/.exec(memberName);
   return m ? manifest.flyers[m[1]] || null : null;
+}
+
+// The flyers fly over swamp unharmed: the game's swamp hurts whatever stands on it a while
+// (checkswampdamage, every unit's each frame); a flyer is passed over. (Not by its config's
+// #shield, the game's own way, which would keep monsters' bites off it too.)
+const FLYERS = new Set(['bluebird', 'cargo_copter']);
+
+export function installFlyers(scripts) {
+  for (const s of scripts) {
+    const f = s.handlers && s.handlers.checkswampdamage;
+    if (!f) continue;
+    s.handlers.checkswampdamage = function (...args) {
+      const cls = this.$ && this.$.pclass;
+      const kind = cls && cls.a ? cls.a[1] : null;
+      const name = kind && kind.key !== undefined ? kind.key : String(kind || '');
+      if (FLYERS.has(String(name).toLowerCase())) { this.$.pswamptime = undefined; return; }
+      return f.apply(this, args);
+    };
+  }
 }
 
 // The new units' kinds, for the level editor and the generator (src/online/levelformat.js).

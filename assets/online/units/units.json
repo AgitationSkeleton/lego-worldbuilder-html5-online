@@ -227,7 +227,7 @@
   }
  ],
  "config": {
-  "vehicle": "#cargo_copter= [#name:\"Cargo Copter\", #speed: 3, #energy:[#move:1.2], #terrain: [#normal,#street,#normal_undiggable,#water,#water_undiggable,#water_reefs], #carries: 15, #recipe:[#blue:20, #white:10, #energy:1]]",
+  "vehicle": "#cargo_copter= [#name:\"Cargo Copter\", #speed: 3, #energy:[#move:1.2], #terrain: [#normal,#street,#normal_undiggable,#water,#water_undiggable,#water_reefs,#swamp], #carries: 15, #recipe:[#blue:20, #white:10, #energy:1]]",
   "building": "#airport=[#name:\"Airport\", #recipe:[#white:30, #blue:10, #red:5], #terrain:[#normal,#street], #recharges:[#cargo_copter]]"
  },
  "kinds": [
@@ -262,5 +262,11 @@
    "dy": 18,
    "sway": 2
   }
- }
+ },
+ "config_patch": [
+  [
+   "#terrain: [#normal,#street, #normal_undiggable, #water, #water_undiggable, #water_reefs], #recipe:[#blue:5",
+   "#terrain: [#normal,#street, #normal_undiggable, #water, #water_undiggable, #water_reefs, #swamp], #recipe:[#blue:5"
+  ]
+ ]
 }
