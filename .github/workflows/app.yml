@@ -24,15 +24,41 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # (the history and tags: the notes are what changed since the last release)
       - name: The version
         id: version
         run: |
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then v="${GITHUB_REF_NAME#v}"
           else v="$(node -p "require('./client/package.json').version.split('.').slice(0, 2).join('.')").${GITHUB_RUN_NUMBER}"; fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
+      - name: The release's notes
+        # What's new: release-notes.md when it changed since the last release (written by hand for a
+        # release worth saying more about), else what each change since it was, in a line each; then
+        # how to install it.
+        run: |
+          prev="$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)"
+          {
+            echo "## What's new"
+            echo
+            if [ -f release-notes.md ] && { [ -z "$prev" ] || ! git diff --quiet "$prev" HEAD -- release-notes.md; }; then
+              cat release-notes.md
+            else
+              git log --no-merges --format='- %s' ${prev:+$prev..}HEAD | grep -v -i -E '^- (merge|restamp)' | head -40
+            fi
+            echo
+            echo "## Installing"
+            echo
+            echo "The same game as the website (https://wbonline.viosarcade.xyz) at this version, with its score tables, races and random missions on the same server. Download the one for your device below."
+            echo
+            echo "- **Windows, macOS, Linux:** the app keeps itself up to date. Windows may warn that it doesn't know the publisher (More info, Run anyway); macOS wants a right-click and Open the first time."
+            echo "- **Android:** open the .apk on the phone to install it, letting your browser install apps if asked. It says when a new one is out, to download over it."
+            echo "- **iPhone and iPad:** install the website from Safari: Share, Add to Home Screen."
+          } > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
       - name: A draft release for the builds to go in
         run: |
-          gh release create "v${{ steps.version.outputs.version }}" --target "$GITHUB_SHA" --draft --title "LEGO World Builder Online v${{ steps.version.outputs.version }}" --notes "The game as an app, for Windows, macOS, Linux and Android, the same as the website (wbonline.viosarcade.xyz) at this version, with its score tables, races and random missions on the same server. Download the one for your device below. The computer apps keep themselves up to date; the Android app (the .apk: open it on the phone to install it, letting your browser install apps if asked) says when a new one is out, to download over it. (Windows may warn that it doesn't know the publisher: More info, Run anyway. macOS wants a right-click and Open the first time.) On an iPhone or iPad, install the website from Safari: Share, Add to Home Screen." || true
+          gh release create "v${{ steps.version.outputs.version }}" --target "$GITHUB_SHA" --draft --title "LEGO World Builder Online v${{ steps.version.outputs.version }}" --notes-file "$RUNNER_TEMP/notes.md" || true
         env:
           GH_TOKEN: ${{ github.token }}
   build:

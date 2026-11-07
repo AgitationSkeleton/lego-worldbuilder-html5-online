@@ -1,7 +1,7 @@
 {
   "name": "lego-worldbuilder-online",
   "productName": "LEGO World Builder Online",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "LEGO World Builder Online, as an app: the game with no browser, updating itself from GitHub Releases.",
   "author": "LEGO World Builder Online contributors",
   "license": "UNLICENSED",
